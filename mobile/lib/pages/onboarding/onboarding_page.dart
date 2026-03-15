@@ -43,8 +43,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
   void _nextPage() {
     if (_currentStep < _totalSteps - 1) {
       _pageController.nextPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.fastOutSlowIn,
       );
     } else {
       // Finalize and go to Main Page
@@ -59,8 +59,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
   void _previousPage() {
     if (_currentStep > 0) {
       _pageController.previousPage(
-        duration: const Duration(milliseconds: 400),
-        curve: Curves.easeInOut,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.fastOutSlowIn,
       );
     }
   }
@@ -96,23 +96,100 @@ class _OnboardingPageState extends State<OnboardingPage> {
               ),
 
               Expanded(
-                child: PageView(
+                child: PageView.builder(
                   controller: _pageController,
                   physics: const NeverScrollableScrollPhysics(),
+                  itemCount: _totalSteps,
                   onPageChanged: (index) {
                     setState(() {
                       _currentStep = index;
                     });
                   },
+                  itemBuilder: (context, index) {
+                    switch (index) {
+                      case 0: return _buildStep1();
+                      case 1: return _buildStepGoal();
+                      case 2: return _buildStepActivity();
+                      case 3: return _buildStepDelivery();
+                      case 4: return _buildStepAge();
+                      case 5: return _buildStepHeight();
+                      case 6: return _buildStepWeight();
+                      case 7: return _buildStepTargetWeight();
+                      default: return const SizedBox.shrink();
+                    }
+                  },
+                ),
+              ),
+
+              // Fixed Bottom Navigation
+              Padding(
+                padding: const EdgeInsets.fromLTRB(32, 12, 32, 32),
+                child: Row(
                   children: [
-                    _buildStep1(),
-                    _buildStepGoal(),
-                    _buildStepActivity(),
-                    _buildStepDelivery(),
-                    _buildStepAge(),
-                    _buildStepHeight(),
-                    _buildStepWeight(),
-                    _buildStepTargetWeight(),
+                    // Animated Back Button
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      width: _currentStep == 0 ? 0 : 56,
+                      height: 56,
+                      margin: EdgeInsets.only(right: _currentStep == 0 ? 0 : 12),
+                      child: AnimatedOpacity(
+                        duration: const Duration(milliseconds: 200),
+                        opacity: _currentStep == 0 ? 0 : 1,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.grey.shade200),
+                          ),
+                          child: IconButton(
+                            onPressed: _previousPage,
+                            icon: const Icon(
+                              Icons.arrow_back_rounded,
+                              color: Color(0xFF1F1235),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Main Action Button
+                    Expanded(
+                      child: Container(
+                        height: 56,
+                        decoration: BoxDecoration(
+                          gradient: _primaryGradient,
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 6),
+                            )
+                          ],
+                        ),
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          onPressed: _nextPage,
+                          child: Text(
+                            _currentStep == 0 
+                                ? "Mulai Sekarang" 
+                                : (_currentStep == _totalSteps - 1 ? "Selesai" : "Lanjutkan"),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 0.2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -170,8 +247,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
               height: 1.5,
             ),
           ),
-          const Spacer(),
-          _buildNextButton("Mulai Sekarang"),
         ],
       ),
     );
@@ -219,10 +294,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(32, 12, 32, 32),
-          child: _buildBottomButtons("Lanjutkan"),
-        ),
       ],
     );
   }
@@ -267,20 +338,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(32, 12, 32, 32),
-          child: _buildBottomButtons("Lanjutkan"),
-        ),
       ],
     );
   }
 
   // ── STEP 4: DELIVERY (vertical options) + Relative/Quick Date ─────────────
   Widget _buildStepDelivery() {
-    final dateText = _deliveryDate == null
-        ? "Belum dipilih"
-        : DateFormat('dd MMMM yyyy').format(_deliveryDate!);
-
     return Column(
       children: [
         Expanded(
@@ -336,76 +399,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   label: "1–2 tahun lalu",
                   approxSubtract: const Duration(days: 540),
                 ),
-                const SizedBox(height: 12),
-                GestureDetector(
-                  onTap: () async {
-                    final initial = _deliveryDate ?? DateTime.now();
-                    final pickedDate = await showDatePicker(
-                      context: context,
-                      initialDate: initial.isAfter(DateTime.now()) ? DateTime.now() : initial,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime.now(),
-                      builder: (context, child) {
-                        return Theme(
-                          data: Theme.of(context).copyWith(
-                            colorScheme: const ColorScheme.light(
-                              primary: Color(0xFF8B5CF6),
-                            ),
-                          ),
-                          child: child!,
-                        );
-                      },
-                    );
-                    if (pickedDate != null) {
-                      setState(() => _deliveryDate = pickedDate);
-                    }
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.calendar_today_rounded,
-                          size: 18,
-                          color: Color(0xFF8B5CF6),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            dateText,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                              color: _deliveryDate == null
-                                  ? Colors.grey.shade500
-                                  : const Color(0xFF1F1235),
-                            ),
-                          ),
-                        ),
-                        Text(
-                          "Pilih tanggal",
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(32, 12, 32, 32),
-          child: _buildBottomButtons("Lanjutkan"),
         ),
       ],
     );
@@ -560,10 +556,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
             ),
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(32, 12, 32, 32),
-          child: _buildBottomButtons(nextButtonText),
-        ),
       ],
     );
   }
@@ -607,38 +599,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  Widget _buildNextButton(String text) {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: _primaryGradient,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF8B5CF6).withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          )
-        ],
-      ),
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-        ),
-        onPressed: _nextPage,
-        child: Text(
-          text,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16, letterSpacing: 0.2),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildActivityCard(String label, ActivityLevel level) {
     final isSelected = _activityLevel == level;
@@ -804,64 +765,5 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  Widget _buildBottomButtons(String nextButtonText) {
-    return Row(
-      children: [
-        // Icon back button
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: IconButton(
-            onPressed: _previousPage,
-            icon: const Icon(
-              Icons.arrow_back_rounded,
-              color: Color(0xFF1F1235),
-            ),
-          ),
-        ),
-        const SizedBox(width: 12),
-        // Continue button
-        Expanded(
-          child: Container(
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: _primaryGradient,
-              borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF8B5CF6).withOpacity(0.3),
-                  blurRadius: 12,
-                  offset: const Offset(0, 6),
-                )
-              ],
-            ),
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                foregroundColor: Colors.white,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              onPressed: _nextPage,
-              child: Text(
-                nextButtonText,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.2,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+
 }
