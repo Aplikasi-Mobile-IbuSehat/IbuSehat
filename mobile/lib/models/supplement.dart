@@ -6,6 +6,7 @@ class Supplement {
   final String description;
   final TimeOfDay? reminderTime;
   final bool isSystemRecommendation;
+  final bool isTaken;
 
   Supplement({
     required this.id,
@@ -13,6 +14,7 @@ class Supplement {
     this.description = '',
     this.reminderTime,
     this.isSystemRecommendation = false,
+    this.isTaken = false,
   });
 
   Supplement copyWith({
@@ -21,6 +23,7 @@ class Supplement {
     String? description,
     TimeOfDay? reminderTime,
     bool? isSystemRecommendation,
+    bool? isTaken,
   }) {
     return Supplement(
       id: id ?? this.id,
@@ -28,6 +31,7 @@ class Supplement {
       description: description ?? this.description,
       reminderTime: reminderTime ?? this.reminderTime,
       isSystemRecommendation: isSystemRecommendation ?? this.isSystemRecommendation,
+      isTaken: isTaken ?? this.isTaken,
     );
   }
 }

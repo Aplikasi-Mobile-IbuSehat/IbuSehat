@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class Food {
   final String id;
   final String name;
@@ -6,6 +8,8 @@ class Food {
   final double protein;
   final double carbs;
   final double fat;
+  final IconData? icon;
+  final Color? color;
 
   Food({
     required this.id,
@@ -15,5 +19,7 @@ class Food {
     this.protein = 0,
     this.carbs = 0,
     this.fat = 0,
+    this.icon,
+    this.color,
   });
 }
