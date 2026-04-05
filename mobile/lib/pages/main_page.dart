@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:mobile/pages/beranda/beranda_page.dart';
 import 'package:mobile/pages/diet/diet_page.dart';
 import 'package:mobile/pages/progress/progress_page.dart';
 import 'package:mobile/pages/settings/settings_page.dart';
 import 'package:mobile/pages/workout/workout_page.dart';
 import 'package:mobile/widgets/app_navbar.dart';
+import 'package:mobile/pages/beranda/sleep_fab.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -14,9 +16,16 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  int _currentIndex = 1; // Default to Diet Page
+  int _currentIndex = 0; // Beranda sebagai halaman awal setelah onboarding
 
-  final List<Widget> _pages = [
+  late final List<Widget> _pages = [
+    BerandaPage(
+      onTabSelected: (index) {
+        setState(() {
+          _currentIndex = index;
+        });
+      },
+    ),
     const ProgressPage(),
     const DietPage(),
     const WorkoutPage(),
@@ -37,6 +46,7 @@ class _MainPageState extends State<MainPage> {
           currentIndex: _currentIndex,
           onTap: (index) => setState(() => _currentIndex = index),
         ),
+        floatingActionButton: _currentIndex == 0 ? const SleepFab() : null,
       ),
     );
   }
