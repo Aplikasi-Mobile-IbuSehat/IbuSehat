@@ -46,14 +46,17 @@ class AppNavbar extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _navItem(context, 0, Icons.bar_chart_rounded,
+                _navItem(context, 0, Icons.home_rounded,
+                    Icons.home_outlined, 'Beranda'),
+                _navItem(context, 1, Icons.bar_chart_rounded,
                     Icons.bar_chart_outlined, 'Progress'),
-                _navItem(context, 1, Icons.restaurant_menu_rounded,
+                _navItem(context, 2, Icons.restaurant_menu_rounded,
                     Icons.restaurant_menu_outlined, 'Diet'),
-                _navItem(context, 2, Icons.fitness_center_rounded,
+                _navItem(context, 3, Icons.fitness_center_rounded,
                     Icons.fitness_center_outlined, 'Workout'),
-                _navItem(context, 3, Icons.person_rounded,
-                    Icons.person_outline_rounded, 'Profil'),
+                _navItem(context, 4, Icons.settings_rounded,
+                    Icons.settings_outlined, 'Setting'),
+
               ],
             ),
           ),
@@ -72,7 +75,7 @@ class AppNavbar extends StatelessWidget {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

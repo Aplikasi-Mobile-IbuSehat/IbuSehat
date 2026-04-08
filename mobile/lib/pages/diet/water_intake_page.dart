@@ -27,6 +27,16 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
     _currentIntake = widget.currentIntake;
   }
 
+  @override
+  void didUpdateWidget(WaterIntakePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentIntake != widget.currentIntake) {
+      setState(() {
+        _currentIntake = widget.currentIntake;
+      });
+    }
+  }
+
   void _addWater(int amount) {
     setState(() {
       _currentIntake += amount;

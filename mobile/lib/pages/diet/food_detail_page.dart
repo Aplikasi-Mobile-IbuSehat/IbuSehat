@@ -22,10 +22,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
   }
 
   double get totalWeight => _weight * _servingSize;
-  double get totalKcal => (widget.food.kcal / widget.food.weight) * totalWeight;
-  double get totalProtein => (widget.food.protein / widget.food.weight) * totalWeight;
-  double get totalCarbs => (widget.food.carbs / widget.food.weight) * totalWeight;
-  double get totalFat => (widget.food.fat / widget.food.weight) * totalWeight;
+  double get totalKcal => widget.food.weight > 0 ? (widget.food.kcal / widget.food.weight) * totalWeight : 0;
+  double get totalProtein => widget.food.weight > 0 ? (widget.food.protein / widget.food.weight) * totalWeight : 0;
+  double get totalCarbs => widget.food.weight > 0 ? (widget.food.carbs / widget.food.weight) * totalWeight : 0;
+  double get totalFat => widget.food.weight > 0 ? (widget.food.fat / widget.food.weight) * totalWeight : 0;
   double get totalFiber => totalCarbs * 0.15;
 
   void _incrementServing() => setState(() => _servingSize++);

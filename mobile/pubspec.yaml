@@ -41,6 +41,12 @@ dependencies:
   flutter_svg: ^2.2.4
   intl: ^0.20.2
   flutter_markdown: ^0.7.7+1
+  video_player: ^2.11.1
+  geolocator: ^13.0.1
+  google_maps_flutter: ^2.7.0
+  shared_preferences: ^2.3.2
+  share_plus: ^12.0.2
+
 
 dev_dependencies:
   flutter_test:
@@ -72,6 +78,9 @@ flutter:
     - assets/icons/water_glass.svg
     - assets/icons/message_circle.svg
     - assets/icons/sparkles_premium.svg
+    - assets/videos/
+    - assets/videos/dumble/
+
 
   # To add assets to your application, add an assets section, like this:
   # assets:

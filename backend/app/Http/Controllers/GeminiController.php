@@ -31,10 +31,9 @@ class GeminiController extends Controller
 
         try {
             // 2. HTTP Request ke Google Gemini API
-            // Kita menggunakan model 'gemini-1.5-flash' karena cepat dan gratis
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json',
-            ])->post("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key={$apiKey}", [
+            ])->post("https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash-lite:generateContent?key={$apiKey}", [
                 'contents' => [
                     [
                         'parts' => [
