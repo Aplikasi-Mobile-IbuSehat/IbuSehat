@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:intl/intl.dart';
 import 'package:mobile/models/user_profile.dart';
 import 'package:mobile/pages/main_page.dart';
 import 'package:mobile/widgets/app_background.dart';
@@ -39,6 +38,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
   bool _touchedHeight = false;
   bool _touchedWeight = false;
   bool _touchedTargetWeight = false;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   void _nextPage() {
     if (_currentStep < _totalSteps - 1) {
@@ -152,7 +157,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         ),
                       ),
                     ),
-                    // Main Action Button
                     Expanded(
                       child: Container(
                         height: 56,
@@ -178,9 +182,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           ),
                           onPressed: _nextPage,
                           child: Text(
-                            _currentStep == 0 
-                                ? "Mulai Sekarang" 
-                                : (_currentStep == _totalSteps - 1 ? "Selesai" : "Lanjutkan"),
+                            _currentStep == 0
+                                ? "Mulai Sekarang"
+                                : (_currentStep == _totalSteps - 1
+                                    ? "Selesai"
+                                    : "Lanjutkan"),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,

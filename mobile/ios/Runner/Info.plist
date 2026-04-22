@@ -45,5 +45,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>IbuSehat membutuhkan lokasi untuk melacak aktivitas lari, jalan, dan bersepeda.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Lokasi digunakan saat pelacakan berlangsung, termasuk di latar belakang pada perangkat yang mendukung.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Lokasi digunakan untuk memperbarui rute aktivitas saat aplikasi di latar belakang.</string>
 </dict>
 </plist>

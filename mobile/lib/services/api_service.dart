@@ -1,9 +1,16 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:mobile/core/api_config.dart';
 
 class ApiService {
-
-  static const String _baseUrl = 'http://127.0.0.1:8000';
+  // Steps to run:
+  // 1. Start XAMPP and make sure MySQL is running
+  // 2. Run: php artisan migrate:fresh --seed
+  // 3. Run: php artisan serve
+  // 4. Run: flutter run -d chrome
+  //
+  // After these 4 steps, Program Latihan should work!
+  static String get _baseUrl => ApiConfig.baseUrl;
 
   /// Kirim pesan ke Gemini AI melalui backend Laravel.
   /// Melempar [Exception] jika terjadi error jaringan atau server.
@@ -34,7 +41,9 @@ class ApiService {
     } on Exception {
       rethrow;
     } catch (e) {
-      throw Exception('Tidak dapat terhubung ke server. Periksa koneksi internet Anda.');
+      throw Exception(
+        'Tidak dapat terhubung ke server. Periksa koneksi internet Anda.',
+      );
     }
   }
 }

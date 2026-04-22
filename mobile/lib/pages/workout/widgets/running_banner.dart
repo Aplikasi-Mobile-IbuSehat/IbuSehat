@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/pages/workout/running_tracker_page.dart';
+import 'package:mobile/screens/tracking_screen.dart';
 
 class RunningBanner extends StatelessWidget {
   const RunningBanner({super.key});
@@ -15,11 +15,11 @@ class RunningBanner extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF7C3AED).withOpacity(0.35),
-            blurRadius: 24,
+            blurRadius: 16,
             offset: const Offset(0, 12),
           ),
         ],
@@ -63,7 +63,7 @@ class RunningBanner extends StatelessWidget {
               onPressed: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => const RunningTrackerPage(),
+                    builder: (_) => const TrackingScreen(),
                   ),
                 );
               },
@@ -72,7 +72,7 @@ class RunningBanner extends StatelessWidget {
                 foregroundColor: const Color(0xFF7C3AED),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(8),
                 ),
                 elevation: 0,
               ),

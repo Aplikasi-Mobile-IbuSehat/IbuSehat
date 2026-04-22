@@ -9,14 +9,17 @@ import 'package:mobile/widgets/app_navbar.dart';
 import 'package:mobile/pages/beranda/sleep_fab.dart';
 
 class MainPage extends StatefulWidget {
-  const MainPage({super.key});
+  const MainPage({super.key, this.initialIndex = 0});
+
+  /// Bottom tab: 0 Beranda, 1 Progress, 2 Diet, 3 Workout, 4 Profile
+  final int initialIndex;
 
   @override
   State<MainPage> createState() => _MainPageState();
 }
 
 class _MainPageState extends State<MainPage> {
-  int _currentIndex = 0; // Beranda sebagai halaman awal setelah onboarding
+  late int _currentIndex;
 
   late final List<Widget> _pages = [
     BerandaPage(
@@ -31,6 +34,12 @@ class _MainPageState extends State<MainPage> {
     const WorkoutPage(),
     const ProfilePage(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, _pages.length - 1);
+  }
 
   @override
   Widget build(BuildContext context) {

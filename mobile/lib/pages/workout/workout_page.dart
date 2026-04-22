@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/pages/workout/widgets/categories_section.dart';
+import 'package:mobile/pages/workout/widgets/program_latihan_section.dart';
 import 'package:mobile/pages/workout/widgets/recommended_section.dart';
 import 'package:mobile/pages/workout/widgets/running_banner.dart';
-import 'package:mobile/pages/workout/active_workout_page.dart';
 import 'package:mobile/widgets/app_background.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mobile/pages/profile/premium_page.dart';
@@ -54,7 +54,9 @@ class _WorkoutPageState extends State<WorkoutPage> {
             SliverAppBar(
               pinned: true,
               expandedHeight: 95.0,
-              backgroundColor: _isScrolled ? const Color(0xFFF8F9FB) : Colors.transparent,
+              backgroundColor: _isScrolled
+                  ? const Color(0xFFF8F9FB)
+                  : Colors.transparent,
               surfaceTintColor: Colors.transparent,
               elevation: _isScrolled ? 1 : 0,
               scrolledUnderElevation: 0,
@@ -68,7 +70,9 @@ class _WorkoutPageState extends State<WorkoutPage> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const PremiumPage()),
+                            MaterialPageRoute(
+                              builder: (context) => const PremiumPage(),
+                            ),
                           );
                         },
                         child: Padding(
@@ -107,7 +111,9 @@ class _WorkoutPageState extends State<WorkoutPage> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const AiChatPage()),
+                            MaterialPageRoute(
+                              builder: (context) => const AiChatPage(),
+                            ),
                           );
                         },
                       ),
@@ -146,8 +152,11 @@ class _WorkoutPageState extends State<WorkoutPage> {
                         });
                       },
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 6),
                     RecommendedSection(selectedCategory: _selectedCategory),
+                    // Sama ritme vertikal dengan jarak banner → Rekomendasi (28)
+                    const SizedBox(height: 28),
+                    const ProgramLatihanSection(),
                   ],
                 ),
               ),

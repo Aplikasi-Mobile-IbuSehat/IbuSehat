@@ -6,7 +6,7 @@ import 'package:mobile/widgets/app_background.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mobile/pages/profile/premium_page.dart';
 import 'package:mobile/pages/chat/ai_chat_page.dart';
-import 'sleep_fab.dart';
+import 'package:mobile/pages/beranda/welcome_dialog.dart';
 
 class BerandaPage extends StatefulWidget {
   final Function(int)? onTabSelected;
@@ -20,11 +20,23 @@ class BerandaPage extends StatefulWidget {
 class _BerandaPageState extends State<BerandaPage> {
   final ScrollController _scrollController = ScrollController();
   bool _isScrolled = false;
+  static bool _hasShownWelcomeDialog = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+
+    if (!_hasShownWelcomeDialog) {
+      _hasShownWelcomeDialog = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const WelcomeDialog(),
+        );
+      });
+    }
   }
 
   @override
@@ -212,11 +224,11 @@ class _BerandaPageState extends State<BerandaPage> {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(26),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF8B5CF6).withOpacity(0.35),
-            blurRadius: 28,
+            blurRadius: 16,
             offset: const Offset(0, 14),
           ),
         ],
@@ -224,13 +236,41 @@ class _BerandaPageState extends State<BerandaPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Aktivitas 7 Hari Terakhir',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Aktivitas 7 Hari Terakhir',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+              GestureDetector(
+                onTap: () {
+                  _showStreakInfoDialog(context);
+                },
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Text(
+                      '!',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFF8B5CF6),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 18),
           Row(
@@ -273,6 +313,71 @@ class _BerandaPageState extends State<BerandaPage> {
           ),
         ],
       ),
+    );
+  }
+
+  void _showStreakInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.info_outline_rounded, color: Color(0xFF8B5CF6)),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Informasi Streak',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF1F1235),
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            "Fitur ini digunakan untuk melacak konsistensi olahraga harian kamu.\n\nSetiap kali kamu menyelesaikan workout, streak akan bertambah dan api tetap menyala.",
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.black87,
+              height: 1.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B5CF6),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'AHSIAP',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -348,7 +453,7 @@ class _BerandaPageState extends State<BerandaPage> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.03),
@@ -506,7 +611,7 @@ class _BerandaPageState extends State<BerandaPage> {
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),

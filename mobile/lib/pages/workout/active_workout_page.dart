@@ -43,6 +43,10 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
   late final int _totalSteps = _videoPlaylist.length; // Otomatis menyesuaikan jumlah video
   
   // Timers
+  Timer? _initialTimer;
+  bool _isInitialCountdown = true;
+  int _initialCountdownSeconds = 5;
+
   Timer? _workoutTimer;
   int _elapsedSeconds = 0; 
   int _currentExerciseSeconds = 30; 
@@ -51,34 +55,95 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
   void initState() {
     super.initState();
     _initializeVideo();
-    _startTimers();
+    _startInitialCountdown();
+  }
+
+  void _startInitialCountdown() {
+    _initialTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        if (_initialCountdownSeconds > 1) {
+          _initialCountdownSeconds--;
+        } else {
+          _isInitialCountdown = false;
+          _initialTimer?.cancel();
+          if (_isVideoInitialized && !_isError) {
+            _controller.play();
+          }
+          _startTimers();
+        }
+      });
+    });
   }
   
-  void _initializeVideo() {
+  // Workaround: Fallback URLs jika file lokal (LFS) rusak/tidak ada
+  final Map<String, String> _networkFallback = {
+    "assets/videos/vid_1.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    "assets/videos/vid_3.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    "assets/videos/vid_4.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "assets/videos/vid_5.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    "assets/videos/vid_6.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+    "assets/videos/vid_7.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
+    "assets/videos/vid_8.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
+    "assets/videos/vid_9.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+    "assets/videos/dumble/1.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+    "assets/videos/dumble/2.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    "assets/videos/dumble/3.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    "assets/videos/dumble/4.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+    "assets/videos/dumble/5.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+    "assets/videos/dumble/6.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
+  };
+
+  void _initializeVideo({bool useFallback = false}) {
+    if (!mounted) return;
+    
     setState(() {
       _isVideoInitialized = false;
       _isError = false;
     });
 
-    _controller = VideoPlayerController.asset(_videoPlaylist[_currentStep])
-      ..initialize().then((_) {
-        if (!mounted) return;
-        setState(() {
-          _isVideoInitialized = true;
-        });
+    final String videoPath = _videoPlaylist[_currentStep];
+    
+    if (useFallback && _networkFallback.containsKey(videoPath)) {
+      debugPrint("🛠 Memakai video fallback (Network) untuk: $videoPath");
+      _controller = VideoPlayerController.networkUrl(Uri.parse(_networkFallback[videoPath]!));
+    } else {
+      _controller = VideoPlayerController.asset(videoPath);
+    }
+
+    _controller.initialize().then((_) {
+      if (!mounted) return;
+      setState(() {
+        _isVideoInitialized = true;
+        _isError = false;
+      });
+      if (!_isInitialCountdown) {
         _controller.play();
-        _controller.setLooping(true);
-      }).catchError((error) {
-        if (!mounted) return;
+      }
+      _controller.setLooping(true);
+    }).catchError((error) {
+      if (!mounted) return;
+      
+      // Jika asset gagal dan belum mencoba fallback, coba otomatis ke network
+      if (!useFallback && _networkFallback.containsKey(videoPath)) {
+        _initializeVideo(useFallback: true);
+      } else {
+        debugPrint("Video Player Error: $error");
         setState(() {
           _isError = true;
         });
-      });
+      }
+    });
   }
 
   void _startTimers() {
+    _workoutTimer?.cancel(); // Pastikan tidak ada timer ganda
     _workoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
+      
+      // Jangan jalankan countdown jika video belum siap atau error (agar user bisa baca pesan error)
+      if (!_isVideoInitialized && !_isError) return;
+
       setState(() {
         _elapsedSeconds++;
         if (_currentExerciseSeconds > 0) {
@@ -111,16 +176,120 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
   }
 
   void _switchVideo() {
+    // 1. Matikan play saat ini
+    _controller.pause();
+    
+    // 2. Simpan referensi ke controller lama
     final oldController = _controller;
-    // Jeda 1 frame sebelum dispose yang lama (menghindari memory leak & error)
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    
+    // 3. Reset state
+    setState(() {
+      _isVideoInitialized = false;
+      _isError = false;
+    });
+
+    // 4. Inisialisasi video baru
+    _initializeVideo();
+
+    // 5. Dispose controller lama setelah inisialisasi baru dimulai (menghindari jeda hitam)
+    Future.delayed(const Duration(milliseconds: 200), () {
       oldController.dispose();
     });
-    _initializeVideo();
+  }
+
+  void _showInfoPopup() {
+    if (widget.exerciseDetails.isEmpty || _currentStep >= widget.exerciseDetails.length) return;
+    final data = widget.exerciseDetails[_currentStep];
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6A35FF),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.info_outline, color: Colors.white, size: 24),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 4.0),
+                          child: Text(
+                            'Tentang Latihan Ini',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF2E1A66)),
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(Icons.close, color: Colors.black54),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    data.description,
+                    style: const TextStyle(fontSize: 14, color: Color(0xFF4A4A68), height: 1.5, fontWeight: FontWeight.w500),
+                  ),
+                  if (data.tips.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Row(
+                      children: const [
+                        Text('💡', style: TextStyle(fontSize: 14)),
+                        SizedBox(width: 8),
+                        Text(
+                          'Tips Penting:',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF6A35FF)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ...data.tips.map((tip) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Padding(
+                                padding: EdgeInsets.only(top: 6.0),
+                                child: Icon(Icons.circle, size: 4, color: Color(0xFF2E1A66)),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  tip,
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFF4A4A68), height: 1.5, fontWeight: FontWeight.w500),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )).toList(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
   void dispose() {
+    _initialTimer?.cancel();
     _workoutTimer?.cancel();
     _controller.dispose();
     super.dispose();
@@ -142,7 +311,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
           children: [
             // Video Section (Top Half)
             Expanded(
-              flex: 6,
+              flex: 7,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -151,11 +320,50 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
                           color: Colors.black87,
                           child: Center(
                             child: Padding(
-                              padding: const EdgeInsets.all(20.0),
-                              child: Text(
-                                "Video '${_videoPlaylist[_currentStep].split('/').last}' Gagal Dimuat / Format Rusak.\n\nJika aplikasi sudah di-Run ulang tapi masih error, artinya format video ini tidak didukung Android/iOS.\nSilakan re-export video ini di aplikasi edit video.",
-                                style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.5),
-                                textAlign: TextAlign.center,
+                              padding: const EdgeInsets.all(24.0),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.error_outline, color: Colors.orangeAccent, size: 48),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    "Gagal Memuat '${_videoPlaylist[_currentStep].split('/').last}'",
+                                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 12),
+                                  const Text(
+                                    "Format video tidak didukung atau file belum di-download (Git LFS).\n\nCoba jalankan 'git lfs pull' di terminal jika Anda developer.",
+                                    style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      ElevatedButton.icon(
+                                        onPressed: _initializeVideo,
+                                        icon: const Icon(Icons.refresh, size: 18),
+                                        label: const Text("Muat Ulang"),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.white24,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      // User tetap bisa lanjut meskipun video error
+                                      ElevatedButton.icon(
+                                        onPressed: _nextStep,
+                                        icon: const Icon(Icons.skip_next, size: 18),
+                                        label: const Text("Lewati"),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.purple,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -175,6 +383,36 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
                               color: Colors.grey[200],
                               child: const Center(child: CircularProgressIndicator(color: Colors.purple)),
                             ),
+                  // Countdown Overlay
+                  if (_isInitialCountdown)
+                    Container(
+                      color: Colors.black54,
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              "Bersiap",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.2,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              "$_initialCountdownSeconds",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 80,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                             
                   // Back Button Top Left
                   Positioned(
@@ -192,13 +430,31 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
                       ),
                     ),
                   ),
+                  
+                  // Info Button Top Right
+                  if (widget.exerciseDetails.isNotEmpty && _currentStep < widget.exerciseDetails.length)
+                    Positioned(
+                      top: 50,
+                      right: 20,
+                      child: GestureDetector(
+                        onTap: _showInfoPopup,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.8),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.info_outline, color: Colors.black, size: 24),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
             
             // Bottom UI Section
             Expanded(
-              flex: 5,
+              flex: 4,
               child: Container(
                 color: Colors.white,
                 child: Column(
@@ -206,7 +462,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
                     // Scrollable content area
                     Expanded(
                       child: SingleChildScrollView(
-                        padding: const EdgeInsets.fromLTRB(24.0, 24.0, 24.0, 0),
+                        padding: const EdgeInsets.fromLTRB(24.0, 16.0, 24.0, 0),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -261,7 +517,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
                                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                                         decoration: BoxDecoration(
                                           color: const Color(0xFFF3EEFF),
-                                          borderRadius: BorderRadius.circular(20),
+                                          borderRadius: BorderRadius.circular(12),
                                           border: Border.all(color: const Color(0xFFD4BBFF), width: 1),
                                         ),
                                         child: Text(
@@ -345,13 +601,6 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
                                 ),
                               ],
                             ),
-                            
-                            // Show Expandable Info Card
-                            if (widget.exerciseDetails.isNotEmpty && _currentStep < widget.exerciseDetails.length) ...[
-                              const SizedBox(height: 24),
-                              _InfoCard(data: widget.exerciseDetails[_currentStep]),
-                            ],
-
                             const SizedBox(height: 16),
                           ],
                         ),
@@ -371,7 +620,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
                                 padding: const EdgeInsets.symmetric(vertical: 18),
                                 side: const BorderSide(color: Colors.black12, width: 1),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                               child: const Text(
@@ -390,7 +639,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(vertical: 18),
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
                               child: Row(
@@ -420,118 +669,4 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
   }
 }
 
-class _InfoCard extends StatefulWidget {
-  final ExerciseData data;
-  const _InfoCard({required this.data});
-
-  @override
-  State<_InfoCard> createState() => _InfoCardState();
-}
-
-class _InfoCardState extends State<_InfoCard> {
-  bool _isExpanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F5FF), 
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE5D5FF), width: 1.5),
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          initiallyExpanded: false,
-          onExpansionChanged: (val) {
-            setState(() { _isExpanded = val; });
-          },
-          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          title: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF6A35FF),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.info_outline, color: Colors.white, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Tentang Latihan Ini',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: Color(0xFF2E1A66)),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      widget.data.description,
-                      style: const TextStyle(fontSize: 13, color: Color(0xFF6A35FF), height: 1.4, fontWeight: FontWeight.w600),
-                      maxLines: _isExpanded ? null : 2,
-                      overflow: _isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16, top: 0),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: const [
-                        Text('💡', style: TextStyle(fontSize: 14)),
-                        SizedBox(width: 8),
-                        Text(
-                          'Tips Penting:',
-                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF6A35FF)),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    ...widget.data.tips.map((tip) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8.0),
-                          child: _buildTip(tip),
-                        )).toList(),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTip(String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(top: 6.0),
-          child: Icon(Icons.circle, size: 4, color: Color(0xFF2E1A66)),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF4A4A68), height: 1.5, fontWeight: FontWeight.w500),
-          ),
-        ),
-      ],
-    );
-  }
-}
+// InfoCard telah digantikan oleh popup dialog (_showInfoPopup).
