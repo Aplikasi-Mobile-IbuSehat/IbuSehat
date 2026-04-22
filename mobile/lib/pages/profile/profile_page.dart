@@ -1,5 +1,8 @@
 import 'package:flutter/cupertino.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:mobile/pages/auth/auth_page.dart';
+import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/widgets/app_background.dart';
 import 'package:mobile/pages/profile/edit_health_data_page.dart';
 import 'package:mobile/pages/profile/language_settings_page.dart';
@@ -18,6 +21,50 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   bool _isNotificationEnabled = true;
   bool _isDarkMode = false;
+  AuthUser? _user;
+  bool _profileLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final cachedUser = await AuthService.instance.currentUser;
+    if (!mounted) return;
+    setState(() {
+      _user = cachedUser;
+      _profileLoading = false;
+    });
+
+    final avatar = _avatarUrl();
+    if (avatar.isNotEmpty) {
+      unawaited(precacheImage(NetworkImage(avatar), context));
+    }
+
+    if (cachedUser == null && await AuthService.instance.isLoggedIn) {
+      await AuthService.instance.syncUserFromApi();
+      final freshUser = await AuthService.instance.currentUser;
+      if (!mounted || freshUser == null) return;
+      setState(() {
+        _user = freshUser;
+      });
+      final freshAvatar = _avatarUrl();
+      if (freshAvatar.isNotEmpty) {
+        unawaited(precacheImage(NetworkImage(freshAvatar), context));
+      }
+    }
+  }
+
+  String _avatarUrl() {
+    final u = _user;
+    if (u?.avatarUrl != null && u!.avatarUrl!.isNotEmpty) {
+      return u.avatarUrl!;
+    }
+    final name = Uri.encodeComponent(u?.name ?? 'User');
+    return 'https://ui-avatars.com/api/?name=$name&background=8B5CF6&color=fff&size=256';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -115,18 +162,39 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildProfileHeader() {
+    if (_profileLoading) {
+      return const Row(
+        children: [
+          SizedBox(
+            width: 80,
+            height: 80,
+            child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+          SizedBox(width: 24),
+          Expanded(
+            child: Text(
+              'Memuat profil…',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1F1235),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final displayName = _user?.name ?? 'Pengguna';
+    final email = _user?.email ?? '—';
+
     return Row(
       children: [
-        // Google Profile Photo Mock
         Container(
           width: 80,
           height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            image: const DecorationImage(
-              image: NetworkImage('https://ui-avatars.com/api/?name=Ibu+Sehat&background=8B5CF6&color=fff&size=256'),
-              fit: BoxFit.cover,
-            ),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF8B5CF6).withOpacity(0.2),
@@ -135,15 +203,28 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ],
           ),
+          clipBehavior: Clip.antiAlias,
+          child: Image.network(
+            _avatarUrl(),
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.low,
+            gaplessPlayback: true,
+            cacheWidth: 320,
+            cacheHeight: 320,
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: const Color(0xFFE9D5FF),
+              child: const Icon(Icons.person_rounded, size: 40, color: Color(0xFF8B5CF6)),
+            ),
+          ),
         ),
         const SizedBox(width: 24),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Ibu Sehat',
-                style: TextStyle(
+              Text(
+                displayName,
+                style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
                   color: Color(0xFF1F1235),
@@ -152,7 +233,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 4),
               Text(
-                'ibusehat@gmail.com',
+                email,
                 style: TextStyle(
                   fontSize: 15,
                   color: const Color(0xFF1F1235).withOpacity(0.5),
@@ -399,7 +480,34 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildLogoutButton() {
     return InkWell(
-      onTap: () {},
+      onTap: () {
+        showCupertinoDialog(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text('Keluar Akun'),
+            content: const Text('Apakah Anda yakin ingin keluar dari akun ini?'),
+            actions: [
+              CupertinoDialogAction(
+                child: const Text('Batal'),
+                onPressed: () => Navigator.pop(context),
+              ),
+              CupertinoDialogAction(
+                isDestructiveAction: true,
+                child: const Text('Keluar'),
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await AuthService.instance.signOut();
+                  if (!mounted) return;
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(builder: (_) => const AuthPage()),
+                    (_) => false,
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 18),

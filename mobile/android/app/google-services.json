@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "502499232288",
+    "project_id": "ibusehat-7905b",
+    "storage_bucket": "ibusehat-7905b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:502499232288:android:dab30f2f6680341cc68a45",
+        "android_client_info": {
+          "package_name": "com.ibusehat.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "502499232288-a2moaita2quj4jgvn9ve9e0jvbe3o1vn.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ibusehat.app",
+            "certificate_hash": "e268be6c57d2dc285be2ffbe119e7af999c8912a"
+          }
+        },
+        {
+          "client_id": "502499232288-nla05vkd7ub40ll14ii567dugogmp9kb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD5JQpZmD9SP2HYSwr0gB5fE3q8Dk5ea9U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "502499232288-nla05vkd7ub40ll14ii567dugogmp9kb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

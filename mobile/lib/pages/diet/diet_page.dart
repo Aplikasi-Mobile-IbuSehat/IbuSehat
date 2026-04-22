@@ -1,5 +1,10 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:mobile/config/api_config.dart';
+import 'package:mobile/services/api_cache_manager.dart';
 import 'package:mobile/models/food.dart';
 import 'package:mobile/models/supplement.dart';
 import 'package:mobile/pages/diet/add_food_page.dart';
@@ -8,6 +13,7 @@ import 'package:mobile/pages/diet/food_detail_page.dart';
 import 'package:mobile/pages/diet/water_intake_page.dart';
 import 'package:mobile/pages/profile/premium_page.dart';
 import 'package:mobile/pages/chat/ai_chat_page.dart';
+import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/widgets/app_background.dart';
 
 class DietPage extends StatefulWidget {
@@ -17,7 +23,13 @@ class DietPage extends StatefulWidget {
   State<DietPage> createState() => _DietPageState();
 }
 
-class _DietPageState extends State<DietPage> {
+class _DietPageState extends State<DietPage> with AutomaticKeepAliveClientMixin {
+  static const int _maxFoodLogItems = 10;
+  static const int _maxSupplementLogItems = 5;
+  bool _isLoadingFoods = true;
+  bool _isLoadingSupplements = true;
+  List<Food> _foodLog = [];
+
   // MOCK DATA
   int _waterIntakeMl = 500;
   final int waterGoalMl = 2500;
@@ -26,10 +38,169 @@ class _DietPageState extends State<DietPage> {
   bool _isScrolled = false;
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _fetchFoodLogs();
+    _fetchSupplementLogs();
   }
+
+  Future<Map<String, String>> _jsonHeaders() async {
+    return AuthService.instance.jsonHeadersWithAuth();
+  }
+
+  String? _formatTimeForApi(TimeOfDay? value) {
+    if (value == null) return null;
+    final hh = value.hour.toString().padLeft(2, '0');
+    final mm = value.minute.toString().padLeft(2, '0');
+    return '$hh:$mm';
+  }
+
+  Future<void> _fetchFoodLogs() async {
+    try {
+      final cacheKey = '${ApiConfig.apiBaseUrl}/food-logs';
+      final data = await ApiCacheManager.instance.getOrFetch(cacheKey, () async {
+        final response = await http.get(
+          Uri.parse(cacheKey),
+          headers: await _jsonHeaders(),
+        );
+        if (response.statusCode == 200) {
+          final json = jsonDecode(response.body);
+          return json['data'] as List<dynamic>;
+        }
+        throw Exception('Gagal memuat log makanan');
+      });
+
+      if (mounted) {
+        setState(() {
+          _foodLog = (data as List<dynamic>).map((e) => Food.fromLogJson(e)).toList();
+          _isLoadingFoods = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingFoods = false);
+    }
+  }
+
+  Future<void> _fetchSupplementLogs() async {
+    try {
+      final cacheKey = '${ApiConfig.apiBaseUrl}/supplement-logs';
+      final data = await ApiCacheManager.instance.getOrFetch(cacheKey, () async {
+        final response = await http.get(
+          Uri.parse(cacheKey),
+          headers: await _jsonHeaders(),
+        );
+        if (response.statusCode == 200) {
+          final json = jsonDecode(response.body);
+          return json['data'] as List<dynamic>;
+        }
+        throw Exception('Gagal memuat log suplemen');
+      });
+
+      if (mounted) {
+        setState(() {
+          _supplements = (data as List<dynamic>)
+              .map((e) => Supplement.fromLogJson(
+                    e as Map<String, dynamic>,
+                    baseUrl: ApiConfig.baseUrl,
+                  ))
+              .toList();
+          _isLoadingSupplements = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingSupplements = false);
+    }
+  }
+
+  Future<Supplement?> _addSupplementLog(Supplement supplement) async {
+    try {
+      final response = await http.post(
+        Uri.parse('${ApiConfig.apiBaseUrl}/supplement-logs'),
+        headers: await _jsonHeaders(),
+        body: jsonEncode({
+          'supplement_id': int.tryParse(supplement.id),
+          'nama_suplemen': supplement.name,
+          'komposisi': supplement.composition,
+          'kemasan': supplement.packaging,
+          'aturan_pakai': supplement.rules,
+          'gambar': _normalizeImageForLog(supplement.imageUrl),
+          'source': supplement.source,
+          'reminder_time': _formatTimeForApi(supplement.reminderTime),
+          'is_taken': supplement.isTaken,
+        }),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic> && decoded['data'] is Map<String, dynamic>) {
+          ApiCacheManager.instance.invalidate('${ApiConfig.apiBaseUrl}/supplement-logs');
+          final data = decoded['data'] as Map<String, dynamic>;
+          return Supplement.fromLogJson(
+            data,
+            baseUrl: ApiConfig.baseUrl,
+          );
+        }
+        ApiCacheManager.instance.invalidate('${ApiConfig.apiBaseUrl}/supplement-logs');
+        await _fetchSupplementLogs();
+        return null;
+      }
+      debugPrint('Add supplement failed (${response.statusCode}): ${response.body}');
+    } catch (e) {
+      debugPrint('Add supplement error: $e');
+    }
+    return null;
+  }
+
+  Future<Supplement?> _updateSupplementLog(Supplement supplement) async {
+    if (supplement.logId == null || supplement.logId!.isEmpty) return null;
+    try {
+      final response = await http.put(
+        Uri.parse('${ApiConfig.apiBaseUrl}/supplement-logs/${supplement.logId}'),
+        headers: await _jsonHeaders(),
+        body: jsonEncode({
+          'supplement_id': int.tryParse(supplement.id),
+          'nama_suplemen': supplement.name,
+          'komposisi': supplement.composition,
+          'kemasan': supplement.packaging,
+          'aturan_pakai': supplement.rules,
+          'gambar': supplement.imageUrl,
+          'source': supplement.source,
+          'reminder_time': _formatTimeForApi(supplement.reminderTime),
+          'is_taken': supplement.isTaken,
+        }),
+      );
+      if (response.statusCode == 200) {
+        ApiCacheManager.instance.invalidate('${ApiConfig.apiBaseUrl}/supplement-logs');
+        final data = jsonDecode(response.body)['data'];
+        return Supplement.fromLogJson(
+          data as Map<String, dynamic>,
+          baseUrl: ApiConfig.baseUrl,
+        );
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<bool> _deleteSupplementLog(Supplement supplement) async {
+    if (supplement.logId == null || supplement.logId!.isEmpty) return false;
+    try {
+      final response = await http.delete(
+        Uri.parse('${ApiConfig.apiBaseUrl}/supplement-logs/${supplement.logId}'),
+        headers: await _jsonHeaders(),
+      );
+      if (response.statusCode == 200) {
+        ApiCacheManager.instance.invalidate('${ApiConfig.apiBaseUrl}/supplement-logs');
+        return true;
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
 
   @override
   void dispose() {
@@ -47,28 +218,11 @@ class _DietPageState extends State<DietPage> {
     }
   }
 
-  final List<Food> _foodLog = [
-    Food(id: '1', name: 'Alpukat', weight: 100, kcal: 160, protein: 2, fat: 15, carbs: 9, icon: Icons.eco, color: const Color(0xFF22C55E)),
-    Food(id: '2', name: 'Telur Rebus', weight: 50, kcal: 78, protein: 6, fat: 5, carbs: 0.6, icon: Icons.egg, color: const Color(0xFFF59E0B)),
-  ];
-
-  final List<Supplement> _supplements = [
-    Supplement(
-        id: 's1',
-        name: 'Vitamin D',
-        description: 'Setelah sarapan',
-        reminderTime: const TimeOfDay(hour: 8, minute: 0),
-        isTaken: true),
-    Supplement(
-        id: 's2',
-        name: 'Kalsium',
-        description: 'Sebelum tidur',
-        reminderTime: const TimeOfDay(hour: 21, minute: 0),
-        isTaken: false),
-  ];
+  List<Supplement> _supplements = [];
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     double totalKcal = _foodLog.fold(0, (sum, item) => sum + item.kcal);
 
     return Scaffold(
@@ -168,9 +322,46 @@ class _DietPageState extends State<DietPage> {
                     const SizedBox(height: 28),
 
                     // Section header
-                    _buildSectionHeader('Daftar Makanan', '+ Tambah', () {
-                      Navigator.push(context,
+                    _buildSectionHeader('Daftar Makanan', '+ Tambah', () async {
+                      if (_foodLog.length >= _maxFoodLogItems) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Maksimal 10 makanan per hari. Hapus salah satu dulu.'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      final result = await Navigator.push<Food>(context,
                           MaterialPageRoute(builder: (context) => const AddFoodPage()));
+                      if (result != null) {
+                        try {
+                          final response = await http.post(
+                            Uri.parse('${ApiConfig.apiBaseUrl}/food-logs'),
+                            headers: await _jsonHeaders(),
+                            body: jsonEncode({
+                              'makanan_id': result.id,
+                              'nama_makanan': result.name,
+                              'weight': result.weight,
+                              'kcal': result.kcal,
+                              'protein': result.protein,
+                              'carbs': result.carbs,
+                              'fat': result.fat,
+                              'category': result.category,
+                              'jenis': result.jenis,
+                            }),
+                          );
+                            if (response.statusCode == 201) {
+                              ApiCacheManager.instance.invalidate('${ApiConfig.apiBaseUrl}/food-logs');
+                              final data = jsonDecode(response.body)['data'];
+                              setState(() {
+                                _foodLog.add(Food.fromLogJson(data));
+                              });
+                            }
+                        } catch (e) {
+                          // Handle error ideally, omitting for brevity
+                        }
+                      }
                     }),
                     const SizedBox(height: 20),
                     _buildFoodLog(),
@@ -184,14 +375,37 @@ class _DietPageState extends State<DietPage> {
 
                     // Supplement
                     _buildSectionHeader('Suplemen Saya', '+ Tambah', () async {
+                      if (_supplements.length >= _maxSupplementLogItems) {
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Maksimal 5 suplemen. Hapus salah satu dulu.'),
+                          ),
+                        );
+                        return;
+                      }
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(builder: (context) => const AddSupplementPage()),
                       );
                       if (result != null && result is Supplement) {
-                        setState(() {
-                          _supplements.add(result);
-                        });
+                        final beforeCount = _supplements.length;
+                        final saved = await _addSupplementLog(result);
+                        if (saved != null && mounted) {
+                          setState(() {
+                            _supplements.add(saved);
+                          });
+                        } else if (mounted) {
+                          await _fetchSupplementLogs();
+                          if (!mounted) return;
+                          final insertedAfterRefresh = _supplements.length > beforeCount;
+                          if (!insertedAfterRefresh) {
+                            ScaffoldMessenger.of(this.context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Gagal menambahkan suplemen. Coba lagi.'),
+                              ),
+                            );
+                          }
+                        }
                       }
                     }),
                     const SizedBox(height: 20),
@@ -352,6 +566,13 @@ class _DietPageState extends State<DietPage> {
   }
 
   Widget _buildFoodLog() {
+    if (_isLoadingFoods) {
+      return Container(
+        height: 200,
+        alignment: Alignment.center,
+        child: const CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+      );
+    }
     if (_foodLog.isEmpty) {
       return _buildEmptyState(Icons.restaurant_menu_rounded, 'Belum ada makanan dicatat');
     }
@@ -406,27 +627,34 @@ class _DietPageState extends State<DietPage> {
                     ),
                   ),
                   const SizedBox(width: 16),
+                  // Name + weight — constrained so kcal has space
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(food.name,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                                fontSize: 14,
-                                color: Color(0xFF1F1235))),
+                        Text(
+                          food.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: Color(0xFF1F1235)),
+                        ),
                         const SizedBox(height: 2),
                         Text('${food.weight.toStringAsFixed(0)} g',
                             style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
                       ],
                     ),
                   ),
+                  const SizedBox(width: 12),
+                  // Kcal — fixed, never pushed
                   Text(
                     '${food.kcal.toStringAsFixed(0)} kcal',
                     style: const TextStyle(
                         fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF1F1235)),
                   ),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 10),
                   const Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 18),
                 ],
               ),
@@ -712,9 +940,10 @@ class _DietPageState extends State<DietPage> {
                                 ),
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    setState(() {
-                                      _supplements[index] = supplement.copyWith(reminderTime: selectedTime);
-                                    });
+                                    _updateSupplementAt(
+                                      index,
+                                      supplement.copyWith(reminderTime: selectedTime),
+                                    );
                                     Navigator.pop(context);
                                   },
                                   style: ElevatedButton.styleFrom(
@@ -767,6 +996,14 @@ class _DietPageState extends State<DietPage> {
   }
 
   Widget _buildSupplementList() {
+    if (_isLoadingSupplements) {
+      return Container(
+        height: 200,
+        alignment: Alignment.center,
+        child: const CircularProgressIndicator(color: Color(0xFF8B5CF6)),
+      );
+    }
+
     if (_supplements.isEmpty) {
       return _buildEmptyState(Icons.medication_outlined, 'Belum ada suplemen');
     }
@@ -807,6 +1044,18 @@ class _DietPageState extends State<DietPage> {
             ),
             child: Row(
               children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF5F3FF),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.12)),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: _buildSupplementImage(supplement),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -818,13 +1067,13 @@ class _DietPageState extends State<DietPage> {
                               color: Color(0xFF1F1235))),
                       const SizedBox(height: 2),
                       Text(
-                        (supplement.isTaken ?? false) ? 'Sudah diminum' : 'Belum diminum',
+                        supplement.isTaken ? 'Sudah diminum' : 'Belum diminum',
                         style: TextStyle(
-                            color: (supplement.isTaken ?? false) 
+                            color: supplement.isTaken 
                                 ? const Color(0xFF22C55E) 
                                 : Colors.grey.shade500, 
                             fontSize: 12,
-                            fontWeight: (supplement.isTaken ?? false) ? FontWeight.w600 : FontWeight.normal),
+                            fontWeight: supplement.isTaken ? FontWeight.w600 : FontWeight.normal),
                       ),
                     ],
                   ),
@@ -853,21 +1102,22 @@ class _DietPageState extends State<DietPage> {
                   ),
                 GestureDetector(
                   onTap: () {
-                    setState(() {
-                      _supplements[index] = supplement.copyWith(isTaken: !(supplement.isTaken ?? false));
-                    });
+                    _updateSupplementAt(
+                      index,
+                      supplement.copyWith(isTaken: !supplement.isTaken),
+                    );
                   },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: (supplement.isTaken ?? false) 
+                      color: supplement.isTaken 
                           ? const Color(0xFF22C55E).withOpacity(0.1) 
                           : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                        color: (supplement.isTaken ?? false) 
+                        color: supplement.isTaken 
                             ? const Color(0xFF22C55E) 
                             : Colors.grey.shade300,
                         width: 1.5,
@@ -875,7 +1125,7 @@ class _DietPageState extends State<DietPage> {
                     ),
                     child: Icon(
                       Icons.check_rounded,
-                      color: (supplement.isTaken ?? false) 
+                      color: supplement.isTaken 
                           ? const Color(0xFF22C55E) 
                           : Colors.grey.shade400,
                       size: 20,
@@ -944,8 +1194,43 @@ class _DietPageState extends State<DietPage> {
                     onTap: () async {
                       Navigator.pop(context);
                       if (isFood) {
-                        Navigator.push(context,
-                            MaterialPageRoute(builder: (context) => FoodDetailPage(food: _foodLog[index])));
+                        final original = _foodLog[index];
+                        final updated = await Navigator.push<Food>(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FoodDetailPage(food: original),
+                          ),
+                        );
+                        if (updated != null) {
+                          try {
+                            final response = await http.put(
+                              Uri.parse('${ApiConfig.apiBaseUrl}/food-logs/${original.id}'),
+                              headers: await _jsonHeaders(),
+                              body: jsonEncode({
+                                'makanan_id': updated.id,
+                                'nama_makanan': updated.name,
+                                'weight': updated.weight,
+                                'kcal': updated.kcal,
+                                'protein': updated.protein,
+                                'carbs': updated.carbs,
+                                'fat': updated.fat,
+                                'category': updated.category,
+                                'jenis': updated.jenis,
+                              }),
+                            );
+
+                            if (response.statusCode == 200) {
+                              ApiCacheManager.instance.invalidate('${ApiConfig.apiBaseUrl}/food-logs');
+                              final data = jsonDecode(response.body)['data'];
+                              if (!mounted) return;
+                              setState(() {
+                                _foodLog[index] = Food.fromLogJson(data);
+                              });
+                            }
+                          } catch (_) {
+                            // Keep silent for now, can be replaced with SnackBar later.
+                          }
+                        }
                       } else {
                         final result = await Navigator.push(
                           context,
@@ -953,9 +1238,7 @@ class _DietPageState extends State<DietPage> {
                               builder: (context) => AddSupplementPage(supplement: _supplements[index])),
                         );
                         if (result != null && result is Supplement) {
-                          setState(() {
-                            _supplements[index] = result;
-                          });
+                          _updateSupplementAt(index, result);
                         }
                       }
                     },
@@ -965,15 +1248,32 @@ class _DietPageState extends State<DietPage> {
                     icon: Icons.delete_outline_rounded,
                     title: 'Hapus',
                     color: Colors.red,
-                    onTap: () {
+                    onTap: () async {
                       Navigator.pop(context);
-                      setState(() {
-                        if (isFood) {
-                          _foodLog.removeAt(index);
-                        } else {
-                          _supplements.removeAt(index);
+                      if (isFood) {
+                        final foodId = _foodLog[index].id;
+                        try {
+                          final response = await http.delete(
+                            Uri.parse('${ApiConfig.apiBaseUrl}/food-logs/$foodId'),
+                            headers: await _jsonHeaders(),
+                          );
+                          if (response.statusCode == 200) {
+                            ApiCacheManager.instance.invalidate('${ApiConfig.apiBaseUrl}/food-logs');
+                            setState(() {
+                              _foodLog.removeAt(index);
+                            });
+                          }
+                        } catch (e) {
+                          // Ignore for now
                         }
-                      });
+                      } else {
+                        final deleted = await _deleteSupplementLog(_supplements[index]);
+                        if (deleted && mounted) {
+                          setState(() {
+                            _supplements.removeAt(index);
+                          });
+                        }
+                      }
                     },
                   ),
                   const SizedBox(height: 8),
@@ -1052,37 +1352,66 @@ class _DietPageState extends State<DietPage> {
     );
   }
 
+  Future<void> _updateSupplementAt(int index, Supplement next) async {
+    final updated = await _updateSupplementLog(next);
+    if (updated == null || !mounted) return;
+    setState(() {
+      _supplements[index] = updated;
+    });
+  }
+
+  String? _normalizeImageForLog(String? imageUrl) {
+    if (imageUrl == null || imageUrl.trim().isEmpty) return null;
+    final raw = imageUrl.trim();
+    if (raw.length <= 255) return raw;
+    final uri = Uri.tryParse(raw);
+    final segments = uri?.pathSegments ?? const <String>[];
+    if (segments.isNotEmpty) {
+      final filename = segments.last;
+      if (filename.length <= 255) return filename;
+    }
+    return raw.substring(raw.length - 255);
+  }
+
   IconData _getFoodIcon(Food food) {
-    if (food.icon != null) return food.icon!;
-    
-    final name = food.name.toLowerCase();
-    if (name.contains('ayam') || name.contains('chicken')) return Icons.kebab_dining;
-    if (name.contains('telur') || name.contains('egg')) return Icons.egg;
-    if (name.contains('nasi') || name.contains('rice')) return Icons.rice_bowl;
-    if (name.contains('ikan') || name.contains('fish')) return Icons.set_meal;
-    if (name.contains('daging') || name.contains('meat') || name.contains('sapi')) return Icons.lunch_dining;
-    if (name.contains('buah') || name.contains('fruit') || name.contains('alpukat')) return Icons.eco;
-    if (name.contains('sayur') || name.contains('veggie')) return Icons.grass;
-    if (name.contains('susu') || name.contains('milk')) return Icons.water_drop;
-    if (name.contains('roti') || name.contains('bread')) return Icons.bakery_dining;
-    
+    final category = (food.category ?? '').toLowerCase();
+    if (category.contains('buah')) return Icons.apple_rounded;
+    if (category.contains('sayur')) return Icons.eco_rounded;
+    if (category.contains('kacang')) return Icons.spa_rounded;
+    if (category.contains('susu')) return Icons.local_drink_rounded;
+    if (category.contains('olahan')) return Icons.restaurant_rounded;
     return Icons.restaurant;
   }
 
   Color _getFoodColor(Food food) {
-    if (food.color != null) return food.color!;
-    
-    final name = food.name.toLowerCase();
-    if (name.contains('ayam') || name.contains('chicken')) return const Color(0xFFF97316); // Orange
-    if (name.contains('telur') || name.contains('egg')) return const Color(0xFFF59E0B); // Amber
-    if (name.contains('nasi') || name.contains('rice')) return const Color(0xFF94A3B8); // Gray/Slate
-    if (name.contains('ikan') || name.contains('fish')) return const Color(0xFF0EA5E9); // Sky Blue
-    if (name.contains('daging') || name.contains('meat') || name.contains('sapi')) return const Color(0xFFEF4444); // Red
-    if (name.contains('buah') || name.contains('fruit') || name.contains('alpukat')) return const Color(0xFF22C55E); // Green
-    if (name.contains('sayur') || name.contains('veggie')) return const Color(0xFF10B981); // Emerald
-    if (name.contains('susu') || name.contains('milk')) return const Color(0xFF38BDF8); // Light Blue
-    if (name.contains('roti') || name.contains('bread')) return const Color(0xFFD97706); // Brownish
-    
+    final category = (food.category ?? '').toLowerCase();
+    if (category.contains('buah')) return const Color(0xFFEF4444);
+    if (category.contains('sayur')) return const Color(0xFF22C55E);
+    if (category.contains('kacang')) return const Color(0xFFF59E0B);
+    if (category.contains('susu')) return const Color(0xFF3B82F6);
+    if (category.contains('olahan')) return const Color(0xFF8B5CF6);
     return const Color(0xFF8B5CF6); // Default Purple
+  }
+
+  Widget _buildSupplementImage(Supplement supplement) {
+    final imageUrl = supplement.imageUrl;
+    if (imageUrl == null || imageUrl.isEmpty) {
+      return const Icon(Icons.medication_outlined, color: Color(0xFF8B5CF6), size: 22);
+    }
+
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      fit: BoxFit.cover,
+      placeholder: (context, url) => Container(
+        color: const Color(0xFFF5F3FF),
+        alignment: Alignment.center,
+        child: const SizedBox(
+          width: 16, height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF8B5CF6)),
+        ),
+      ),
+      errorWidget: (context, url, error) =>
+          const Icon(Icons.medication_outlined, color: Color(0xFF8B5CF6), size: 22),
+    );
   }
 }

@@ -1,8 +1,54 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/pages/main_page.dart';
 import 'package:mobile/pages/onboarding/onboarding_page.dart';
+import 'package:mobile/services/auth_service.dart';
 
-class AuthPage extends StatelessWidget {
+class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
+
+  @override
+  State<AuthPage> createState() => _AuthPageState();
+}
+
+class _AuthPageState extends State<AuthPage> {
+  bool _busy = false;
+
+  Future<void> _onGooglePressed() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+
+    final err = await AuthService.instance.signInWithGoogle();
+
+    if (!mounted) return;
+    setState(() => _busy = false);
+
+    // '' = user batal → diam saja
+    if (err != null && err.isEmpty) return;
+
+    // string error → tampilkan SnackBar
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(err),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // null = sukses → cek apakah sudah pernah onboarding
+    final onboardingDone = await AuthService.instance.isOnboardingDone;
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) =>
+            onboardingDone ? const MainPage() : const OnboardingPage(),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -17,9 +63,7 @@ class AuthPage extends StatelessWidget {
         children: [
           // ── Aurora Background ──
           Positioned.fill(
-            child: CustomPaint(
-              painter: _AuroraPainter(),
-            ),
+            child: CustomPaint(painter: _AuroraPainter()),
           ),
 
           // ── Konten ──
@@ -30,9 +74,7 @@ class AuthPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // ═══════════════════════════════════════
-                  // AREA LOGO — ganti Image.asset di sini
-                  // ═══════════════════════════════════════
+                  // ── Logo ──
                   Container(
                     width: 110,
                     height: 110,
@@ -54,13 +96,7 @@ class AuthPage extends StatelessWidget {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(30),
                       child: const Center(
-                        // ── GANTI BAGIAN INI DENGAN LOGO KAMU ──
-                        // child: Image.asset(
-                        //   'assets/icons/logo.png',
-                        //   width: 70,
-                        //   height: 70,
-                        //   fit: BoxFit.contain,
-                        // ),
+                        // Ganti dengan: Image.asset('assets/icons/logo.png', ...)
                         child: Icon(
                           Icons.play_circle_fill_rounded,
                           size: 60,
@@ -69,13 +105,11 @@ class AuthPage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  // ═══════════════════════════════════════
 
                   const SizedBox(height: 32),
 
-                  // ── Teks Welcome ──
                   const Text(
-                    "Welcome to Ibu Sehat",
+                    'Welcome to Ibu Sehat',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
@@ -87,12 +121,13 @@ class AuthPage extends StatelessWidget {
                   const SizedBox(height: 8),
 
                   Text(
-                    "Pendamping kesehatan ibu pasca melahirkan",
+                    'Pendamping kesehatan ibu pasca melahirkan',
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade500,
                       height: 1.5,
                     ),
+                    textAlign: TextAlign.center,
                   ),
 
                   const SizedBox(height: 40),
@@ -102,19 +137,20 @@ class AuthPage extends StatelessWidget {
                     width: double.infinity,
                     height: 54,
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const OnboardingPage()),
-                        );
-                      },
-                      icon: Image.asset(
-                        "assets/icons/google.webp",
-                        height: 20,
-                      ),
-                      label: const Text(
-                        "Continue with Google",
-                        style: TextStyle(
+                      onPressed: _busy ? null : _onGooglePressed,
+                      icon: _busy
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : Image.asset(
+                              'assets/icons/google.webp',
+                              height: 20,
+                            ),
+                      label: Text(
+                        _busy ? 'Memproses...' : 'Continue with Google',
+                        style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: Color(0xFF374151),
@@ -122,9 +158,7 @@ class AuthPage extends StatelessWidget {
                       ),
                       style: OutlinedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        side: BorderSide(
-                          color: Colors.grey.withOpacity(0.25),
-                        ),
+                        side: BorderSide(color: Colors.grey.withOpacity(0.25)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
@@ -134,9 +168,8 @@ class AuthPage extends StatelessWidget {
 
                   const SizedBox(height: 16),
 
-                  // Terms & Privacy note
                   Text(
-                    "By continuing, you agree to our\nTerms of Service and Privacy Policy",
+                    'By continuing, you agree to our\nTerms of Service and Privacy Policy',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 11,
@@ -174,7 +207,6 @@ class _AuroraPainter extends CustomPainter {
           const Color(0xFFD4AAFF).withOpacity(0.75),
           const Color(0xFFE8CCFF).withOpacity(0.0),
         ]);
-
     _drawBlob(canvas,
         center: Offset(w * 0.82, h * 0.05),
         radiusX: w * 0.40,
@@ -183,7 +215,6 @@ class _AuroraPainter extends CustomPainter {
           const Color(0xFFF4AAEE).withOpacity(0.65),
           const Color(0xFFFCDDFF).withOpacity(0.0),
         ]);
-
     _drawBlob(canvas,
         center: Offset(w * 0.15, h * 0.08),
         radiusX: w * 0.36,
@@ -192,7 +223,6 @@ class _AuroraPainter extends CustomPainter {
           const Color(0xFFAADDFF).withOpacity(0.55),
           const Color(0xFFCCEEFF).withOpacity(0.0),
         ]);
-
     _drawBlob(canvas,
         center: Offset(w * 0.48, h * 0.16),
         radiusX: w * 0.26,

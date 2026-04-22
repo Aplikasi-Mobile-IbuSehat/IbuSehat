@@ -1,14 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:mobile/config/api_config.dart';
 
 class ApiService {
-
-  static const String _baseUrl = 'http://127.0.0.1:8000';
-
   /// Kirim pesan ke Gemini AI melalui backend Laravel.
   /// Melempar [Exception] jika terjadi error jaringan atau server.
   Future<String> sendChatMessage(String prompt) async {
-    final uri = Uri.parse('$_baseUrl/api/gemini/chat');
+    final uri = Uri.parse('${ApiConfig.apiBaseUrl}/gemini/chat');
 
     try {
       final response = await http

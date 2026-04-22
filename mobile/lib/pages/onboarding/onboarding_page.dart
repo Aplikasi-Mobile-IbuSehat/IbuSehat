@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:intl/intl.dart';
 import 'package:mobile/models/user_profile.dart';
 import 'package:mobile/pages/main_page.dart';
+import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/widgets/app_background.dart';
 
 class OnboardingPage extends StatefulWidget {
@@ -40,15 +40,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
   bool _touchedWeight = false;
   bool _touchedTargetWeight = false;
 
-  void _nextPage() {
+  Future<void> _nextPage() async {
     if (_currentStep < _totalSteps - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 350),
         curve: Curves.fastOutSlowIn,
       );
     } else {
-      // Finalize and go to Main Page
-      // (Profile persistence can be added later if needed.)
+      await AuthService.instance.setOnboardingDone();
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MainPage()),
@@ -270,11 +270,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     color: Color(0xFF1F1235),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  "Opsional • boleh dilewati",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
-                ),
                 const SizedBox(height: 10),
                 Text(
                   "Apa yang ingin kamu capai?",
@@ -316,11 +311,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     color: Color(0xFF1F1235),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  "Opsional • boleh dilewati",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
-                ),
                 const SizedBox(height: 10),
                 Text(
                   "Pilih tingkat aktivitas harianmu",
@@ -360,12 +350,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     color: Color(0xFF1F1235),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  "Opsional • boleh dilewati",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
                 const Text(
                   "Jenis Persalinan",
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
@@ -506,11 +491,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     fontWeight: FontWeight.w800,
                     color: Color(0xFF1F1235),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Opsional • boleh dilewati",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 10),
                 Text(
