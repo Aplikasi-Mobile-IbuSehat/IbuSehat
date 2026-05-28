@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('pace', 16)->nullable();
             $table->unsignedInteger('calories')->default(0);
             $table->json('coordinates');
+
             $table->dateTime('started_at');
             $table->dateTime('ended_at');
             $table->timestamps();

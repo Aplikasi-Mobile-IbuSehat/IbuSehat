@@ -13,6 +13,15 @@ class MainPage extends StatefulWidget {
 
   /// Bottom tab: 0 Beranda, 1 Progress, 2 Diet, 3 Workout, 4 Profile
   final int initialIndex;
+  const MainPage({
+    super.key,
+    this.initialIndex = 0,
+    this.progressRefreshToken = 0,
+  });
+
+  /// Bottom tab: 0 Beranda, 1 Progress, 2 Diet, 3 Workout, 4 Profile
+  final int initialIndex;
+  final int progressRefreshToken;
 
   @override
   State<MainPage> createState() => _MainPageState();
@@ -29,7 +38,7 @@ class _MainPageState extends State<MainPage> {
         });
       },
     ),
-    const ProgressPage(),
+    ProgressPage(refreshToken: widget.progressRefreshToken),
     const DietPage(),
     const WorkoutPage(),
     const ProfilePage(),

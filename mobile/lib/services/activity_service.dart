@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/core/api_config.dart';
+import 'package:mobile/config/api_config.dart';
 import 'package:mobile/models/activity_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -25,6 +26,7 @@ class ActivityService {
   static Future<String?> _bearerToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
+    return prefs.getString('sanctum_token');
   }
 
   static Map<String, String> _jsonHeaders(String? token) {
@@ -58,6 +60,8 @@ class ActivityService {
         : (token.length <= 10
             ? '(len=${token.length})'
             : '(len=${token.length}, head=${token.substring(0, 8)}…)');
+              ? '(len=${token.length})'
+              : '(len=${token.length}, head=${token.substring(0, 8)}…)');
     debugPrint('LANGKAH TOKEN: $tokenPreview');
 
     if (token == null || token.isEmpty) {
@@ -76,6 +80,7 @@ class ActivityService {
       debugPrint(
         'LANGKAH RESPONSE status=${res.statusCode} headers=$hdrs',
       );
+      debugPrint('LANGKAH RESPONSE status=${res.statusCode} headers=$hdrs');
       debugPrint('LANGKAH API RESPONSE BODY: ${res.body}');
 
       switch (res.statusCode) {
@@ -99,6 +104,12 @@ class ActivityService {
           }
         case 401:
           _logSummaryFailure('401', statusCode: 401, body: res.body, headers: hdrs);
+          _logSummaryFailure(
+            '401',
+            statusCode: 401,
+            body: res.body,
+            headers: hdrs,
+          );
           throw LangkahSummaryError('Sesi habis, silakan login ulang');
         case 404:
           _logSummaryFailure('404', statusCode: 404, body: res.body);
@@ -151,6 +162,7 @@ class ActivityService {
             headers: _jsonHeaders(token),
             body: jsonEncode(payload),
           )
+          .post(uri, headers: _jsonHeaders(token), body: jsonEncode(payload))
           .timeout(_httpTimeout);
       final body = jsonDecode(res.body);
       if (res.statusCode != 201) {
@@ -162,6 +174,50 @@ class ActivityService {
     } catch (e, st) {
       debugPrint('ActivityService.saveActivity: $e\n$st');
       rethrow;
+    }
+  }
+
+  static Future<List<ActivityModel>> fetchActivities() async {
+    final token = await _bearerToken();
+    if (token == null || token.isEmpty) {
+      throw LangkahSummaryError('Belum login');
+    }
+
+    final uri = Uri.parse('${ApiConfig.baseUrl}/api/activities');
+    try {
+      final res = await http
+          .get(uri, headers: _jsonHeaders(token))
+          .timeout(_httpTimeout);
+
+      if (res.statusCode == 401) {
+        throw LangkahSummaryError('Sesi habis, silakan login ulang');
+      }
+
+      if (res.statusCode != 200) {
+        throw LangkahSummaryError('Tidak ada koneksi');
+      }
+
+      final decoded = jsonDecode(res.body);
+      if (decoded is! Map<String, dynamic>) {
+        throw LangkahSummaryError('Tidak ada koneksi');
+      }
+
+      final rawList = decoded['data'] as List<dynamic>? ?? const [];
+      return rawList
+          .whereType<Map<String, dynamic>>()
+          .map(ActivityModel.fromJson)
+          .toList();
+    } on LangkahSummaryError {
+      rethrow;
+    } on TimeoutException catch (e, st) {
+      debugPrint('ActivityService.fetchActivities timeout: $e\n$st');
+      throw LangkahSummaryError('Tidak ada koneksi');
+    } on SocketException catch (e, st) {
+      debugPrint('ActivityService.fetchActivities socket: $e\n$st');
+      throw LangkahSummaryError('Tidak ada koneksi');
+    } catch (e, st) {
+      debugPrint('ActivityService.fetchActivities: $e\n$st');
+      throw LangkahSummaryError('Tidak ada koneksi');
     }
   }
 }

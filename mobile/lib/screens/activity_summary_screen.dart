@@ -6,6 +6,7 @@ import 'package:mobile/models/recording_session_result.dart';
 import 'package:mobile/pages/main_page.dart';
 import 'package:mobile/services/activity_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/services/auth_service.dart';
 
 const String _kDarkTileUrl =
     'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
@@ -22,6 +23,7 @@ class ActivitySummaryScreen extends StatefulWidget {
 class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
   final MapController _mapController = MapController();
   String _userName = 'Pengguna';
+  String? _avatarUrl;
   bool _saving = false;
 
   @override
@@ -37,12 +39,23 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
     if (n != null && n.isNotEmpty) {
       setState(() => _userName = n);
     }
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await AuthService.instance.currentUser;
+    if (!mounted) return;
+    setState(() {
+      _userName = (user?.name.isNotEmpty ?? false) ? user!.name : 'Pengguna';
+      _avatarUrl = user?.avatarUrl;
+    });
   }
 
   String _activityTitle() {
     final h = widget.session.startedAt.hour;
     final period =
         h < 12 ? 'Morning' : (h < 17 ? 'Afternoon' : 'Evening');
+    final period = h < 12 ? 'Morning' : (h < 17 ? 'Afternoon' : 'Evening');
     switch (widget.session.apiType) {
       case 'walking':
         return '$period Walk';
@@ -93,6 +106,7 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
               bounds: bounds,
               padding: const EdgeInsets.all(48),
             ),
+            CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(48)),
           );
         } else {
           _mapController.move(pts.first, 14);
@@ -113,6 +127,10 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(
           builder: (_) => const MainPage(initialIndex: 1),
+          builder: (_) => MainPage(
+            initialIndex: 1,
+            progressRefreshToken: DateTime.now().microsecondsSinceEpoch,
+          ),
         ),
         (route) => false,
       );
@@ -121,6 +139,9 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(e.toString())),
       );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -131,6 +152,7 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
       MaterialPageRoute<void>(
         builder: (_) => const MainPage(initialIndex: 3),
       ),
+      MaterialPageRoute<void>(builder: (_) => const MainPage(initialIndex: 3)),
       (route) => false,
     );
   }
@@ -179,6 +201,7 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
                       ),
                     ),
                   ),
+                  _buildAvatar(),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -365,6 +388,30 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar() {
+    final initial = _userName.isNotEmpty ? _userName[0].toUpperCase() : '?';
+    final avatarUrl = _avatarUrl;
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: 22,
+        backgroundImage: NetworkImage(avatarUrl),
+        backgroundColor: const Color(0xFF7C3AED),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 22,
+      backgroundColor: const Color(0xFF7C3AED),
+      child: Text(
+        initial,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w800,
+        ),
       ),
     );
   }

@@ -10,7 +10,9 @@ import 'package:mobile/pages/profile/premium_page.dart';
 import 'package:mobile/pages/chat/ai_chat_page.dart';
 
 class ProgressPage extends StatefulWidget {
-  const ProgressPage({super.key});
+  const ProgressPage({super.key, this.refreshToken = 0});
+
+  final int refreshToken;
 
   @override
   State<ProgressPage> createState() => _ProgressPageState();
@@ -54,7 +56,9 @@ class _ProgressPageState extends State<ProgressPage> {
             SliverAppBar(
               pinned: true,
               expandedHeight: 95.0,
-              backgroundColor: _isScrolled ? const Color(0xFFF8F9FB) : Colors.transparent,
+              backgroundColor: _isScrolled
+                  ? const Color(0xFFF8F9FB)
+                  : Colors.transparent,
               surfaceTintColor: Colors.transparent,
               elevation: _isScrolled ? 1 : 0,
               scrolledUnderElevation: 0,
@@ -68,7 +72,9 @@ class _ProgressPageState extends State<ProgressPage> {
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const PremiumPage()),
+                            MaterialPageRoute(
+                              builder: (context) => const PremiumPage(),
+                            ),
                           );
                         },
                         child: Padding(
@@ -107,7 +113,9 @@ class _ProgressPageState extends State<ProgressPage> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const AiChatPage()),
+                            MaterialPageRoute(
+                              builder: (context) => const AiChatPage(),
+                            ),
                           );
                         },
                       ),
@@ -135,10 +143,12 @@ class _ProgressPageState extends State<ProgressPage> {
                 child: Column(
                   children: [
                     Row(
-                      children: const [
-                        Expanded(child: LangkahCard()),
-                        SizedBox(width: 16),
-                        Expanded(child: ScoreTidurCard()),
+                      children: [
+                        const Expanded(
+                          child: LangkahCard(),
+                        ),
+                        const SizedBox(width: 16),
+                        const Expanded(child: ScoreTidurCard()),
                       ],
                     ),
                     const SizedBox(height: 16),

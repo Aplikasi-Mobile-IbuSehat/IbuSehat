@@ -4,6 +4,12 @@ import 'package:mobile/pages/auth/auth_page.dart';
 import 'package:mobile/screens/tracking_screen.dart';
 import 'package:mobile/services/tracking_notifications.dart';
 
+
+import 'package:mobile/pages/main_page.dart';
+import 'package:mobile/pages/onboarding/onboarding_page.dart';
+import 'package:mobile/services/auth_service.dart';
+import 'package:mobile/screens/tracking_screen.dart';
+import 'package:mobile/services/tracking_notifications.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
 /// Used for notification tap → [Navigator.pushNamed] `/tracking`.
@@ -31,6 +37,31 @@ Future<void> main() async {
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _openTrackingIfLaunchedFromNotification();
+    });
+  }
+
+  Future<void> _openTrackingIfLaunchedFromNotification() async {
+    final details = await TrackingNotifications.getLaunchDetails();
+    if (details?.didNotificationLaunchApp != true) return;
+    if (details!.notificationResponse?.payload !=
+        TrackingNotifications.payloadOpenTracking) {
+      return;
+    }
+    if (!mounted) return;
+    appNavigatorKey.currentState?.pushNamed<void>('/tracking');
+  }
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -62,6 +93,8 @@ class _MyAppState extends State<MyApp> {
       navigatorKey: appNavigatorKey,
       debugShowCheckedModeBanner: false,
       home: const AuthPage(),
+
+      home: const _AppEntry(),
       routes: {
         '/tracking': (_) => const TrackingScreen(),
       },

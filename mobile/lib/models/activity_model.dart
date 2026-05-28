@@ -10,6 +10,8 @@ class ActivityCoordinate {
     return ActivityCoordinate(
       lat: (json['lat'] as num).toDouble(),
       lng: (json['lng'] as num).toDouble(),
+      lat: (json['lat'] as num?)?.toDouble() ?? 0.0,
+      lng: (json['lng'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
@@ -54,6 +56,20 @@ class ActivityModel {
       coordinates: coords,
       startedAt: DateTime.parse(json['started_at'] as String),
       endedAt: DateTime.parse(json['ended_at'] as String),
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      type: json['type'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      distanceKm: (json['distance_km'] as num?)?.toDouble() ?? 0.0,
+      durationSeconds: (json['duration_seconds'] as num?)?.toInt() ?? 0,
+      pace: json['pace'] as String?,
+      calories: (json['calories'] as num?)?.toInt() ?? 0,
+      coordinates: coords,
+      startedAt:
+          DateTime.tryParse(json['started_at'] as String? ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+      endedAt:
+          DateTime.tryParse(json['ended_at'] as String? ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0),
     );
   }
 }
@@ -99,6 +115,20 @@ class ActivitySummaryResponse {
       todayStepsEstimate: steps,
       monthDistanceKm: (json['month_distance_km'] as num?)?.toDouble() ?? 0,
       latestActivity: json['latest_activity'] != null
+    final todayDistanceKm =
+        (json['today_distance_km'] as num?)?.toDouble() ?? 0.0;
+    final monthDistanceKm =
+        (json['month_distance_km'] as num?)?.toDouble() ?? 0.0;
+    final todayStepsEstimate =
+        (json['today_steps'] as num?)?.toInt() ??
+        (json['today_steps_estimate'] as num?)?.toInt() ??
+        0;
+
+    return ActivitySummaryResponse(
+      todayDistanceKm: todayDistanceKm,
+      todayStepsEstimate: todayStepsEstimate,
+      monthDistanceKm: monthDistanceKm,
+      latestActivity: json['latest_activity'] is Map<String, dynamic>
           ? ActivityModel.fromJson(
               json['latest_activity'] as Map<String, dynamic>,
             )
@@ -123,6 +153,10 @@ class WeeklyChartDay {
     return WeeklyChartDay(
       label: label,
       distanceKm: (json['distance_km'] as num?)?.toDouble() ?? 0,
+    final label = json['day'] as String? ?? json['date'] as String? ?? '--';
+    return WeeklyChartDay(
+      label: label,
+      distanceKm: (json['distance_km'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }

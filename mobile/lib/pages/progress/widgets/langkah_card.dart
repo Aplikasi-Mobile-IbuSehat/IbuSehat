@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/models/activity_model.dart';
 import 'package:mobile/services/activity_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/screens/activity_history_screen.dart';
 
 class LangkahCard extends StatefulWidget {
   const LangkahCard({super.key});
@@ -247,9 +248,66 @@ class _LangkahCardState extends State<LangkahCard> {
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: Color(0xFF1F1235),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const ActivityHistoryScreen()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: const [
+                Text(
+                  'Record Lari',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F1235),
+                  ),
+                ),
+                Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+              ],
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '🏃',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF1F1235),
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Divider(color: Colors.grey.withOpacity(0.2), height: 1),
+            const SizedBox(height: 12),
+            const Text(
+              'Lihat Riwayat',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1F1235),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
