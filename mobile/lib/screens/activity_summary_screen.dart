@@ -5,7 +5,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:mobile/models/recording_session_result.dart';
 import 'package:mobile/pages/main_page.dart';
 import 'package:mobile/services/activity_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/services/auth_service.dart';
 
 const String _kDarkTileUrl =
@@ -29,16 +28,6 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
   @override
   void initState() {
     super.initState();
-    _loadName();
-  }
-
-  Future<void> _loadName() async {
-    final prefs = await SharedPreferences.getInstance();
-    final n = prefs.getString('user_name') ?? prefs.getString('name');
-    if (!mounted) return;
-    if (n != null && n.isNotEmpty) {
-      setState(() => _userName = n);
-    }
     _loadUser();
   }
 
@@ -53,8 +42,6 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
 
   String _activityTitle() {
     final h = widget.session.startedAt.hour;
-    final period =
-        h < 12 ? 'Morning' : (h < 17 ? 'Afternoon' : 'Evening');
     final period = h < 12 ? 'Morning' : (h < 17 ? 'Afternoon' : 'Evening');
     switch (widget.session.apiType) {
       case 'walking':
@@ -102,10 +89,6 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
         if (pts.length >= 2) {
           final bounds = LatLngBounds.fromPoints(pts);
           _mapController.fitCamera(
-            CameraFit.bounds(
-              bounds: bounds,
-              padding: const EdgeInsets.all(48),
-            ),
             CameraFit.bounds(bounds: bounds, padding: const EdgeInsets.all(48)),
           );
         } else {
@@ -126,7 +109,6 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute<void>(
-          builder: (_) => const MainPage(initialIndex: 1),
           builder: (_) => MainPage(
             initialIndex: 1,
             progressRefreshToken: DateTime.now().microsecondsSinceEpoch,
@@ -136,9 +118,6 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.toString())));
@@ -149,9 +128,6 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
 
   void _discard() {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(
-        builder: (_) => const MainPage(initialIndex: 3),
-      ),
       MaterialPageRoute<void>(builder: (_) => const MainPage(initialIndex: 3)),
       (route) => false,
     );
@@ -190,17 +166,6 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 22,
-                    backgroundColor: const Color(0xFF334155),
-                    child: Text(
-                      _userName.isNotEmpty ? _userName[0].toUpperCase() : '?',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
                   _buildAvatar(),
                   const SizedBox(width: 12),
                   Expanded(
@@ -292,7 +257,7 @@ class _ActivitySummaryScreenState extends State<ActivitySummaryScreen> {
                         TileLayer(
                           urlTemplate: _kDarkTileUrl,
                           subdomains: const ['a', 'b', 'c', 'd'],
-                          userAgentPackageName: 'com.example.mobile',
+                          userAgentPackageName: 'com.ibusehat.app',
                           retinaMode:
                               MediaQuery.devicePixelRatioOf(context) > 1.0,
                         ),

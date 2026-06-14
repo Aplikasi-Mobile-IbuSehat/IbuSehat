@@ -3,14 +3,10 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobile/core/api_config.dart';
-import 'package:mobile/models/workout_program_model.dart';
-
-/// Base URL: [ApiConfig.baseUrl] (default `http://127.0.0.1:8000`,
 import 'package:mobile/config/api_config.dart';
 import 'package:mobile/models/workout_program_model.dart';
 
-/// Base URL: [ApiConfig.baseUrl] (default `http://192.168.1.9:8000`,
+/// Base URL: [ApiConfig.baseUrl],
 /// override with `--dart-define=API_BASE_URL=...`).
 class WorkoutProgramService {
   WorkoutProgramService._();

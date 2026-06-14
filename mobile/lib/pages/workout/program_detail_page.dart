@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/models/workout_program_model.dart';
-import 'package:mobile/pages/workout/exercise_detail_page.dart';
+import 'package:mobile/pages/workout/workout_preview_page.dart';
+import 'package:mobile/pages/workout/widgets/exercise_list_card.dart';
 import 'package:mobile/services/workout_program_service.dart';
 
 class ProgramDetailPage extends StatefulWidget {
@@ -18,6 +19,9 @@ class ProgramDetailPage extends StatefulWidget {
 }
 
 class _ProgramDetailPageState extends State<ProgramDetailPage> {
+  static const _purple = Color(0xFF7C3AED);
+  static const _bgColor = Color(0xFFF8F8FF);
+
   static const List<String> _difficulties = [
     'Pemula',
     'Menengah',
@@ -26,6 +30,7 @@ class _ProgramDetailPageState extends State<ProgramDetailPage> {
 
   String _selectedDifficulty = 'Pemula';
   late Future<WorkoutProgramModel> _futureDetail;
+  final Set<int> _favoriteIds = {};
 
   @override
   void initState() {
@@ -40,55 +45,97 @@ class _ProgramDetailPageState extends State<ProgramDetailPage> {
     );
   }
 
+  void _toggleFavorite(int exerciseId) {
+    setState(() {
+      if (_favoriteIds.contains(exerciseId)) {
+        _favoriteIds.remove(exerciseId);
+      } else {
+        _favoriteIds.add(exerciseId);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
+      backgroundColor: _bgColor,
       appBar: AppBar(
-        title: Text(widget.programName),
         backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF111827),
         elevation: 0,
+        centerTitle: true,
+        leading: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Container(
+            margin: const EdgeInsets.all(8),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF0F0F0),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.arrow_back,
+              color: Color(0xFF1A1A2E),
+              size: 20,
+            ),
+          ),
+        ),
+        title: Text(
+          widget.programName,
+          style: const TextStyle(
+            color: Color(0xFF1A1A2E),
+            fontWeight: FontWeight.w800,
+            fontSize: 17,
+          ),
+        ),
       ),
       body: SafeArea(
         child: Column(
           children: [
             Container(
               color: Colors.white,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: _difficulties.map((difficulty) {
-                    final isSelected = difficulty == _selectedDifficulty;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: ChoiceChip(
-                        label: Text(difficulty),
-                        selected: isSelected,
-                        onSelected: (_) {
-                          setState(() {
-                            _selectedDifficulty = difficulty;
-                            _futureDetail = _fetchDetail();
-                          });
-                        },
-                        selectedColor: const Color(0xFF7C3AED),
-                        backgroundColor: Colors.white,
-                        side: BorderSide(
-                          color: isSelected
-                              ? const Color(0xFF7C3AED)
-                              : const Color(0xFFD1D5DB),
-                        ),
-                        labelStyle: TextStyle(
-                          color: isSelected
-                              ? Colors.white
-                              : const Color(0xFF374151),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: _difficulties.map((difficulty) {
+                        final isSelected = difficulty == _selectedDifficulty;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            label: Text(difficulty),
+                            selected: isSelected,
+                            onSelected: (_) {
+                              setState(() {
+                                _selectedDifficulty = difficulty;
+                                _futureDetail = _fetchDetail();
+                              });
+                            },
+                            selectedColor: _purple,
+                            backgroundColor: const Color(0xFFF3F4F6),
+                            checkmarkColor: Colors.white,
+                            side: BorderSide(
+                              color: isSelected
+                                  ? _purple
+                                  : const Color(0xFFE5E7EB),
+                            ),
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : const Color(0xFF374151),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -96,17 +143,42 @@ class _ProgramDetailPageState extends State<ProgramDetailPage> {
                 future: _futureDetail,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                      child: CircularProgressIndicator(color: _purple),
+                    );
                   }
 
                   if (snapshot.hasError) {
                     return Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Text(
-                          'Gagal memuat detail program.\n${snapshot.error}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: Color(0xFF6B7280)),
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.cloud_off_outlined,
+                              size: 48,
+                              color: Color(0xFF9CA3AF),
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Gagal memuat latihan.\n${snapshot.error}',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Color(0xFF6B7280),
+                                height: 1.4,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            OutlinedButton(
+                              onPressed: () {
+                                setState(() {
+                                  _futureDetail = _fetchDetail();
+                                });
+                              },
+                              child: const Text('Coba lagi'),
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -122,114 +194,86 @@ class _ProgramDetailPageState extends State<ProgramDetailPage> {
                     );
                   }
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-                        child: Text(
-                          '${program.exercises.length} LATIHAN',
-                          style: const TextStyle(
-                            color: Color(0xFF6B7280),
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
+                  return RefreshIndicator(
+                    color: _purple,
+                    onRefresh: () async {
+                      setState(() {
+                        _futureDetail = _fetchDetail();
+                      });
+                      await _futureDetail;
+                    },
+                    child: CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _purple.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '${program.exercises.length} LATIHAN',
+                                    style: const TextStyle(
+                                      color: _purple,
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 11,
+                                      letterSpacing: 0.6,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _selectedDifficulty,
+                                  style: const TextStyle(
+                                    color: Color(0xFF6B7280),
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                      Expanded(
-                        child: ListView.separated(
-                          itemCount: program.exercises.length,
-                          separatorBuilder: (context, index) =>
-                              const Divider(height: 1),
-                          itemBuilder: (context, index) {
-                            final exercise = program.exercises[index];
-                            final isCompleted = index == 0;
-
-                            return ListTile(
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) =>
-                                        ExerciseDetailPage(exercise: exercise),
-                                  ),
-                                );
-                              },
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              leading: Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Image.asset(
-                                      'assets/images/programs/${exercise.imageAsset}',
-                                      width: 70,
-                                      height: 70,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              Container(
-                                                width: 70,
-                                                height: 70,
-                                                color: const Color(0xFFE5E7EB),
-                                                alignment: Alignment.center,
-                                                child: const Icon(
-                                                  Icons.fitness_center,
-                                                  color: Color(0xFF7C3AED),
-                                                ),
-                                              ),
-                                    ),
-                                  ),
-                                  if (isCompleted)
-                                    const Positioned(
-                                      top: 4,
-                                      right: 4,
-                                      child: CircleAvatar(
-                                        radius: 10,
-                                        backgroundColor: Color(0xFF7C3AED),
-                                        child: Icon(
-                                          Icons.check,
-                                          size: 14,
-                                          color: Colors.white,
-                                        ),
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                          sliver: SliverList.separated(
+                            itemCount: program.exercises.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 16),
+                            itemBuilder: (context, index) {
+                              final exercise = program.exercises[index];
+                              return ExerciseListCard(
+                                exercise: exercise,
+                                isFavorite: _favoriteIds.contains(
+                                  exercise.id,
+                                ),
+                                onFavoriteToggle: () =>
+                                    _toggleFavorite(exercise.id),
+                                onDetail: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          WorkoutPreviewPage.fromExercise(
+                                        exercise,
                                       ),
                                     ),
-                                ],
-                              ),
-                              title: Text(
-                                exercise.name,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF111827),
-                                ),
-                              ),
-                              subtitle: Text(
-                                '${exercise.duration} • ${exercise.difficulty}',
-                                style: const TextStyle(
-                                  color: Color(0xFF6B7280),
-                                ),
-                              ),
-                              trailing: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.favorite_border,
-                                    color: Color(0xFF9CA3AF),
-                                  ),
-                                  SizedBox(width: 6),
-                                  Icon(
-                                    Icons.chevron_right,
-                                    color: Color(0xFF9CA3AF),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
+                                  );
+                                },
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   );
                 },
               ),

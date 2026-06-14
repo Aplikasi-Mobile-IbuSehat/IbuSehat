@@ -556,7 +556,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
                     TileLayer(
                       urlTemplate: _kDarkTileUrl,
                       subdomains: const ['a', 'b', 'c', 'd'],
-                      userAgentPackageName: 'com.example.mobile',
+                      userAgentPackageName: 'com.ibusehat.app',
                       retinaMode:
                           MediaQuery.devicePixelRatioOf(context) > 1.0,
                     ),

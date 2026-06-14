@@ -19,6 +19,7 @@ class WorkoutExercise extends Model
         'duration',
         'difficulty',
         'image_asset',
+        'image_url',
         'description',
         'instructions',
         'equipment',

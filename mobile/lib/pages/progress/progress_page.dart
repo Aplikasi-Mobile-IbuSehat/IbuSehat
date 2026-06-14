@@ -29,6 +29,14 @@ class _ProgressPageState extends State<ProgressPage> {
   }
 
   @override
+  void didUpdateWidget(ProgressPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) {
+      setState(() {});
+    }
+  }
+
+  @override
   void dispose() {
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
@@ -148,7 +156,11 @@ class _ProgressPageState extends State<ProgressPage> {
                           child: LangkahCard(),
                         ),
                         const SizedBox(width: 16),
-                        const Expanded(child: ScoreTidurCard()),
+                        Expanded(
+                          child: ScoreTidurCard(
+                            key: ValueKey(widget.refreshToken),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),

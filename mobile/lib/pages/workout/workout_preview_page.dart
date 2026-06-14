@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/models/workout_program_model.dart';
 import 'package:mobile/pages/workout/active_workout_page.dart';
 
 class WorkoutPreviewPage extends StatelessWidget {
   final String title;
-  final String imageUrl;
+  final String? imageUrl;
+  final String? imageAsset;
   final String duration;
   final String difficulty;
   final String target;
@@ -12,10 +14,17 @@ class WorkoutPreviewPage extends StatelessWidget {
   final List<String> playlist;
   final List<ExerciseData> exerciseDetails;
 
-  const WorkoutPreviewPage({
+  static const _defaultPlaylist = [
+    'assets/videos/vid_1.mp4',
+    'assets/videos/vid_3.mp4',
+    'assets/videos/vid_4.mp4',
+  ];
+
+  WorkoutPreviewPage({
     super.key,
     required this.title,
-    required this.imageUrl,
+    this.imageUrl,
+    this.imageAsset,
     required this.duration,
     required this.difficulty,
     required this.target,
@@ -24,6 +33,49 @@ class WorkoutPreviewPage extends StatelessWidget {
     required this.playlist,
     required this.exerciseDetails,
   });
+
+  factory WorkoutPreviewPage.fromExercise(WorkoutExerciseModel exercise) {
+    final instructions = exercise.instructions.isNotEmpty
+        ? exercise.instructions
+        : [
+            if (exercise.description != null &&
+                exercise.description!.trim().isNotEmpty)
+              exercise.description!.trim()
+            else
+              'Ikuti gerakan dengan tempo terkontrol dan napas teratur.',
+          ];
+
+    final assetPath = exercise.imageAsset.trim().isNotEmpty
+        ? 'assets/images/workouts/${exercise.imageAsset}'
+        : null;
+
+    final description = exercise.description?.trim().isNotEmpty == true
+        ? exercise.description!.trim()
+        : 'Latihan ${exercise.name} untuk memperkuat ${exercise.targetMuscle ?? 'tubuh'}.';
+
+    return WorkoutPreviewPage(
+      title: exercise.name,
+      imageAsset: assetPath,
+      imageUrl: exercise.imageUrl,
+      duration: exercise.duration,
+      difficulty: exercise.difficulty,
+      target: exercise.targetMuscle ?? 'Full Body',
+      equipment: exercise.equipment ?? 'None / Mat (opsional)',
+      instructions: instructions,
+      playlist: _defaultPlaylist,
+      exerciseDetails: [
+        ExerciseData(
+          title: exercise.name,
+          description: description,
+          tips: instructions,
+          categories: [
+            if (exercise.targetMuscle != null) exercise.targetMuscle!,
+            exercise.difficulty,
+          ],
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,10 +89,7 @@ class WorkoutPreviewPage extends StatelessWidget {
             left: 0,
             right: 0,
             height: MediaQuery.of(context).size.height * 0.45,
-            child: Image.network(
-              imageUrl,
-              fit: BoxFit.cover,
-            ),
+            child: _buildHeaderImage(),
           ),
           // Gradient over image
           Positioned(
@@ -285,6 +334,45 @@ class WorkoutPreviewPage extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderImage() {
+    final asset = imageAsset;
+    if (asset != null && asset.isNotEmpty) {
+      return Image.asset(
+        asset,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildNetworkOrPlaceholder(),
+      );
+    }
+    return _buildNetworkOrPlaceholder();
+  }
+
+  Widget _buildNetworkOrPlaceholder() {
+    final url = imageUrl;
+    if (url != null && url.isNotEmpty) {
+      return Image.network(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
+      );
+    }
+    return _buildPlaceholder();
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFF7C3AED), Color(0xFF9B59B6)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: const Center(
+        child: Icon(Icons.fitness_center, size: 72, color: Colors.white70),
       ),
     );
   }

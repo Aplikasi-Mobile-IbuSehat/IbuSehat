@@ -45,7 +45,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
     super.dispose();
   }
 
-  void _nextPage() {
   Future<void> _nextPage() async {
     if (_currentStep < _totalSteps - 1) {
       _pageController.nextPage(

@@ -8,8 +8,6 @@ class ActivityCoordinate {
 
   factory ActivityCoordinate.fromJson(Map<String, dynamic> json) {
     return ActivityCoordinate(
-      lat: (json['lat'] as num).toDouble(),
-      lng: (json['lng'] as num).toDouble(),
       lat: (json['lat'] as num?)?.toDouble() ?? 0.0,
       lng: (json['lng'] as num?)?.toDouble() ?? 0.0,
     );
@@ -46,16 +44,6 @@ class ActivityModel {
         .map((e) => ActivityCoordinate.fromJson(e as Map<String, dynamic>))
         .toList();
     return ActivityModel(
-      id: (json['id'] as num).toInt(),
-      type: json['type'] as String,
-      title: json['title'] as String,
-      distanceKm: (json['distance_km'] as num).toDouble(),
-      durationSeconds: (json['duration_seconds'] as num).toInt(),
-      pace: json['pace'] as String?,
-      calories: (json['calories'] as num?)?.toInt() ?? 0,
-      coordinates: coords,
-      startedAt: DateTime.parse(json['started_at'] as String),
-      endedAt: DateTime.parse(json['ended_at'] as String),
       id: (json['id'] as num?)?.toInt() ?? 0,
       type: json['type'] as String? ?? '',
       title: json['title'] as String? ?? '',
@@ -103,18 +91,6 @@ class ActivitySummaryResponse {
   }
 
   factory ActivitySummaryResponse.fromJson(Map<String, dynamic> json) {
-    final stepsRaw = json['today_steps'] ?? json['today_steps_estimate'];
-    final steps = switch (stepsRaw) {
-      int v => v,
-      num v => v.toInt(),
-      _ => 0,
-    };
-
-    return ActivitySummaryResponse(
-      todayDistanceKm: (json['today_distance_km'] as num?)?.toDouble() ?? 0,
-      todayStepsEstimate: steps,
-      monthDistanceKm: (json['month_distance_km'] as num?)?.toDouble() ?? 0,
-      latestActivity: json['latest_activity'] != null
     final todayDistanceKm =
         (json['today_distance_km'] as num?)?.toDouble() ?? 0.0;
     final monthDistanceKm =
@@ -146,13 +122,6 @@ class WeeklyChartDay {
   final double distanceKm;
 
   factory WeeklyChartDay.fromJson(Map<String, dynamic> json) {
-    final day = json['day'] as String?;
-    final date = json['date'] as String?;
-    final label = day ??
-        (date != null && date.length >= 10 ? date.substring(8) : '?');
-    return WeeklyChartDay(
-      label: label,
-      distanceKm: (json['distance_km'] as num?)?.toDouble() ?? 0,
     final label = json['day'] as String? ?? json['date'] as String? ?? '--';
     return WeeklyChartDay(
       label: label,

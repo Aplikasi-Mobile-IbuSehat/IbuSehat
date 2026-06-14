@@ -19,8 +19,8 @@ return new class extends Migration
             $table->unsignedInteger('calories')->default(0);
             $table->json('coordinates');
 
-            $table->dateTime('started_at');
-            $table->dateTime('ended_at');
+            $table->dateTime('started_at')->nullable();
+            $table->dateTime('ended_at')->nullable();
             $table->timestamps();
         });
     }

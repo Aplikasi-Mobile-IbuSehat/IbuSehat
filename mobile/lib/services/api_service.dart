@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:mobile/core/api_config.dart';
+import 'package:mobile/config/api_config.dart';
 
 class ApiService {
   // Steps to run:

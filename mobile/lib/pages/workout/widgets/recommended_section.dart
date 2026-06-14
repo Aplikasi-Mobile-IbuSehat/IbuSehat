@@ -22,7 +22,7 @@ class RecommendedSection extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const WorkoutPreviewPage(
+                builder: (context) => WorkoutPreviewPage(
                   title: 'Warm-Up (Pemanasan)',
                   imageUrl:
                       'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=400',
@@ -196,7 +196,7 @@ class RecommendedSection extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const WorkoutPreviewPage(
+                builder: (context) => WorkoutPreviewPage(
                   title: 'Full Body Strength',
                   imageUrl:
                       'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=400',

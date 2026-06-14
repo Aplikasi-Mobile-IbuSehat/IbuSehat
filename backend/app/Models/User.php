@@ -52,4 +52,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(Activity::class);
     }
+
+    public function sleepSessions(): HasMany
+    {
+        return $this->hasMany(SleepSession::class);
+    }
+
+    public function sleepLogs(): HasMany
+    {
+        return $this->hasMany(SleepLog::class);
+    }
 }

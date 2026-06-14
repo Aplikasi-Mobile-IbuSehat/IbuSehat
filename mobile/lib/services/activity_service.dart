@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobile/core/api_config.dart';
 import 'package:mobile/config/api_config.dart';
 import 'package:mobile/models/activity_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -25,7 +24,6 @@ class ActivityService {
 
   static Future<String?> _bearerToken() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
     return prefs.getString('sanctum_token');
   }
 
@@ -58,8 +56,6 @@ class ActivityService {
     final tokenPreview = token == null || token.isEmpty
         ? '(empty)'
         : (token.length <= 10
-            ? '(len=${token.length})'
-            : '(len=${token.length}, head=${token.substring(0, 8)}…)');
               ? '(len=${token.length})'
               : '(len=${token.length}, head=${token.substring(0, 8)}…)');
     debugPrint('LANGKAH TOKEN: $tokenPreview');
@@ -77,9 +73,6 @@ class ActivityService {
           .timeout(_httpTimeout);
 
       final hdrs = Map<String, String>.from(res.headers);
-      debugPrint(
-        'LANGKAH RESPONSE status=${res.statusCode} headers=$hdrs',
-      );
       debugPrint('LANGKAH RESPONSE status=${res.statusCode} headers=$hdrs');
       debugPrint('LANGKAH API RESPONSE BODY: ${res.body}');
 
@@ -103,7 +96,6 @@ class ActivityService {
             throw LangkahSummaryError('Server error, coba lagi');
           }
         case 401:
-          _logSummaryFailure('401', statusCode: 401, body: res.body, headers: hdrs);
           _logSummaryFailure(
             '401',
             statusCode: 401,
@@ -157,11 +149,6 @@ class ActivityService {
     final uri = Uri.parse('${ApiConfig.baseUrl}/api/activities');
     try {
       final res = await http
-          .post(
-            uri,
-            headers: _jsonHeaders(token),
-            body: jsonEncode(payload),
-          )
           .post(uri, headers: _jsonHeaders(token), body: jsonEncode(payload))
           .timeout(_httpTimeout);
       final body = jsonDecode(res.body);

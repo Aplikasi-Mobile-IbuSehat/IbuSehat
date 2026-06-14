@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Diagonal pastel gradient background
-/// Atas (kanan atas): #E6D6F2 (ungu pastel)
-/// Tengah: putih
-/// Bawah (kiri bawah): #E6ECF7 (biru pastel)
+/// Background layar utama aplikasi.
 class AppBackground extends StatelessWidget {
-  final Widget? child;
-
   const AppBackground({super.key, this.child});
+
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) {
@@ -15,40 +12,9 @@ class AppBackground extends StatelessWidget {
       width: double.infinity,
       height: double.infinity,
       decoration: const BoxDecoration(
-        color: Color(0xFFF8F9FB),
+        color: Color(0xFFFAFAFC),
       ),
       child: child,
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Demo App
-// ─────────────────────────────────────────────────────────────────────────────
-
-void main() => runApp(const DemoApp());
-
-class DemoApp extends StatelessWidget {
-  const DemoApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Diagonal Gradient Demo',
-      theme: ThemeData(useMaterial3: true),
-      home: const BackgroundScreen(),
-    );
-  }
-}
-
-class BackgroundScreen extends StatelessWidget {
-  const BackgroundScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: AppBackground(),
     );
   }
 }

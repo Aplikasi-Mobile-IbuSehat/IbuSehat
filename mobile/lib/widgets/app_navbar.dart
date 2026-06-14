@@ -82,7 +82,7 @@ class AppNavbar extends StatelessWidget {
             if (isActive)
               ShaderMask(
                 shaderCallback: (bounds) => const LinearGradient(
-                  colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
+                  colors: [Color(0xFF6C4DFF), Color(0xFF8B5CF6)],
                   begin: Alignment.centerLeft,
                   end: Alignment.centerRight,
                 ).createShader(bounds),
@@ -105,7 +105,7 @@ class AppNavbar extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
                 color: isActive
-                    ? const Color(0xFF7C3AED)
+                    ? const Color(0xFF6C4DFF)
                     : Colors.grey.shade500,
                 letterSpacing: -0.2,
               ),
