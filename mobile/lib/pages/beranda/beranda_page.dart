@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mobile/pages/chat/ai_chat_page.dart';
+import 'package:mobile/pages/beranda/share_achievement_page.dart';
 import 'package:mobile/pages/beranda/streak_detail_page.dart';
 import 'package:mobile/pages/beranda/welcome_dialog.dart';
 import 'package:mobile/pages/profile/premium_page.dart';
@@ -240,19 +241,12 @@ class _BerandaPageState extends State<BerandaPage> {
                     borderRadius: BorderRadius.circular(20),
                     child: InkWell(
                       onTap: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: const Text(
-                              'Fitur bagikan streak segera hadir',
-                              style: TextStyle(fontWeight: FontWeight.w600),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ShareAchievementPage(
+                              streakDays: currentStreak,
                             ),
-                            behavior: SnackBarBehavior.floating,
-                            backgroundColor: _kTextPrimary,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            margin: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-                            duration: const Duration(seconds: 2),
                           ),
                         );
                       },

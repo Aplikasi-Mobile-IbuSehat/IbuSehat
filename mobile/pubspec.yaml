@@ -53,6 +53,7 @@ flutter:
   assets:
     - assets/images/body_silhouette.png
     - assets/images/woman_height.png
+    - assets/images/ibu_character.png
     - assets/images/programs/
     - assets/images/workouts/
     - assets/icons/google.webp
