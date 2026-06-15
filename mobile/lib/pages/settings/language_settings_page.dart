@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/widgets/app_background.dart';
+import 'package:mobile/theme/app_theme.dart';
 
 class LanguageSettingsPage extends StatelessWidget {
   const LanguageSettingsPage({super.key});

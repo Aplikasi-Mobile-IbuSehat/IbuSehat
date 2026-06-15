@@ -8,6 +8,8 @@ use App\Http\Controllers\FoodController;
 use App\Http\Controllers\FoodLogController;
 use App\Http\Controllers\SupplementController;
 use App\Http\Controllers\SupplementLogController;
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\FcmTokenController;
 
 Route::get('/test', function () {
     return "OK";
@@ -16,7 +18,8 @@ Route::get('/test', function () {
 // Auth routes
 Route::post('/auth/google', [AuthController::class, 'googleLogin']);
 
-Route::post('/gemini/chat', [GeminiController::class, 'ask']);
+// Payment routes
+Route::post('/payment/notification', [PaymentController::class, 'handleNotification']);
 
 // Public search routes
 Route::prefix('foods')->group(function () {
@@ -33,9 +36,20 @@ Route::prefix('supplements')->group(function () {
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/user', fn(Request $r) => $r->user());
+    Route::get('/user', [AuthController::class, 'getUser']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/user/onboarding', [AuthController::class, 'updateOnboarding']);
+    Route::get('/user/water-intake', [AuthController::class, 'getWaterIntake']);
+    Route::post('/user/water-intake/add', [AuthController::class, 'updateWaterIntake']);
+    Route::post('/user/water-intake/reduce', [AuthController::class, 'reduceWaterIntake']);
+    Route::post('/fcm-token', [FcmTokenController::class, 'store']);
+
+    Route::middleware(['throttle:chat', 'premium.chat-quota'])->group(function () {
+        Route::post('/gemini/chat', [GeminiController::class, 'ask']);
+    });
+
+    // Payment route to create transaction
+    Route::post('/payment/create', [PaymentController::class, 'createTransaction']);
 
     // Food logging
     Route::prefix('food-logs')->group(function () {
@@ -61,7 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{id}',       [FoodController::class, 'update']);
         Route::delete('/{id}',    [FoodController::class, 'destroy']);
     });
-    
+
     Route::prefix('supplements')->group(function () {
         Route::post('/',         [SupplementController::class, 'store']);
         Route::put('/{id}',      [SupplementController::class, 'update']);

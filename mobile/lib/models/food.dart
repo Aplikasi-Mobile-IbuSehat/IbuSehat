@@ -9,7 +9,6 @@ class Food {
   final double carbs;
   final double fat;
   final String? category;
-  final String? jenis;
   final String? imageUrl;
   final IconData? icon;
   final Color? color;
@@ -23,7 +22,6 @@ class Food {
     this.carbs = 0,
     this.fat = 0,
     this.category,
-    this.jenis,
     this.imageUrl,
     this.icon,
     this.color,
@@ -39,7 +37,6 @@ class Food {
       carbs: double.tryParse(json['karbo_g'].toString()) ?? 0,
       fat: double.tryParse(json['lemak_g'].toString()) ?? 0,
       category: json['kategori'] as String?,
-      jenis: json['jenis'] as String?,
       imageUrl: json['gambar']?.toString(),
     );
   }
@@ -54,7 +51,6 @@ class Food {
       carbs: double.tryParse(json['carbs'].toString()) ?? 0,
       fat: double.tryParse(json['fat'].toString()) ?? 0,
       category: json['category'] as String?,
-      jenis: json['jenis'] as String?,
       imageUrl: json['gambar']?.toString(),
     );
   }

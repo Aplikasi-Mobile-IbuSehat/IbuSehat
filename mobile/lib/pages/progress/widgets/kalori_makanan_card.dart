@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 class KaloriMakananCard extends StatelessWidget {
   const KaloriMakananCard({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final border = isDark ? darkBorder : lightBorder;
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -28,13 +28,13 @@ class KaloriMakananCard extends StatelessWidget {
               children: [
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
                       'Kalori Makanan',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F1235),
+                        color: textPrimary,
                       ),
                     ),
                     SizedBox(height: 4),
@@ -43,7 +43,7 @@ class KaloriMakananCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1F1235),
+                        color: textPrimary,
                         letterSpacing: -0.5,
                       ),
                     ),
@@ -60,20 +60,20 @@ class KaloriMakananCard extends StatelessWidget {
               ],
             ),
           ),
-          Divider(color: Colors.grey.withOpacity(0.2), height: 1),
+          Divider(color: border, height: 1),
           // Middle Content
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                const Text(
+                Text(
                   'Target\n2.067\nkkal',
                   textAlign: TextAlign.right,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F1235),
+                    color: textPrimary,
                     height: 1.2,
                   ),
                 ),
@@ -106,20 +106,20 @@ class KaloriMakananCard extends StatelessWidget {
               ],
             ),
           ),
-          Divider(color: Colors.grey.withOpacity(0.2), height: 1),
+          Divider(color: border, height: 1),
           // Bottom Content
           Padding(
             padding: const EdgeInsets.all(16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
+              children: [
                 Text(
                   'Rata-Rata Mingguan',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF1F1235), fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 13, color: textSecondary, fontWeight: FontWeight.w600),
                 ),
                 Text(
                   '0 kkal',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF1F1235)),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textPrimary),
                 ),
               ],
             ),

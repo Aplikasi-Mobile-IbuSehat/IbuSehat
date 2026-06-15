@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/config/api_config.dart';
 import 'package:mobile/models/food.dart';
 import 'package:mobile/pages/diet/food_detail_page.dart';
 import 'package:mobile/services/api_cache_manager.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 class AddFoodPage extends StatefulWidget {
   const AddFoodPage({super.key});
@@ -16,6 +18,7 @@ class AddFoodPage extends StatefulWidget {
 class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClientMixin {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
+  Timer? _debounce;
 
   List<Food> _foods = [];
   bool _isLoading = false;
@@ -24,12 +27,13 @@ class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClient
   @override
   bool get wantKeepAlive => true;
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
+@override
+void dispose() {
+  _debounce?.cancel();
+  _searchController.dispose();
+  _focusNode.dispose();
+  super.dispose();
+}
 
   Future<void> _fetchFoods({String? search}) async {
     setState(() { _isLoading = true; _error = null; });
@@ -61,14 +65,27 @@ class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClient
     }
   }
 
-  void _onSearchChanged(String query) {
-    setState(() {}); // refresh suffix icon
-    if (query.trim().isEmpty) {
-      setState(() { _foods = []; _error = null; _isLoading = false; });
-      return;
-    }
-    _fetchFoods(search: query);
+void _onSearchChanged(String query) {
+  setState(() {}); // refresh suffix icon
+
+  if (query.trim().isEmpty) {
+    _debounce?.cancel();
+
+    setState(() {
+      _foods = [];
+      _error = null;
+      _isLoading = false;
+    });
+    return;
   }
+
+  _debounce?.cancel();
+
+  _debounce = Timer(
+    const Duration(milliseconds: 300),
+    () => _fetchFoods(search: query),
+  );
+}
 
   Future<void> _openDetail(Food food) async {
     final result = await Navigator.push<Food>(
@@ -81,19 +98,24 @@ class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClient
   @override
   Widget build(BuildContext context) {
     super.build(context); // Wajib dipanggil untuk AutomaticKeepAliveClientMixin
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? darkBackground : lightBackground;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF2F2F7),
+        backgroundColor: bg,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Color(0xFF3A3A3C)),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Cari Makanan',
-          style: TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1C1C1E), fontSize: 17, letterSpacing: -0.3),
+          style: TextStyle(fontWeight: FontWeight.w600, color: textPrimary, fontSize: 17, letterSpacing: -0.3),
         ),
         centerTitle: true,
       ),
@@ -105,24 +127,30 @@ class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClient
             child: Container(
               height: 44,
               decoration: BoxDecoration(
-                color: const Color(0xFFE5E5EA),
+                color: surface,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 children: [
                   const SizedBox(width: 8),
-                  const Icon(Icons.search, color: Color(0xFF8E8E93), size: 18),
+                  Icon(Icons.search, color: textSecondary, size: 18),
                   const SizedBox(width: 6),
                   Expanded(
                     child: TextField(
                       controller: _searchController,
                       focusNode: _focusNode,
                       onChanged: _onSearchChanged,
-                      style: const TextStyle(fontSize: 15, color: Color(0xFF1C1C1E), fontWeight: FontWeight.w400),
+                      style: TextStyle(fontSize: 15, color: textPrimary, fontWeight: FontWeight.w400),
                       decoration: InputDecoration(
-                        hintText: 'Cari makanan…',
-                        hintStyle: const TextStyle(color: Color(0xFF8E8E93), fontSize: 15, fontWeight: FontWeight.w400),
+                        hintText: 'Cari nama makanan…',
+                        hintStyle: TextStyle(color: textSecondary, fontSize: 15, fontWeight: FontWeight.w400),
                         border: InputBorder.none,
+                         enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
+                        filled: false,
                         contentPadding: EdgeInsets.zero,
                         isDense: true,
                       ),
@@ -131,9 +159,9 @@ class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClient
                   if (_searchController.text.isNotEmpty)
                     GestureDetector(
                       onTap: () { _searchController.clear(); _onSearchChanged(''); },
-                      child: const Padding(
+                      child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: 8),
-                        child: Icon(Icons.cancel, color: Color(0xFF8E8E93), size: 16),
+                        child: Icon(Icons.cancel, color: textSecondary, size: 16),
                       ),
                     )
                   else
@@ -163,18 +191,23 @@ class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClient
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.search, size: 48, color: Color(0xFFC7C7CC)),
+          Icon(Icons.search, size: 48, color: (Theme.of(context).brightness == Brightness.dark ? darkBorder : lightBorder)),
           const SizedBox(height: 12),
-          const Text('Ketik nama makanan untuk mencari',
-              style: TextStyle(color: Color(0xFF8E8E93), fontSize: 15)),
+          Text('Ketik nama makanan untuk mencari',
+              style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? darkTextSecondary : lightTextSecondary, fontSize: 15)),
         ],
       ),
     );
   }
 
   Widget _buildLoading() {
-    return const Center(
-      child: CircularProgressIndicator(strokeWidth: 2.5, valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF636366))),
+    return Center(
+      child: CircularProgressIndicator(
+        strokeWidth: 2.5,
+        valueColor: AlwaysStoppedAnimation<Color>(
+          Theme.of(context).brightness == Brightness.dark ? darkTextPrimary : lightTextPrimary,
+        ),
+      ),
     );
   }
 
@@ -183,14 +216,14 @@ class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClient
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.wifi_off_rounded, size: 48, color: Color(0xFFC7C7CC)),
+          Icon(Icons.wifi_off_rounded, size: 48, color: Theme.of(context).brightness == Brightness.dark ? darkBorder : lightBorder),
           const SizedBox(height: 12),
-          Text(_error!, style: const TextStyle(color: Color(0xFF8E8E93), fontSize: 15)),
+          Text(_error!, style: TextStyle(color: Theme.of(context).brightness == Brightness.dark ? darkTextSecondary : lightTextSecondary, fontSize: 15)),
           const SizedBox(height: 16),
           GestureDetector(
             onTap: () => _fetchFoods(search: _searchController.text),
             child: const Text('Coba lagi',
-                style: TextStyle(color: Color(0xFF007AFF), fontSize: 15, fontWeight: FontWeight.w500)),
+                style: TextStyle(color: Color(0xFFA855F7), fontSize: 15, fontWeight: FontWeight.w500)),
           ),
         ],
       ),
@@ -198,8 +231,14 @@ class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClient
   }
 
   Widget _buildNotFound() {
-    return const Center(
-      child: Text('Makanan tidak ditemukan', style: TextStyle(color: Color(0xFF8E8E93), fontSize: 15)),
+    return Center(
+      child: Text(
+        'Makanan tidak ditemukan',
+        style: TextStyle(
+          color: Theme.of(context).brightness == Brightness.dark ? darkTextSecondary : lightTextSecondary,
+          fontSize: 15,
+        ),
+      ),
     );
   }
 
@@ -215,7 +254,7 @@ class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClient
           onTap: () => _openDetail(food),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).brightness == Brightness.dark ? darkSurface : lightSurface,
               borderRadius: BorderRadius.vertical(
                 top: index == 0 ? const Radius.circular(12) : Radius.zero,
                 bottom: isLast ? const Radius.circular(12) : Radius.zero,
@@ -234,12 +273,12 @@ class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClient
                             // Auto-scroll marquee for long names
                             _MarqueeText(
                               text: food.name,
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Color(0xFF1C1C1E)),
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Theme.of(context).brightness == Brightness.dark ? darkTextPrimary : lightTextPrimary),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               '${food.weight.toStringAsFixed(0)} g  ·  ${food.kcal.toStringAsFixed(0)} kkal',
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF8E8E93)),
+                              style: TextStyle(fontSize: 13, color: Theme.of(context).brightness == Brightness.dark ? darkTextSecondary : lightTextSecondary),
                             ),
                           ],
                         ),
@@ -247,15 +286,15 @@ class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClient
                       const SizedBox(width: 12),
                       GestureDetector(
                         onTap: () => _openDetail(food),
-                        child: const Icon(Icons.add, size: 22, color: Color(0xFF007AFF)),
+                        child: const Icon(Icons.add, size: 22, color: Color(0xFFA855F7)),
                       ),
                     ],
                   ),
                 ),
                 if (!isLast)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(left: 16),
-                    child: Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA)),
+                    child: Divider(height: 1, thickness: 0.5, color: Theme.of(context).brightness == Brightness.dark ? darkBorder : lightBorder),
                   ),
               ],
             ),
@@ -270,9 +309,8 @@ class _AddFoodPageState extends State<AddFoodPage> with AutomaticKeepAliveClient
 class _MarqueeText extends StatefulWidget {
   final String text;
   final TextStyle style;
-  final double velocity;
 
-  const _MarqueeText({required this.text, required this.style, this.velocity = 30.0}); // ignore: unused_element
+  const _MarqueeText({required this.text, required this.style}); // ignore: unused_element
 
   @override
   State<_MarqueeText> createState() => _MarqueeTextState();
@@ -306,7 +344,8 @@ class _MarqueeTextState extends State<_MarqueeText> with SingleTickerProviderSta
       if (!mounted || !_scrollController.hasClients) return;
       final maxScroll = _scrollController.position.maxScrollExtent;
       if (maxScroll <= 0) return;
-      final duration = Duration(milliseconds: (maxScroll / widget.velocity * 1000).round());
+      const velocity = 30.0;
+      final duration = Duration(milliseconds: (maxScroll / velocity * 1000).round());
       await _scrollController.animateTo(maxScroll, duration: duration, curve: Curves.linear);
       await Future.delayed(const Duration(milliseconds: 600));
       if (!mounted || !_scrollController.hasClients) return;

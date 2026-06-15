@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 class SkincareDetailPage extends StatefulWidget {
   final String title;
@@ -49,24 +50,27 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? darkBackground : const Color(0xFFF8F9FE);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FE),
+      backgroundColor: bgColor,
       body: CustomScrollView(
         controller: _scrollController,
         physics: const BouncingScrollPhysics(),
         slivers: [
-          _buildAppBar(context),
+          _buildAppBar(context, isDark),
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildOverviewSection(),
+                  _buildOverviewSection(isDark),
                   const SizedBox(height: 32),
-                  _buildRecommendationSection(),
+                  _buildRecommendationSection(isDark),
                   const SizedBox(height: 32),
-                  _buildAvoidSection(),
+                  _buildAvoidSection(isDark),
                   const SizedBox(height: 32),
                   _buildExpertTipsSection(),
                 ],
@@ -78,19 +82,22 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
     );
   }
 
-  Widget _buildAppBar(BuildContext context) {
+  Widget _buildAppBar(BuildContext context, bool isDark) {
+    final surface = isDark ? darkSurface : Colors.white;
+    final textPrimary = isDark ? darkTextPrimary : const Color(0xFF1F1235);
+
     return SliverAppBar(
       expandedHeight: 280,
       pinned: true,
       stretch: true,
       elevation: 0,
       scrolledUnderElevation: 0,
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
+      backgroundColor: surface,
+      surfaceTintColor: surface,
       leading: IconButton(
         icon: Icon(
           Icons.arrow_back_ios_new_rounded, 
-          color: _isCollapsed ? const Color(0xFF1F1235) : Colors.white, 
+          color: _isCollapsed ? textPrimary : Colors.white, 
           size: 20
         ),
         onPressed: () => Navigator.pop(context),
@@ -100,8 +107,8 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
         opacity: _isCollapsed ? 1 : 0,
         child: Text(
           widget.title,
-          style: const TextStyle(
-            color: Color(0xFF1F1235),
+          style: TextStyle(
+            color: textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.w900,
           ),
@@ -180,7 +187,10 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
     );
   }
 
-  Widget _buildOverviewSection() {
+  Widget _buildOverviewSection(bool isDark) {
+    final surface = isDark ? darkSurface : Colors.white;
+    final textPrimary = isDark ? darkTextPrimary : const Color(0xFF1F1235);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -189,9 +199,9 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: surface,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
+            boxShadow: isDark ? null : [
               BoxShadow(
                 color: widget.themeColor.withOpacity(0.05),
                 blurRadius: 20,
@@ -204,7 +214,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
             style: TextStyle(
               fontSize: 15,
               height: 1.7,
-              color: const Color(0xFF1F1235).withOpacity(0.8),
+              color: textPrimary.withOpacity(0.8),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -213,23 +223,27 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
     );
   }
 
-  Widget _buildRecommendationSection() {
+  Widget _buildRecommendationSection(bool isDark) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _sectionLabel('Langkah Perawatan', const Color(0xFF10B981)),
         const SizedBox(height: 16),
-        ...widget.recommendations.map((item) => _buildRecommendCard(item)),
+        ...widget.recommendations.map((item) => _buildRecommendCard(item, isDark)),
       ],
     );
   }
 
-  Widget _buildRecommendCard(ItemDetail item) {
+  Widget _buildRecommendCard(ItemDetail item, bool isDark) {
+    final surface = isDark ? darkSurface : Colors.white;
+    final textPrimary = isDark ? darkTextPrimary : const Color(0xFF1F1235);
+    final textSecondary = isDark ? darkTextSecondary : const Color(0xFF1F1235).withOpacity(0.6);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: const Color(0xFF10B981).withOpacity(0.1)),
       ),
@@ -252,10 +266,10 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
               children: [
                 Text(
                   item.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F1235),
+                    color: textPrimary,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -264,7 +278,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
                   style: TextStyle(
                     fontSize: 14,
                     height: 1.5,
-                    color: const Color(0xFF1F1235).withOpacity(0.6),
+                    color: textSecondary,
                   ),
                 ),
               ],
@@ -275,7 +289,10 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
     );
   }
 
-  Widget _buildAvoidSection() {
+  Widget _buildAvoidSection(bool isDark) {
+    final boxColor = isDark ? const Color(0xFF3F1616) : const Color(0xFFFEF2F2);
+    final textColor = isDark ? const Color(0xFFFCA5A5) : const Color(0xFF991B1B);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -285,7 +302,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: const Color(0xFFFEF2F2),
+            color: boxColor,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.1)),
           ),
@@ -300,10 +317,10 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
                   Expanded(
                     child: Text(
                       item,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF991B1B),
+                        color: textColor,
                       ),
                     ),
                   ),

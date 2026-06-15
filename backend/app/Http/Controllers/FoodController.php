@@ -22,7 +22,6 @@ class FoodController extends Controller
         $validated = $request->validate([
             'search'   => ['nullable', 'string', 'max:120'],
             'kategori' => ['nullable', 'string', 'max:100'],
-            'jenis'    => ['nullable', 'string', Rule::in(['halal', 'haram', 'netral'])],
             'match_mode' => ['nullable', 'string', Rule::in(['prefix', 'contains'])],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
             'page'     => ['nullable', 'integer', 'min:1'],
@@ -36,7 +35,6 @@ class FoodController extends Controller
             DB::raw('fat as lemak_g'),
             DB::raw('carbohydrate as karbo_g'),
             DB::raw('protein as protein_g'),
-            DB::raw('NULL as jenis'),
         ]);
 
         // Filter by category
@@ -117,7 +115,6 @@ class FoodController extends Controller
             DB::raw('fat as lemak_g'),
             DB::raw('carbohydrate as karbo_g'),
             DB::raw('protein as protein_g'),
-            DB::raw('NULL as jenis'),
             'created_at',
         ])->find($id);
 
@@ -148,7 +145,6 @@ class FoodController extends Controller
             'lemak_g'      => ['nullable', 'numeric', 'min:0'],
             'karbo_g'      => ['nullable', 'numeric', 'min:0'],
             'protein_g'    => ['nullable', 'numeric', 'min:0'],
-            'jenis'        => ['nullable', 'string', Rule::in(['halal', 'haram', 'netral'])],
         ]);
 
         $food = Food::create([
@@ -190,7 +186,6 @@ class FoodController extends Controller
             'lemak_g'      => ['sometimes', 'required', 'numeric', 'min:0'],
             'karbo_g'      => ['sometimes', 'required', 'numeric', 'min:0'],
             'protein_g'    => ['sometimes', 'required', 'numeric', 'min:0'],
-            'jenis'        => ['sometimes', 'nullable', 'string', Rule::in(['halal', 'haram', 'netral'])],
         ]);
 
         $mapped = [];

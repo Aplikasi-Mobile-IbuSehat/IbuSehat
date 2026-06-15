@@ -1,24 +1,38 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/config/api_config.dart';
+import 'package:mobile/services/api_cache_manager.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/services/fcm_service.dart';
 
 class AuthUser {
   final String name;
   final String email;
   final String? avatarUrl;
   final bool isOnboardingDone;
+  final bool isPremium;
 
   const AuthUser({
     required this.name,
     required this.email,
     this.avatarUrl,
     this.isOnboardingDone = false,
+    this.isPremium = false,
   });
+
+  static bool _parsePremium(Map<String, dynamic> json) {
+    if (json['is_premium'] != true) return false;
+    final until = json['premium_until'];
+    if (until == null) return true;
+    try {
+      return DateTime.parse(until.toString()).isAfter(DateTime.now());
+    } catch (_) {
+      return true;
+    }
+  }
 
   static AuthUser? fromJson(Map<String, dynamic>? json) {
     if (json == null) return null;
@@ -30,6 +44,7 @@ class AuthUser {
       email: email,
       avatarUrl: json['avatar'] as String?,
       isOnboardingDone: json['is_onboarding_done'] == true,
+      isPremium: _parsePremium(json),
     );
   }
 }
@@ -38,22 +53,31 @@ class AuthService {
   AuthService._();
 
   static final AuthService instance = AuthService._();
-
+  static const _onboardingDoneKey = 'onboarding_done';
   static const _tokenKey = 'sanctum_token';
   static const _userJsonKey = 'auth_user_json';
-  static const _onboardingDoneKey = 'onboarding_done';
 
   AuthUser? _cachedUser;
 
-  // Singleton GoogleSignIn v7.2+
+  /// Akses sinkron ke user yang sudah ada di memory (tanpa I/O).
+  AuthUser? get cachedUserSync => _cachedUser;
+
+  bool get isPremiumSync => _cachedUser?.isPremium ?? false;
+
+  /// Pastikan user ter-cache di memory dari SharedPreferences/API.
+  Future<void> ensureUserCached() async {
+    if (_cachedUser != null) return;
+    await currentUser;
+  }
+
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   static Future<void>? _initFuture;
 
   Future<void> _ensureGoogleInitialized() async {
     if (_initFuture != null) return _initFuture;
     _initFuture = _googleSignIn.initialize(
-      serverClientId: ApiConfig.googleServerClientId.isEmpty 
-          ? null 
+      serverClientId: ApiConfig.googleServerClientId.isEmpty
+          ? null
           : ApiConfig.googleServerClientId,
     );
     return _initFuture;
@@ -91,12 +115,13 @@ class AuthService {
         'email': user.email,
         'avatar': user.avatarUrl,
         'is_onboarding_done': user.isOnboardingDone,
+        'is_premium': user.isPremium,
       }),
     );
 
-    // Sync juga ke flag onboarding lokal jika TRUE dari backend
     if (user.isOnboardingDone) {
-      await setOnboardingDone(isLocalOnly: true);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_onboardingDoneKey, true);
     }
   }
 
@@ -106,7 +131,8 @@ class AuthService {
     final raw = prefs.getString(_userJsonKey);
     if (raw == null || raw.isEmpty) return null;
     try {
-      final parsed = AuthUser.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+      final parsed =
+          AuthUser.fromJson(jsonDecode(raw) as Map<String, dynamic>);
       _cachedUser = parsed;
       return parsed;
     } catch (_) {
@@ -123,12 +149,25 @@ class AuthService {
 
   Future<bool> get isOnboardingDone async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_onboardingDoneKey) ?? false;
+    final local = prefs.getBool(_onboardingDoneKey) ?? false;
+    final user = await currentUser;
+    final remote = user?.isOnboardingDone ?? false;
+    return remote || local;
   }
 
   Future<void> setOnboardingDone({bool isLocalOnly = false}) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_onboardingDoneKey, true);
+
+    if (_cachedUser != null) {
+      _cachedUser = AuthUser(
+        name: _cachedUser!.name,
+        email: _cachedUser!.email,
+        avatarUrl: _cachedUser!.avatarUrl,
+        isOnboardingDone: true,
+        isPremium: _cachedUser!.isPremium,
+      );
+    }
 
     if (!isLocalOnly) {
       await syncOnboardingToBackend();
@@ -138,7 +177,6 @@ class AuthService {
   Future<void> syncOnboardingToBackend() async {
     final t = await token;
     if (t == null || t.isEmpty) return;
-
     try {
       final response = await http.post(
         Uri.parse('${ApiConfig.apiBaseUrl}/user/onboarding'),
@@ -171,12 +209,13 @@ class AuthService {
       final decoded = jsonDecode(r.body);
       if (decoded is! Map<String, dynamic>) return;
 
-      await _saveUser(AuthUser(
-        name: decoded['name'] as String? ?? 'Pengguna',
-        email: decoded['email'] as String? ?? '',
-        avatarUrl: decoded['avatar'] as String?,
-        isOnboardingDone: decoded['is_onboarding_done'] == true,
-      ));
+      await _saveUser(AuthUser.fromJson(decoded) ??
+          AuthUser(
+            name: decoded['name'] as String? ?? 'Pengguna',
+            email: decoded['email'] as String? ?? '',
+            avatarUrl: decoded['avatar'] as String?,
+            isOnboardingDone: decoded['is_onboarding_done'] == true,
+          ));
     } catch (e) {
       debugPrint('syncUserFromApi error: $e');
     }
@@ -193,17 +232,11 @@ class AuthService {
 
   // ─── Sign In ──────────────────────────────────────────────────────────────
 
-  /// Return value:
-  /// - `null`  → sukses
-  /// - `''`    → user membatalkan (tidak tampilkan SnackBar)
-  /// - string  → pesan error untuk ditampilkan ke user
   Future<String?> signInWithGoogle() async {
-    // Pastikan Web Client ID sudah di-set
     if (ApiConfig.googleServerClientId.isEmpty) {
       return 'GOOGLE_WEB_CLIENT_ID belum di-set di ApiConfig.';
     }
 
-    // Inisialisasi Google Sign-In
     try {
       await _ensureGoogleInitialized();
     } catch (e) {
@@ -211,16 +244,12 @@ class AuthService {
       return 'Gagal inisialisasi Google Sign-In: $e';
     }
 
-    // Tampilkan picker Google
     final GoogleSignInAccount account;
     try {
-      // Pastikan session lama benar-benar bersih agar picker muncul
       await _googleSignIn.signOut();
       account = await _googleSignIn.authenticate();
     } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled) {
-        return ''; // user batal
-      }
+      if (e.code == GoogleSignInExceptionCode.canceled) return '';
       debugPrint('GoogleSignIn.authenticate error: $e');
       return 'Terjadi kesalahan saat membuka Google Sign-In: $e';
     } catch (e) {
@@ -228,7 +257,6 @@ class AuthService {
       return 'Terjadi kesalahan saat membuka Google Sign-In: $e';
     }
 
-    // Ambil id_token
     final auth = account.authentication;
     final idToken = auth.idToken;
     if (idToken == null || idToken.isEmpty) {
@@ -237,7 +265,6 @@ class AuthService {
           'Web Client ID (client_type: 3), bukan Android Client ID.';
     }
 
-    // Kirim id_token ke backend Laravel
     http.Response response;
     try {
       response = await http
@@ -264,7 +291,6 @@ class AuthService {
       return 'Kesalahan jaringan: $e';
     }
 
-    // Parse response
     Map<String, dynamic> body;
     try {
       final decoded = jsonDecode(response.body);
@@ -288,8 +314,8 @@ class AuthService {
       return 'Respons server tidak berisi token.';
     }
 
-    // Simpan token & data user
     await _saveToken(sanctumToken);
+    await FcmNotificationService.instance.uploadTokenAfterLogin();
 
     final userMap = body['user'];
     if (userMap is Map<String, dynamic>) {
@@ -297,13 +323,15 @@ class AuthService {
       if (u != null) await _saveUser(u);
     }
 
-    return null; // sukses
+    return null;
   }
 
   // ─── Sign Out ─────────────────────────────────────────────────────────────
 
   Future<void> signOut() async {
-    // Hapus token di server
+    // Bersihkan semua cache API agar tidak bocor ke session berikutnya
+    ApiCacheManager.instance.clearAll();
+
     final t = await token;
     if (t != null && t.isNotEmpty) {
       try {
@@ -318,20 +346,14 @@ class AuthService {
             .timeout(const Duration(seconds: 15));
       } catch (e) {
         debugPrint('signOut server error: $e');
-        // Tetap lanjut bersihkan lokal meskipun server tidak terjangkau
       }
     }
 
-    // Bersihkan lokal
     await _saveToken(null);
     await _saveUser(null);
 
-    // Sign out dari Google
     try {
       await _googleSignIn.signOut();
-      // Jangan gunakan disconnect() kecuali benar-benar ingin revoke akses permanen
-      // (Bisa menyebabkan user harus klik "Allow" lagi setiap login)
-      // await _googleSignIn.disconnect(); 
     } catch (e) {
       debugPrint('Google signOut error: $e');
     }

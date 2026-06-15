@@ -1,70 +1,54 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/pages/auth/auth_page.dart';
-import 'package:mobile/pages/main_page.dart';
-import 'package:mobile/pages/onboarding/onboarding_page.dart';
-import 'package:mobile/services/auth_service.dart';
-
-import 'package:intl/date_symbol_data_local.dart';
+import 'package:flutter/services.dart';
+import 'package:mobile/loading_screen/loading_screen.dart';
+import 'package:mobile/theme/app_theme.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:mobile/services/fcm_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('id', null);
+  await Firebase.initializeApp();
+  await FcmNotificationService.instance.init();
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+  ]);
+
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    appThemeController.addListener(_onThemeChanged);
+  }
+
+  @override
+  void dispose() {
+    appThemeController.removeListener(_onThemeChanged);
+    super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const _AppEntry(),
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: appThemeController.themeMode,
+      home: const SplashScreen(),
     );
-  }
-}
-
-/// Menentukan halaman awal: login → onboarding (sekali) → beranda.
-class _AppEntry extends StatefulWidget {
-  const _AppEntry();
-
-  @override
-  State<_AppEntry> createState() => _AppEntryState();
-}
-
-class _AppEntryState extends State<_AppEntry> {
-  Widget? _home;
-
-  @override
-  void initState() {
-    super.initState();
-    _boot();
-  }
-
-  Future<void> _boot() async {
-    final loggedIn = await AuthService.instance.isLoggedIn;
-    final onboardingDone = await AuthService.instance.isOnboardingDone;
-    if (!mounted) return;
-    setState(() {
-      if (!loggedIn) {
-        _home = const AuthPage();
-      } else if (!onboardingDone) {
-        _home = const OnboardingPage();
-      } else {
-        _home = const MainPage();
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_home == null) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-    return _home!;
   }
 }

@@ -22,10 +22,8 @@ class _AuthPageState extends State<AuthPage> {
     if (!mounted) return;
     setState(() => _busy = false);
 
-    // '' = user batal → diam saja
     if (err != null && err.isEmpty) return;
 
-    // string error → tampilkan SnackBar
     if (err != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -37,15 +35,19 @@ class _AuthPageState extends State<AuthPage> {
       return;
     }
 
-    // null = sukses → cek apakah sudah pernah onboarding
-    final onboardingDone = await AuthService.instance.isOnboardingDone;
+    await AuthService.instance.syncUserFromApi();
+
+    final user = await AuthService.instance.currentUser;
     if (!mounted) return;
+
+    final isDone = user?.isOnboardingDone ?? false;
 
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (_) =>
-            onboardingDone ? const MainPage() : const OnboardingPage(),
+        builder: (_) => isDone
+            ? const MainPage()
+            : const OnboardingPage(),
       ),
     );
   }
@@ -61,60 +63,33 @@ class _AuthPageState extends State<AuthPage> {
       ),
       body: Stack(
         children: [
-          // ── Aurora Background ──
           Positioned.fill(
             child: CustomPaint(painter: _AuroraPainter()),
           ),
 
-          // ── Konten ──
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // ── Logo ──
-                  Container(
-                    width: 110,
-                    height: 110,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(32),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.9),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFB084F5).withOpacity(0.25),
-                          blurRadius: 24,
-                          spreadRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(30),
-                      child: const Center(
-                        // Ganti dengan: Image.asset('assets/icons/logo.png', ...)
-                        child: Icon(
-                          Icons.play_circle_fill_rounded,
-                          size: 60,
-                          color: Color(0xFF7C3AED),
-                        ),
-                      ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(30),
+                    child: Image.asset(
+                      'assets/logo/ibusehat_logo_transparent.webp',
+                      width: 100,
+                      height: 100,
                     ),
                   ),
 
                   const SizedBox(height: 32),
 
                   const Text(
-                    'Welcome to Ibu Sehat',
+                    'Welcome to IbuSehat',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF1F1235),
-                      letterSpacing: -0.5,
                     ),
                   ),
 
@@ -122,17 +97,15 @@ class _AuthPageState extends State<AuthPage> {
 
                   Text(
                     'Pendamping kesehatan ibu pasca melahirkan',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
                       color: Colors.grey.shade500,
-                      height: 1.5,
                     ),
-                    textAlign: TextAlign.center,
                   ),
 
                   const SizedBox(height: 40),
 
-                  // ── Tombol Google ──
                   SizedBox(
                     width: double.infinity,
                     height: 54,
@@ -144,25 +117,8 @@ class _AuthPageState extends State<AuthPage> {
                               height: 20,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Image.asset(
-                              'assets/icons/google.webp',
-                              height: 20,
-                            ),
-                      label: Text(
-                        _busy ? 'Memproses...' : 'Continue with Google',
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151),
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        side: BorderSide(color: Colors.grey.withOpacity(0.25)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
+                          : Image.asset('assets/icons/google.webp', height: 20),
+                      label: Text(_busy ? 'Memproses...' : 'Continue with Google'),
                     ),
                   ),
 
@@ -174,7 +130,6 @@ class _AuthPageState extends State<AuthPage> {
                     style: TextStyle(
                       fontSize: 11,
                       color: Colors.grey.shade400,
-                      height: 1.6,
                     ),
                   ),
                 ],
@@ -187,7 +142,8 @@ class _AuthPageState extends State<AuthPage> {
   }
 }
 
-// ── Aurora Painter ─────────────────────────────────────────────────────────────
+// Aurora background
+
 class _AuroraPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -207,6 +163,7 @@ class _AuroraPainter extends CustomPainter {
           const Color(0xFFD4AAFF).withOpacity(0.75),
           const Color(0xFFE8CCFF).withOpacity(0.0),
         ]);
+
     _drawBlob(canvas,
         center: Offset(w * 0.82, h * 0.05),
         radiusX: w * 0.40,
@@ -215,6 +172,7 @@ class _AuroraPainter extends CustomPainter {
           const Color(0xFFF4AAEE).withOpacity(0.65),
           const Color(0xFFFCDDFF).withOpacity(0.0),
         ]);
+
     _drawBlob(canvas,
         center: Offset(w * 0.15, h * 0.08),
         radiusX: w * 0.36,
@@ -223,6 +181,7 @@ class _AuroraPainter extends CustomPainter {
           const Color(0xFFAADDFF).withOpacity(0.55),
           const Color(0xFFCCEEFF).withOpacity(0.0),
         ]);
+
     _drawBlob(canvas,
         center: Offset(w * 0.48, h * 0.16),
         radiusX: w * 0.26,
@@ -242,7 +201,7 @@ class _AuroraPainter extends CustomPainter {
             Colors.white.withOpacity(0.0),
             Colors.white.withOpacity(0.88),
           ],
-          stops: const [0.20, 0.50],
+          stops: const [0.2, 0.5],
         ).createShader(Rect.fromLTWH(0, 0, w, h)),
     );
   }
@@ -253,9 +212,12 @@ class _AuroraPainter extends CustomPainter {
       required double radiusY,
       required List<Color> colors}) {
     final paint = Paint()
-      ..shader = RadialGradient(colors: colors, stops: const [0.0, 1.0])
+      ..shader = RadialGradient(colors: colors)
           .createShader(Rect.fromCenter(
-              center: center, width: radiusX * 2, height: radiusY * 2));
+        center: center,
+        width: radiusX * 2,
+        height: radiusY * 2,
+      ));
 
     canvas.save();
     canvas.translate(center.dx, center.dy);
@@ -265,5 +227,5 @@ class _AuroraPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_AuroraPainter old) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

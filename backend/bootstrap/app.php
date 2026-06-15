@@ -12,7 +12,11 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+
+        $middleware->alias([
+            'premium.chat-quota' => \App\Http\Middleware\EnsurePremiumChatQuota::class,
+        ]);
+        
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

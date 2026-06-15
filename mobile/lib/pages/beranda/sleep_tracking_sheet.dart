@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 class SleepTrackingSheet extends StatefulWidget {
   const SleepTrackingSheet({super.key});
@@ -45,10 +46,15 @@ class _SleepTrackingSheetState extends State<SleepTrackingSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final background = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final border = isDark ? darkBorder : lightBorder;
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF7F8FF),
+      decoration: BoxDecoration(
+        color: background,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(32),
           topRight: Radius.circular(32),
@@ -69,14 +75,14 @@ class _SleepTrackingSheetState extends State<SleepTrackingSheet> {
                     onTap: () => Navigator.pop(context),
                     child: Container(
                       padding: const EdgeInsets.only(right: 16, top: 4),
-                      child: const Icon(
+                      child: Icon(
                         Icons.arrow_back_rounded,
-                        color: Color(0xFF1E293B),
+                        color: textPrimary,
                         size: 28,
                       ),
                     ),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -85,7 +91,7 @@ class _SleepTrackingSheetState extends State<SleepTrackingSheet> {
                           style: TextStyle(
                             fontSize: 28,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF1E293B),
+                            color: textPrimary,
                           ),
                         ),
                         SizedBox(height: 6),
@@ -93,7 +99,7 @@ class _SleepTrackingSheetState extends State<SleepTrackingSheet> {
                           'Dapatkan wawasan tentang pola tidur Anda',
                           style: TextStyle(
                             fontSize: 15,
-                            color: Color(0xFF9333EA),
+                            color: textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -109,28 +115,21 @@ class _SleepTrackingSheetState extends State<SleepTrackingSheet> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: background,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.grey.withOpacity(0.1)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+                  border: Border.all(color: border),
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: const BoxDecoration(
-                        color: Color(0xFFF3E8FF),
+                      decoration: BoxDecoration(
+                        color: isDark ? darkBorder : lightBackground,
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.access_time_rounded,
-                        color: Color(0xFF9333EA),
+                        color: textPrimary,
                         size: 24,
                       ),
                     ),
@@ -138,11 +137,11 @@ class _SleepTrackingSheetState extends State<SleepTrackingSheet> {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Tidur Dimulai Pada',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF64748B),
+                            color: textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -151,10 +150,10 @@ class _SleepTrackingSheetState extends State<SleepTrackingSheet> {
                           _startTime != null
                               ? DateFormat('hh:mm a').format(_startTime!)
                               : '--:--',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: Color(0xFF1E293B),
+                            color: textPrimary,
                           ),
                         ),
                       ],
@@ -167,34 +166,27 @@ class _SleepTrackingSheetState extends State<SleepTrackingSheet> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: background,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.grey.withOpacity(0.1)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
+                  border: Border.all(color: border),
                 ),
                 child: Column(
                   children: [
-                    const Text(
+                    Text(
                       'Estimasi Durasi Tidur',
                       style: TextStyle(
                         fontSize: 14,
-                        color: Color(0xFF64748B),
+                        color: textSecondary,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(height: 8),
                     Text(
                       '${_sleepDuration.inHours}j ${_sleepDuration.inMinutes.remainder(60)}m',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 40,
                         fontWeight: FontWeight.w800,
-                        color: Color(0xFF1E293B),
+                        color: textPrimary,
                         letterSpacing: -1,
                       ),
                     ),
@@ -203,7 +195,7 @@ class _SleepTrackingSheetState extends State<SleepTrackingSheet> {
                       'Diperbarui otomatis',
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade500,
+                        color: textSecondary,
                       ),
                     ),
                   ],
@@ -234,7 +226,7 @@ class _SleepTrackingSheetState extends State<SleepTrackingSheet> {
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isTracking ? const Color(0xFFEF4444) : const Color(0xFF6128E6), 
+                    backgroundColor: _isTracking ? Colors.red : const Color(0xFFA855F7), 
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -245,13 +237,13 @@ class _SleepTrackingSheetState extends State<SleepTrackingSheet> {
               
               const SizedBox(height: 20),
               
-              const Center(
+              Center(
                 child: Text(
                   'Letakkan ponsel di meja samping tempat tidur dan bersantailah',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF9333EA),
+                    color: textSecondary,
                     fontWeight: FontWeight.w500,
                   ),
                 ),

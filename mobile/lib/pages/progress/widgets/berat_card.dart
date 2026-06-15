@@ -1,35 +1,35 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 class BeratCard extends StatelessWidget {
   const BeratCard({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final cardColor = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final border = isDark ? darkBorder : lightBorder;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: cardColor,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        border: Border.all(color: border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
+            children: [
               Text(
                 'Berat',
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF1F1235),
+                  color: textPrimary,
                 ),
               ),
               Text(
@@ -37,7 +37,7 @@ class BeratCard extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF1F1235),
+                  color: textSecondary,
                 ),
               ),
             ],
@@ -65,11 +65,11 @@ class BeratCard extends StatelessWidget {
                   right: 32, // to align with the grid end
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text('1', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                      Text('8', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                      Text('15', style: TextStyle(fontSize: 10, color: Colors.grey)),
-                      Text('22', style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    children: [
+                      Text('1', style: TextStyle(fontSize: 10, color: textSecondary)),
+                      Text('8', style: TextStyle(fontSize: 10, color: textSecondary)),
+                      Text('15', style: TextStyle(fontSize: 10, color: textSecondary)),
+                      Text('22', style: TextStyle(fontSize: 10, color: textSecondary)),
                     ],
                   ),
                 ),
@@ -80,7 +80,7 @@ class BeratCard extends StatelessWidget {
                   child: Container(
                     width: 2,
                     height: 105,
-                    color: const Color(0xFF1F1235),
+                    color: textPrimary,
                   ),
                 ),
                 // Point on graph

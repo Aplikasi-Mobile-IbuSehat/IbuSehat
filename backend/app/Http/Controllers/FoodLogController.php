@@ -32,7 +32,6 @@ class FoodLogController extends Controller
                 'carbs',
                 'fat',
                 'category',
-                'jenis',
                 'created_at',
             ]);
         
@@ -72,7 +71,6 @@ class FoodLogController extends Controller
             'fat'          => 'required|numeric',
             'makanan_id'   => 'nullable|integer',
             'category'     => 'nullable|string',
-            'jenis'        => 'nullable|string',
         ]);
 
         $log = new FoodLog();
@@ -85,7 +83,6 @@ class FoodLogController extends Controller
         $log->carbs        = $validated['carbs'];
         $log->fat          = $validated['fat'];
         $log->category     = $validated['category'] ?? '';
-        $log->jenis        = $validated['jenis'] ?? '';
         $log->save();
 
         return response()->json([
@@ -118,7 +115,6 @@ class FoodLogController extends Controller
             'carbs'        => 'sometimes|required|numeric|min:0',
             'fat'          => 'sometimes|required|numeric|min:0',
             'category'     => 'sometimes|nullable|string',
-            'jenis'        => 'sometimes|nullable|string',
         ]);
 
         $log->fill($validated);

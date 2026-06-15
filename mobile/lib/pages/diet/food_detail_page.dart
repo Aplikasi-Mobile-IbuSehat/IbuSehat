@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/models/food.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 class FoodDetailPage extends StatefulWidget {
   final Food food;
@@ -61,7 +62,6 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
       carbs: totalCarbs,
       fat: totalFat,
       category: widget.food.category,
-      jenis: widget.food.jenis,
       icon: widget.food.icon,
       color: widget.food.color,
     );
@@ -70,22 +70,29 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final background = isDark ? darkBackground : const Color(0xFFF2F2F7);
+    final surface = isDark ? darkSurface : Colors.white;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F2F7),
+      backgroundColor: background,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF2F2F7),
+        backgroundColor: background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: Color(0xFF3A3A3C)),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Detail Nutrisi',
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w600,
-            color: Color(0xFF1C1C1E),
+            color: textPrimary,
             letterSpacing: -0.2,
           ),
         ),
@@ -96,7 +103,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
             child: const Text(
               'Tambah',
               style: TextStyle(
-                color: Color(0xFF007AFF),
+                color: Color(0xFF8B5CF6),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -111,15 +118,15 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Hero Card ─────────────────────────────────────────────────────
-            _buildHeroCard(),
+            _buildHeroCard(isDark, surface, textPrimary, textSecondary),
             const SizedBox(height: 12),
 
             // ── Servings Control ──────────────────────────────────────────────
-            _buildServingsCard(),
+            _buildServingsCard(isDark, surface, textPrimary, textSecondary),
             const SizedBox(height: 12),
 
             // ── Nutrition Summary ─────────────────────────────────────────────
-            _buildNutritionCard(),
+            _buildNutritionCard(isDark, surface, textPrimary, textSecondary),
             const SizedBox(height: 32),
           ],
         ),
@@ -127,14 +134,14 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     );
   }
 
-  Widget _buildHeroCard() {
+  Widget _buildHeroCard(bool isDark, Color surface, Color textPrimary, Color textSecondary) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: isDark ? null : [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
@@ -149,7 +156,7 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: const Color(0xFFF2F2F7),
+              color: isDark ? darkBackground : const Color(0xFFF2F2F7),
               borderRadius: BorderRadius.circular(18),
             ),
             child: Center(
@@ -162,10 +169,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
           const SizedBox(height: 16),
           Text(
             widget.food.name,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1C1C1E),
+              color: textPrimary,
               letterSpacing: -0.3,
             ),
             textAlign: TextAlign.center,
@@ -173,9 +180,9 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
           const SizedBox(height: 6),
           Text(
             '${widget.food.kcal.toStringAsFixed(0)} kkal / ${widget.food.weight.toStringAsFixed(0)} g',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              color: Color(0xFF8E8E93),
+              color: textSecondary,
               fontWeight: FontWeight.w400,
             ),
           ),
@@ -184,14 +191,14 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: const Color(0xFFF2F2F7),
+                color: isDark ? darkBackground : const Color(0xFFF2F2F7),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 widget.food.category!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: Color(0xFF636366),
+                  color: textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -202,12 +209,14 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     );
   }
 
-  Widget _buildServingsCard() {
+  Widget _buildServingsCard(bool isDark, Color surface, Color textPrimary, Color textSecondary) {
+    final border = isDark ? darkBorder : const Color(0xFFE5E5EA);
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: isDark ? null : [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
@@ -222,36 +231,36 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Jumlah Sajian',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF1C1C1E),
+                      color: textPrimary,
                     ),
                   ),
                 ),
-                _buildStepper(),
+                _buildStepper(isDark, textPrimary),
               ],
             ),
           ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Divider(height: 1, thickness: 0.5, color: border),
           ),
           // Weight per serving row
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Berat per Sajian',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF1C1C1E),
+                      color: textPrimary,
                     ),
                   ),
                 ),
@@ -261,26 +270,32 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                     controller: _weightController,
                     keyboardType: TextInputType.number,
                     textAlign: TextAlign.right,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF1C1C1E),
+                      color: textPrimary,
                     ),
                     onChanged: (val) {
                       setState(() {
                         _weight = double.tryParse(val) ?? widget.food.weight;
                       });
                     },
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       suffix: Text(
                         ' g',
                         style: TextStyle(
                           fontSize: 14,
-                          color: Color(0xFF8E8E93),
+                          color: textSecondary,
                           fontWeight: FontWeight.w400,
                         ),
                       ),
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
+                      filled: false,
                       contentPadding: EdgeInsets.zero,
                       isDense: true,
                     ),
@@ -294,47 +309,49 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
     );
   }
 
-  Widget _buildStepper() {
+  Widget _buildStepper(bool isDark, Color textPrimary) {
     return Row(
       children: [
-        _buildStepButton(Icons.remove, _decrementServing),
+        _buildStepButton(Icons.remove, _decrementServing, isDark, textPrimary),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             '$_servingSize',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 17,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1C1C1E),
+              color: textPrimary,
             ),
           ),
         ),
-        _buildStepButton(Icons.add, _incrementServing),
+        _buildStepButton(Icons.add, _incrementServing, isDark, textPrimary),
       ],
     );
   }
 
-  Widget _buildStepButton(IconData icon, VoidCallback onTap) {
+  Widget _buildStepButton(IconData icon, VoidCallback onTap, bool isDark, Color textPrimary) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
         width: 30,
         height: 30,
-        decoration: const BoxDecoration(
-          color: Color(0xFFE5E5EA),
+        decoration: BoxDecoration(
+          color: isDark ? darkBackground : const Color(0xFFE5E5EA),
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 16, color: const Color(0xFF1C1C1E)),
+        child: Icon(icon, size: 16, color: textPrimary),
       ),
     );
   }
 
-  Widget _buildNutritionCard() {
+  Widget _buildNutritionCard(bool isDark, Color surface, Color textPrimary, Color textSecondary) {
+    final border = isDark ? darkBorder : const Color(0xFFE5E5EA);
+
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: isDark ? null : [
           BoxShadow(
             color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
@@ -350,29 +367,29 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Nilai Gizi',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1C1C1E),
+                    color: textPrimary,
                   ),
                 ),
                 Text(
                   '${totalWeight.toStringAsFixed(0)} g total',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF8E8E93),
+                    color: textSecondary,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
               ],
             ),
           ),
-          _buildNutritionRow('Kalori', totalKcal, 'kkal', isFirst: true),
-          _buildNutritionRow('Protein', totalProtein, 'g'),
-          _buildNutritionRow('Karbohidrat', totalCarbs, 'g'),
-          _buildNutritionRow('Lemak', totalFat, 'g', isLast: true),
+          _buildNutritionRow('Kalori', totalKcal, 'kkal', textPrimary, textSecondary, border, isFirst: true),
+          _buildNutritionRow('Protein', totalProtein, 'g', textPrimary, textSecondary, border),
+          _buildNutritionRow('Karbohidrat', totalCarbs, 'g', textPrimary, textSecondary, border),
+          _buildNutritionRow('Lemak', totalFat, 'g', textPrimary, textSecondary, border, isLast: true),
         ],
       ),
     );
@@ -381,16 +398,19 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
   Widget _buildNutritionRow(
     String label,
     double value,
-    String unit, {
+    String unit,
+    Color textPrimary,
+    Color textSecondary,
+    Color border, {
     bool isFirst = false,
     bool isLast = false,
   }) {
     return Column(
       children: [
         if (!isFirst)
-          const Padding(
-            padding: EdgeInsets.only(left: 16),
-            child: Divider(height: 1, thickness: 0.5, color: Color(0xFFE5E5EA)),
+          Padding(
+            padding: const EdgeInsets.only(left: 16),
+            child: Divider(height: 1, thickness: 0.5, color: border),
           ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
@@ -399,10 +419,10 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
             children: [
               Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w400,
-                  color: Color(0xFF1C1C1E),
+                  color: textPrimary,
                 ),
               ),
               RichText(
@@ -410,18 +430,18 @@ class _FoodDetailPageState extends State<FoodDetailPage> {
                   children: [
                     TextSpan(
                       text: value.toStringAsFixed(1),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1C1C1E),
+                        color: textPrimary,
                       ),
                     ),
                     TextSpan(
                       text: ' $unit',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w400,
-                        color: Color(0xFF8E8E93),
+                        color: textSecondary,
                       ),
                     ),
                   ],

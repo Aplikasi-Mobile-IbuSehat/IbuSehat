@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/widgets/app_background.dart';
+import 'package:mobile/theme/app_theme.dart';
 import 'package:mobile/pages/skincare/skincare_detail_page.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 class SkincarePage extends StatefulWidget {
   const SkincarePage({super.key});
@@ -14,15 +15,18 @@ class _SkincarePageState extends State<SkincarePage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? darkTextPrimary : const Color(0xFF1F1235);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Skincare Ibu',
           style: TextStyle(
             fontWeight: FontWeight.w900,
-            color: Color(0xFF1F1235),
+            color: textPrimary,
             letterSpacing: -0.5,
           ),
         ),
@@ -31,7 +35,7 @@ class _SkincarePageState extends State<SkincarePage> {
         scrolledUnderElevation: 0,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF1F1235), size: 20),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -43,25 +47,25 @@ class _SkincarePageState extends State<SkincarePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 12),
-                _buildTypeSelector(),
+                _buildTypeSelector(isDark),
                 const SizedBox(height: 24),
-                _buildHeroSection(),
+                _buildHeroSection(isDark),
                 const SizedBox(height: 32),
-                _buildSectionTitle('Masalah Kulit'),
+                _buildSectionTitle('Masalah Kulit', textPrimary),
                 const SizedBox(height: 16),
-                _buildSkinProblemsHorizontal(),
+                _buildSkinProblemsHorizontal(isDark),
                 const SizedBox(height: 32),
-                _buildSectionTitle('Quick Routine'),
+                _buildSectionTitle('Quick Routine', textPrimary),
                 const SizedBox(height: 16),
-                _buildQuickRoutineCard(),
+                _buildQuickRoutineCard(isDark),
                 const SizedBox(height: 32),
-                _buildSectionTitle('Kandungan Aman'),
+                _buildSectionTitle('Kandungan Aman', textPrimary),
                 const SizedBox(height: 16),
-                _buildSafeIngredientsSection(),
+                _buildSafeIngredientsSection(isDark),
                 const SizedBox(height: 32),
-                _buildSectionTitle('Tips Singkat'),
+                _buildSectionTitle('Tips Singkat', textPrimary),
                 const SizedBox(height: 16),
-                _buildQuickTipsFooter(),
+                _buildQuickTipsFooter(isDark),
                 const SizedBox(height: 100),
               ],
             ),
@@ -71,16 +75,18 @@ class _SkincarePageState extends State<SkincarePage> {
     );
   }
 
-  Widget _buildTypeSelector() {
+  Widget _buildTypeSelector(bool isDark) {
+    final surface = isDark ? darkSurface : Colors.white;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
         height: 50,
         padding: const EdgeInsets.all(5),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.5),
+          color: surface.withOpacity(isDark ? 0.9 : 0.5),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white),
+          border: Border.all(color: isDark ? darkBorder : Colors.white),
         ),
         child: Row(
           children: [
@@ -89,6 +95,7 @@ class _SkincarePageState extends State<SkincarePage> {
                 title: 'Lahir Normal',
                 isActive: _isNormalDelivery,
                 onTap: () => setState(() => _isNormalDelivery = true),
+                isDark: isDark,
               ),
             ),
             const SizedBox(width: 5),
@@ -97,6 +104,7 @@ class _SkincarePageState extends State<SkincarePage> {
                 title: 'Lahir Sesar',
                 isActive: !_isNormalDelivery,
                 onTap: () => setState(() => _isNormalDelivery = false),
+                isDark: isDark,
               ),
             ),
           ],
@@ -105,7 +113,9 @@ class _SkincarePageState extends State<SkincarePage> {
     );
   }
 
-  Widget _buildTypeButton({required String title, required bool isActive, required VoidCallback onTap}) {
+  Widget _buildTypeButton({required String title, required bool isActive, required VoidCallback onTap, required bool isDark}) {
+    final textPrimary = isDark ? darkTextPrimary : const Color(0xFF1F1235);
+    
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -122,7 +132,7 @@ class _SkincarePageState extends State<SkincarePage> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w800,
-              color: isActive ? Colors.white : const Color(0xFF1F1235).withOpacity(0.4),
+              color: isActive ? Colors.white : textPrimary.withOpacity(0.4),
             ),
           ),
         ),
@@ -130,16 +140,18 @@ class _SkincarePageState extends State<SkincarePage> {
     );
   }
 
-  Widget _buildHeroSection() {
+  Widget _buildHeroSection(bool isDark) {
+    final surface = isDark ? darkSurface : Colors.white;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
         width: double.infinity,
         height: 180,
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface,
           borderRadius: BorderRadius.circular(28),
-          boxShadow: [
+          boxShadow: isDark ? null : [
             BoxShadow(
               color: const Color(0xFF8B5CF6).withOpacity(0.1),
               blurRadius: 20,
@@ -209,24 +221,25 @@ class _SkincarePageState extends State<SkincarePage> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, Color textColor) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w900,
-          color: Color(0xFF1F1235),
+          color: textColor,
           letterSpacing: -0.5,
         ),
       ),
     );
   }
 
-  Widget _buildSkinProblemsHorizontal() {
+  Widget _buildSkinProblemsHorizontal(bool isDark) {
     final sections = _isNormalDelivery ? _normalSections() : _sesarSections();
     final problems = sections.where((s) => s['title'] != 'Rutinitas Perawatan Harian' && s['title'] != 'Rutinitas Perawatan Harian (Sesar)').toList();
+    final surface = isDark ? darkSurface : Colors.white;
 
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -237,7 +250,6 @@ class _SkincarePageState extends State<SkincarePage> {
           final problem = problems[index];
           final color = problem['color'] as Color;
           final title = problem['title'] as String;
-          final heroTag = 'skin_problem_$index';
 
           return Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -263,9 +275,9 @@ class _SkincarePageState extends State<SkincarePage> {
                 width: 240,
                 height: 160,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: surface,
                   borderRadius: BorderRadius.circular(28),
-                  boxShadow: [
+                  boxShadow: isDark ? null : [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.08),
                       blurRadius: 15,
@@ -335,16 +347,19 @@ class _SkincarePageState extends State<SkincarePage> {
     );
   }
 
-  Widget _buildQuickRoutineCard() {
+  Widget _buildQuickRoutineCard(bool isDark) {
+    final surface = isDark ? darkSurface : Colors.white;
+    final textPrimary = isDark ? darkTextPrimary : const Color(0xFF1F1235);
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface,
           borderRadius: BorderRadius.circular(28),
-          boxShadow: [
+          boxShadow: isDark ? null : [
             BoxShadow(
               color: const Color(0xFF8B5CF6).withOpacity(0.08),
               blurRadius: 20,
@@ -358,9 +373,9 @@ class _SkincarePageState extends State<SkincarePage> {
               children: [
                 const Icon(Icons.auto_awesome_rounded, color: Color(0xFF8B5CF6), size: 24),
                 const SizedBox(width: 12),
-                const Text(
+                Text(
                   'Rutinitas Singkat',
-                  style: TextStyle(color: Color(0xFF1F1235), fontSize: 18, fontWeight: FontWeight.w900),
+                  style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w900),
                 ),
               ],
             ),
@@ -374,9 +389,9 @@ class _SkincarePageState extends State<SkincarePage> {
                     children: [
                       _buildRoutineGroupHeader(Icons.wb_sunny_rounded, 'Pagi'),
                       const SizedBox(height: 16),
-                      _buildRoutineStep('1', 'Bersihkan', 'Gentle cleanser'),
-                      _buildRoutineStep('2', 'Hidrasi', 'Hyaluronic Acid'),
-                      _buildRoutineStep('3', 'Proteksi', 'Sunscreen'),
+                      _buildRoutineStep('1', 'Bersihkan', 'Gentle cleanser', isDark),
+                      _buildRoutineStep('2', 'Hidrasi', 'Hyaluronic Acid', isDark),
+                      _buildRoutineStep('3', 'Proteksi', 'Sunscreen', isDark),
                     ],
                   ),
                 ),
@@ -384,7 +399,7 @@ class _SkincarePageState extends State<SkincarePage> {
                   width: 1,
                   height: 150,
                   margin: const EdgeInsets.symmetric(horizontal: 16),
-                  color: Colors.grey.withOpacity(0.1),
+                  color: isDark ? Colors.white.withOpacity(0.1) : Colors.grey.withOpacity(0.1),
                 ),
                 Expanded(
                   child: Column(
@@ -392,9 +407,9 @@ class _SkincarePageState extends State<SkincarePage> {
                     children: [
                       _buildRoutineGroupHeader(Icons.nightlight_round, 'Malam'),
                       const SizedBox(height: 16),
-                      _buildRoutineStep('1', 'Bersihkan', 'Double cleanse'),
-                      _buildRoutineStep('2', 'Nutrisi', 'Serum & Night cream'),
-                      _buildRoutineStep('3', 'Hidrasi', 'Moisturizer'),
+                      _buildRoutineStep('1', 'Bersihkan', 'Double cleanse', isDark),
+                      _buildRoutineStep('2', 'Nutrisi', 'Serum & Night cream', isDark),
+                      _buildRoutineStep('3', 'Hidrasi', 'Moisturizer', isDark),
                     ],
                   ),
                 ),
@@ -424,7 +439,10 @@ class _SkincarePageState extends State<SkincarePage> {
     );
   }
 
-  Widget _buildRoutineStep(String num, String title, String subtitle) {
+  Widget _buildRoutineStep(String num, String title, String subtitle, bool isDark) {
+    final textPrimary = isDark ? darkTextPrimary : const Color(0xFF1F1235);
+    final textSecondary = isDark ? darkTextSecondary : const Color(0xFF1F1235).withOpacity(0.5);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -445,8 +463,8 @@ class _SkincarePageState extends State<SkincarePage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(color: Color(0xFF1F1235), fontWeight: FontWeight.w800, fontSize: 13)),
-                Text(subtitle, style: TextStyle(color: const Color(0xFF1F1235).withOpacity(0.5), fontSize: 10)),
+                Text(title, style: TextStyle(color: textPrimary, fontWeight: FontWeight.w800, fontSize: 13)),
+                Text(subtitle, style: TextStyle(color: textSecondary, fontSize: 10)),
               ],
             ),
           ),
@@ -455,7 +473,10 @@ class _SkincarePageState extends State<SkincarePage> {
     );
   }
 
-  Widget _buildSafeIngredientsSection() {
+  Widget _buildSafeIngredientsSection(bool isDark) {
+    final surface = isDark ? darkSurface : Colors.white;
+    final textPrimary = isDark ? darkTextPrimary : const Color(0xFF1F1235);
+
     final ingredients = [
       {'name': 'Vitamin C', 'icon': Icons.brightness_high_rounded, 'color': Colors.orange},
       {'name': 'Hyaluronic', 'icon': Icons.water_drop_rounded, 'color': Colors.blue},
@@ -481,9 +502,9 @@ class _SkincarePageState extends State<SkincarePage> {
           return Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: color.withOpacity(0.1)),
+              border: Border.all(color: color.withOpacity(isDark ? 0.2 : 0.1)),
             ),
             child: Row(
               children: [
@@ -495,7 +516,7 @@ class _SkincarePageState extends State<SkincarePage> {
                 const SizedBox(width: 10),
                 Text(
                   item['name'] as String,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: Color(0xFF1F1235)),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: textPrimary),
                 ),
               ],
             ),
@@ -505,15 +526,17 @@ class _SkincarePageState extends State<SkincarePage> {
     );
   }
 
-  Widget _buildQuickTipsFooter() {
+  Widget _buildQuickTipsFooter(bool isDark) {
+    final surface = isDark ? darkSurface : Colors.white;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface,
           borderRadius: BorderRadius.circular(28),
-          boxShadow: [
+          boxShadow: isDark ? null : [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
               blurRadius: 20,
@@ -523,16 +546,18 @@ class _SkincarePageState extends State<SkincarePage> {
         ),
         child: Column(
           children: [
-            _buildTipItem(Icons.water_drop_rounded, 'Minum minimal 2.5–3 Liter air per hari untuk hidrasi kulit dari dalam.'),
+            _buildTipItem(Icons.water_drop_rounded, 'Minum minimal 2.5–3 Liter air per hari untuk hidrasi kulit dari dalam.', isDark),
             const SizedBox(height: 20),
-            _buildTipItem(Icons.auto_awesome_rounded, 'Gunakan sarung bantal berbahan sutra atau katun lembut untuk kurangi gesekan.'),
+            _buildTipItem(Icons.auto_awesome_rounded, 'Gunakan sarung bantal berbahan sutra atau katun lembut untuk kurangi gesekan.', isDark),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTipItem(IconData icon, String text) {
+  Widget _buildTipItem(IconData icon, String text, bool isDark) {
+    final textPrimary = isDark ? darkTextPrimary : const Color(0xFF1F1235);
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -551,7 +576,7 @@ class _SkincarePageState extends State<SkincarePage> {
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: const Color(0xFF1F1235).withOpacity(0.8),
+              color: textPrimary.withOpacity(0.8),
               height: 1.5,
             ),
           ),

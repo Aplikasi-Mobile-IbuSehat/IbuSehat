@@ -3,10 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:mobile/pages/beranda/beranda_page.dart';
 import 'package:mobile/pages/diet/diet_page.dart';
 import 'package:mobile/pages/progress/progress_page.dart';
-import 'package:mobile/pages/profile/profile_page.dart';
+import 'package:mobile/pages/settings/settings.dart';
 import 'package:mobile/pages/workout/workout_page.dart';
 import 'package:mobile/widgets/app_navbar.dart';
 import 'package:mobile/pages/beranda/sleep_fab.dart';
+import 'package:mobile/services/auth_service.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -17,6 +18,12 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int _currentIndex = 0; // Beranda sebagai halaman awal setelah onboarding
+
+  @override
+  void initState() {
+    super.initState();
+    AuthService.instance.ensureUserCached();
+  }
 
   late final List<Widget> _pages = [
     BerandaPage(
@@ -29,18 +36,18 @@ class _MainPageState extends State<MainPage> {
     const ProgressPage(),
     const DietPage(),
     const WorkoutPage(),
-    const ProfilePage(),
+    const SettingsPage(),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark.copyWith(
+      value: (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
         statusBarColor: Colors.transparent,
       ),
       child: Scaffold(
         extendBody: true,
-        backgroundColor: Colors.transparent,
         body: _pages[_currentIndex],
         bottomNavigationBar: AppNavbar(
           currentIndex: _currentIndex,
