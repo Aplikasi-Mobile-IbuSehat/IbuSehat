@@ -4,7 +4,7 @@ class ApiConfig {
   ApiConfig._();
 
   static const String _overrideBaseUrl = String.fromEnvironment('API_BASE_URL');
-  static const String _defaultBaseUrl = 'http://192.168.0.48:8000';
+  static const String _defaultBaseUrl = 'http://192.168.13.49:8000';
   static const String googleServerClientId = String.fromEnvironment(
     'GOOGLE_WEB_CLIENT_ID',
     defaultValue:
@@ -28,3 +28,4 @@ class ApiConfig {
 
   static String get apiBaseUrl => '${baseUrl}/api';
 }
+    

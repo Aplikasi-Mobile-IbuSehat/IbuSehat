@@ -47,6 +47,13 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
   bool _isInitialCountdown = true;
   int _initialCountdownSeconds = 5;
 
+  Timer? _transitionTimer;
+  bool _isTransitionCountdown = false;
+  int _transitionCountdownSeconds = 5;
+  int _transitionTargetStep = 0;
+
+  static const _kCountdownDuration = 5;
+
   Timer? _workoutTimer;
   int _elapsedSeconds = 0; 
   int _currentExerciseSeconds = 30; 
@@ -94,15 +101,21 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
     "assets/videos/dumble/6.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
   };
 
-  void _initializeVideo({bool useFallback = false}) {
+  void _initializeVideo({
+    bool useFallback = false,
+    int? stepIndex,
+    bool autoPlay = true,
+  }) {
     if (!mounted) return;
+
+    final step = stepIndex ?? _currentStep;
     
     setState(() {
       _isVideoInitialized = false;
       _isError = false;
     });
 
-    final String videoPath = _videoPlaylist[_currentStep];
+    final String videoPath = _videoPlaylist[step];
     
     if (useFallback && _networkFallback.containsKey(videoPath)) {
       debugPrint("🛠 Memakai video fallback (Network) untuk: $videoPath");
@@ -117,16 +130,23 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
         _isVideoInitialized = true;
         _isError = false;
       });
-      if (!_isInitialCountdown) {
+      _controller.setLooping(true);
+      final shouldPlay = autoPlay &&
+          !_isInitialCountdown &&
+          !_isTransitionCountdown;
+      if (shouldPlay) {
         _controller.play();
       }
-      _controller.setLooping(true);
     }).catchError((error) {
       if (!mounted) return;
       
       // Jika asset gagal dan belum mencoba fallback, coba otomatis ke network
       if (!useFallback && _networkFallback.containsKey(videoPath)) {
-        _initializeVideo(useFallback: true);
+        _initializeVideo(
+          useFallback: true,
+          stepIndex: step,
+          autoPlay: autoPlay,
+        );
       } else {
         debugPrint("Video Player Error: $error");
         setState(() {
@@ -140,6 +160,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
     _workoutTimer?.cancel(); // Pastikan tidak ada timer ganda
     _workoutTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) return;
+      if (_isInitialCountdown || _isTransitionCountdown) return;
       
       // Jangan jalankan countdown jika video belum siap atau error (agar user bisa baca pesan error)
       if (!_isVideoInitialized && !_isError) return;
@@ -154,18 +175,107 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
       });
     });
   }
+
+  void _beginTransitionToNext() {
+    if (_currentStep >= _totalSteps - 1) return;
+
+    _workoutTimer?.cancel();
+    _controller.pause();
+
+    setState(() {
+      _transitionTargetStep = _currentStep + 1;
+      _isTransitionCountdown = true;
+      _transitionCountdownSeconds = _kCountdownDuration;
+    });
+
+    _loadPreviewVideo(_transitionTargetStep);
+    _startTransitionCountdown();
+  }
+
+  void _startTransitionCountdown() {
+    _transitionTimer?.cancel();
+    _transitionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
+      setState(() {
+        if (_transitionCountdownSeconds > 1) {
+          _transitionCountdownSeconds--;
+        } else {
+          _completeTransition();
+        }
+      });
+    });
+  }
+
+  void _restartTransitionCountdown() {
+    _transitionTimer?.cancel();
+    setState(() {
+      _transitionCountdownSeconds = _kCountdownDuration;
+    });
+    _loadPreviewVideo(_transitionTargetStep);
+    _startTransitionCountdown();
+  }
+
+  void _completeTransition() {
+    _transitionTimer?.cancel();
+    setState(() {
+      _currentStep = _transitionTargetStep;
+      _currentExerciseSeconds = 30;
+      _isTransitionCountdown = false;
+      _transitionCountdownSeconds = _kCountdownDuration;
+    });
+    if (_isVideoInitialized && !_isError) {
+      _controller.play();
+    }
+    _startTimers();
+  }
+
+  void _loadPreviewVideo(int stepIndex) {
+    _controller.pause();
+    final oldController = _controller;
+
+    setState(() {
+      _isVideoInitialized = false;
+      _isError = false;
+    });
+
+    _initializeVideo(stepIndex: stepIndex, autoPlay: false);
+
+    Future.delayed(const Duration(milliseconds: 200), () {
+      oldController.dispose();
+    });
+  }
   
   void _nextStep() {
-    if (_currentStep < _totalSteps - 1) {
+    if (_isTransitionCountdown) {
+      if (_transitionTargetStep >= _totalSteps - 1) {
+        _completeTransition();
+        return;
+      }
       setState(() {
-        _currentStep++;
-        _currentExerciseSeconds = 30;
+        _transitionTargetStep++;
       });
-      _switchVideo();
+      _restartTransitionCountdown();
+      return;
+    }
+
+    if (_currentStep < _totalSteps - 1) {
+      _beginTransitionToNext();
     }
   }
 
   void _prevStep() {
+    if (_isTransitionCountdown) {
+      _transitionTimer?.cancel();
+      setState(() {
+        _isTransitionCountdown = false;
+        _transitionCountdownSeconds = _kCountdownDuration;
+        _currentExerciseSeconds = 30;
+      });
+      _switchVideo();
+      _startTimers();
+      return;
+    }
+
     if (_currentStep > 0) {
       setState(() {
         _currentStep--;
@@ -189,12 +299,50 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
     });
 
     // 4. Inisialisasi video baru
-    _initializeVideo();
+    _initializeVideo(autoPlay: true);
 
     // 5. Dispose controller lama setelah inisialisasi baru dimulai (menghindari jeda hitam)
     Future.delayed(const Duration(milliseconds: 200), () {
       oldController.dispose();
     });
+  }
+
+  bool get _showCountdownOverlay =>
+      _isInitialCountdown || _isTransitionCountdown;
+
+  int get _activeCountdownSeconds => _isInitialCountdown
+      ? _initialCountdownSeconds
+      : _transitionCountdownSeconds;
+
+  Widget _buildCountdownOverlay() {
+    return Container(
+      color: Colors.black54,
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              "Bersiap",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              "$_activeCountdownSeconds",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 80,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showInfoPopup() {
@@ -290,6 +438,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
   @override
   void dispose() {
     _initialTimer?.cancel();
+    _transitionTimer?.cancel();
     _workoutTimer?.cancel();
     _controller.dispose();
     super.dispose();
@@ -384,35 +533,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
                               child: const Center(child: CircularProgressIndicator(color: Colors.purple)),
                             ),
                   // Countdown Overlay
-                  if (_isInitialCountdown)
-                    Container(
-                      color: Colors.black54,
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Text(
-                              "Bersiap",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              "$_initialCountdownSeconds",
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 80,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
+                  if (_showCountdownOverlay) _buildCountdownOverlay(),
                             
                   // Back Button Top Left
                   Positioned(

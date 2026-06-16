@@ -1,4 +1,5 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:mobile/pages/beranda/share_achievement_page.dart';
 
 class StreakDetailPage extends StatelessWidget {
   const StreakDetailPage({
@@ -19,7 +20,7 @@ class StreakDetailPage extends StatelessWidget {
 
   String get _selectedMonthLabel => _formatMonthLabel(_displayMonth);
 
-  String get _longestStreakRange => '–';
+  String get _longestStreakRange => '—';
 
   int get _activeDaysThisMonth => 0;
 
@@ -99,13 +100,24 @@ class StreakDetailPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '$currentStreak Hari 🔥',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      '$currentStreak Hari',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.local_fire_department_rounded,
+                      color: Color(0xFFFF9500),
+                      size: 30,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -137,19 +149,12 @@ class StreakDetailPage extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Fitur bagikan streak segera hadir',
-                style: TextStyle(fontWeight: FontWeight.w600),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ShareAchievementPage(
+                streakDays: currentStreak,
               ),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: _titleColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              margin: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-              duration: const Duration(seconds: 2),
             ),
           );
         },
@@ -558,3 +563,4 @@ class _StreakCalendarDay {
   final int? dayNumber;
   final String? status;
 }
+
