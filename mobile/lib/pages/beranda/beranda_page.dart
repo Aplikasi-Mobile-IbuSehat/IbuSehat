@@ -6,6 +6,8 @@ import 'package:mobile/pages/beranda/streak_detail_page.dart';
 import 'package:mobile/pages/beranda/welcome_dialog.dart';
 import 'package:mobile/pages/profile/premium_page.dart';
 import 'package:mobile/widgets/app_background.dart';
+import 'package:mobile/services/streak_service.dart';
+import 'package:mobile/models/streak_models.dart';
 
 // Design tokens — mockup IbuSehat Dashboard
 const _kPrimary = Color(0xFF6C4DFF);
@@ -26,20 +28,30 @@ const _kWeeklyPillHeight = 102.0;
 enum _DayStatus { empty, check, progress, fire }
 
 class BerandaPage extends StatefulWidget {
-  const BerandaPage({super.key, this.onTabSelected});
+  const BerandaPage({super.key, this.onTabSelected, this.scrollController});
 
   final void Function(int)? onTabSelected;
+  final ScrollController? scrollController;
 
   @override
   State<BerandaPage> createState() => _BerandaPageState();
 }
 
-class _BerandaPageState extends State<BerandaPage> {
+class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
   static bool _hasShownWelcomeDialog = false;
+  late final ScrollController _scrollController;
+  
+  // Streak data
+  StreakData? _streakData;
+  bool _isLoadingStreak = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = widget.scrollController ?? ScrollController();
+    WidgetsBinding.instance.addObserver(this);
+    
+    _fetchStreakData();
 
     if (!_hasShownWelcomeDialog) {
       _hasShownWelcomeDialog = true;
@@ -51,6 +63,59 @@ class _BerandaPageState extends State<BerandaPage> {
           builder: (context) => const WelcomeDialog(),
         );
       });
+    }
+  }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      print('=== BERANDA: page focused, refreshing...');
+      _fetchStreakData();
+    }
+  }
+  
+  Future<void> _fetchStreakData() async {
+    if (_isLoadingStreak) return;
+    
+    print('=== BERANDA: fetching streak data...');
+    
+    setState(() {
+      _isLoadingStreak = true;
+    });
+    
+    try {
+      final data = await StreakService().getStreakData();
+      if (mounted) {
+        setState(() {
+          _streakData = data;
+          _isLoadingStreak = false;
+        });
+        print('=== BERANDA: streakActive=${_streakData?.streakActive}');
+        print('=== BERANDA: calendar days=${_streakData?.calendar.length}');
+      }
+    } catch (e) {
+      debugPrint('Error fetching streak data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingStreak = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    if (widget.scrollController == null) {
+      _scrollController.dispose();
+    }
+    super.dispose();
+  }
+
+  void resetScrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
     }
   }
 
@@ -78,6 +143,7 @@ class _BerandaPageState extends State<BerandaPage> {
         child: SafeArea(
           bottom: false,
           child: CustomScrollView(
+            controller: _scrollController,
             slivers: [
               SliverToBoxAdapter(child: _buildHeader(context)),
               SliverPadding(
@@ -174,20 +240,19 @@ class _BerandaPageState extends State<BerandaPage> {
 
   Widget _buildWeeklyActivityCard(BuildContext context) {
     const dayLabels = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-    const dayStatuses = [
-      _DayStatus.check,
-      _DayStatus.progress,
-      _DayStatus.empty,
-      _DayStatus.check,
-      _DayStatus.fire,
-      _DayStatus.check,
-      _DayStatus.empty,
-    ];
-    final activeCount = dayStatuses.where((status) => status != _DayStatus.empty).length;
-    final currentStreak = activeCount;
-
+    
+    final currentStreak = _streakData?.streakActive ?? 0;
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday % 7));
+    
+    // Get last 7 days from calendar
+    final last7Days = _streakData?.calendar
+        .where((day) {
+          final date = DateTime.parse(day.date);
+          return date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
+                 date.isBefore(now.add(const Duration(days: 1)));
+        })
+        .toList() ?? [];
 
     return Container(
       width: double.infinity,
@@ -339,7 +404,7 @@ class _BerandaPageState extends State<BerandaPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Konsisten selama $currentStreak hari berturut turut',
+                        'Konsisten selama ${_streakData?.streakActive ?? 0} hari berturut-turut',
                         maxLines: 2,
                         style: TextStyle(
                           fontSize: 14,
@@ -370,11 +435,14 @@ class _BerandaPageState extends State<BerandaPage> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => StreakDetailPage(
-                                currentStreak: currentStreak,
-                                longestStreak: currentStreak,
+                                currentStreak: _streakData?.streakActive ?? 0,
+                                longestStreak: _streakData?.streakLongest ?? 0,
                               ),
                             ),
-                          );
+                          ).then((_) {
+                            // Refresh streak data when returning from detail page
+                            _fetchStreakData();
+                          });
                         },
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
@@ -422,13 +490,43 @@ class _BerandaPageState extends State<BerandaPage> {
                 final isToday = day.day == now.day &&
                     day.month == now.month &&
                     day.year == now.year;
+                
+                // Find matching calendar day
+                CalendarDay? calendarDay;
+                if (last7Days.isNotEmpty) {
+                  try {
+                    calendarDay = last7Days.firstWhere(
+                      (cd) {
+                        final cdDate = DateTime.parse(cd.date);
+                        return cdDate.year == day.year &&
+                               cdDate.month == day.month &&
+                               cdDate.day == day.day;
+                      },
+                    );
+                  } catch (e) {
+                    // No matching day found
+                  }
+                }
+                
+                // Determine status from calendar day
+                _DayStatus status = _DayStatus.empty;
+                if (calendarDay != null) {
+                  // Show green checkmark for all completed days (including today)
+                  if (calendarDay.status == 'completed') {
+                    status = _DayStatus.check;
+                  } else if (calendarDay.status == 'today' && isToday) {
+                    // Only show progress if today and NOT completed yet
+                    status = _DayStatus.progress;
+                  }
+                }
+                
                 return Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 2),
                     child: _WeekDayPill(
                       label: dayLabels[index],
                       date: '${day.day}/${day.month}',
-                      status: dayStatuses[index],
+                      status: status,
                       isToday: isToday,
                     ),
                   ),
@@ -442,13 +540,19 @@ class _BerandaPageState extends State<BerandaPage> {
   }
 
   Widget _buildProgressTodaySection(BuildContext context) {
+    // Variables for backend integration - reset all to 0
+    int olahragaMenit = 0;
+    int airPutihGelas = 0;
+    int nutrisiKkal = 0;
+    int tidurJam = 0;
+    
     final items = <Widget>[
       _buildProgressCard(
         title: 'Olahraga',
-        value: '32 menit',
-        target: 'Target 50 menit',
-        percent: 64,
-        progress: 0.64,
+        value: '$olahragaMenit menit',
+        target: 'Target mingguan 75 menit',
+        percent: 0,
+        progress: 0.0,
         icon: Icons.directions_run_rounded,
         iconColor: _kPrimary,
         iconBg: _kVeryLightPurple,
@@ -456,10 +560,10 @@ class _BerandaPageState extends State<BerandaPage> {
       ),
       _buildProgressCard(
         title: 'Air Putih',
-        value: '6 gelas',
-        target: 'Target 8 gelas',
-        percent: 75,
-        progress: 0.75,
+        value: '$airPutihGelas ML',
+        target: 'Target mingguan 15 liter',
+        percent: 0,
+        progress: 0.0,
         icon: Icons.water_drop_rounded,
         iconColor: _kBlue,
         iconBg: const Color(0xFFDBEAFE),
@@ -467,22 +571,22 @@ class _BerandaPageState extends State<BerandaPage> {
       ),
       _buildProgressCard(
         title: 'Nutrisi',
-        value: '1200 kkal',
-        target: 'Target 1800 kkal',
-        percent: 67,
-        progress: 0.67,
+        value: '$nutrisiKkal kkal',
+        target: 'Target Mingguan 15.400 kkal',
+        percent: 0,
+        progress: 0.0,
         icon: Icons.restaurant_rounded,
         iconColor: _kSuccess,
         iconBg: const Color(0xFFDCFCE7),
         barColor: _kSuccess,
       ),
       _buildProgressCard(
-        title: 'Skincare',
-        value: '1x',
-        target: 'Target 2x',
-        percent: 50,
-        progress: 0.5,
-        icon: Icons.spa_rounded,
+        title: 'Jam Tidur',
+        value: '$tidurJam jam',
+        target: 'Target Mingguan 49 jam',
+        percent: 0,
+        progress: 0.0,
+        icon: Icons.bedtime,
         iconColor: _kPink,
         iconBg: const Color(0xFFFCE7F3),
         barColor: _kPink,
@@ -496,7 +600,7 @@ class _BerandaPageState extends State<BerandaPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
-              'Progress Hari Ini',
+              'Progress Minggu Ini',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
@@ -764,19 +868,18 @@ class _WeekDayPill extends StatelessWidget {
           width: 24,
           height: 24,
           decoration: const BoxDecoration(
-            color: Color(0xFFDCFCE7),
+            color: _kSuccess,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.check_rounded, size: 14, color: _kSuccess),
+          child: const Icon(Icons.check_rounded, size: 14, color: Colors.white),
         );
       case _DayStatus.progress:
         return Container(
           width: 24,
           height: 24,
           decoration: BoxDecoration(
-            color: _kVeryLightPurple,
             shape: BoxShape.circle,
-            border: Border.all(color: _kPrimary.withValues(alpha: 0.25)),
+            border: Border.all(color: _kPrimary, width: 2),
           ),
           child: const Icon(
             Icons.directions_run_rounded,

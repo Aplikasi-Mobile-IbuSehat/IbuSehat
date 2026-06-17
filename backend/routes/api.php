@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\GeminiController;
 use App\Http\Controllers\WorkoutProgramController;
+use App\Http\Controllers\StreakController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
@@ -101,4 +102,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{id}',      [SupplementController::class, 'update']);
         Route::delete('/{id}',   [SupplementController::class, 'destroy']);
     });
+
+    // Streak/Workout tracking routes
+    Route::post('/workout/complete', [StreakController::class, 'completeWorkout']);
+    Route::get('/streak', [StreakController::class, 'getStreak']);
 });

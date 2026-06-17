@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 import 'dart:async';
+import 'package:mobile/services/streak_service.dart';
+import 'package:mobile/widgets/streak_celebration_overlay.dart';
+import 'package:mobile/models/streak_models.dart';
 
 class ExerciseData {
   final String title;
@@ -19,11 +22,13 @@ class ExerciseData {
 class ActiveWorkoutPage extends StatefulWidget {
   final List<String> playlist;
   final List<ExerciseData> exerciseDetails;
+  final int? workoutId; // Add workout ID for streak tracking
 
   const ActiveWorkoutPage({
     super.key,
     required this.playlist,
     this.exerciseDetails = const [],
+    this.workoutId,
   });
 
   @override
@@ -31,9 +36,10 @@ class ActiveWorkoutPage extends StatefulWidget {
 }
 
 class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
-  late VideoPlayerController _controller;
+  VideoPlayerController? _controller;
   bool _isVideoInitialized = false;
   bool _isError = false;
+  bool _hasCompletedWorkout = false; // Prevent duplicate triggers
   
   // Mengambil daftar playlist dari parent widget
   late final List<String> _videoPlaylist = widget.playlist;
@@ -75,7 +81,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
           _isInitialCountdown = false;
           _initialTimer?.cancel();
           if (_isVideoInitialized && !_isError) {
-            _controller.play();
+            _controller?.play();
           }
           _startTimers();
         }
@@ -83,33 +89,36 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
     });
   }
   
-  // Workaround: Fallback URLs jika file lokal (LFS) rusak/tidak ada
-  final Map<String, String> _networkFallback = {
-    "assets/videos/vid_1.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    "assets/videos/vid_3.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-    "assets/videos/vid_4.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-    "assets/videos/vid_5.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-    "assets/videos/vid_6.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-    "assets/videos/vid_7.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4",
-    "assets/videos/vid_8.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerMeltdowns.mp4",
-    "assets/videos/vid_9.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-    "assets/videos/dumble/1.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-    "assets/videos/dumble/2.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-    "assets/videos/dumble/3.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-    "assets/videos/dumble/4.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-    "assets/videos/dumble/5.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-    "assets/videos/dumble/6.mp4": "https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4",
-  };
+  // Video player listener - kept for logging only
+  void _videoPlayerListener() {
+    // Listener kept for potential debugging/logging
+    // Workout completion now handled entirely by timer in _startTimers()
+  }
 
   void _initializeVideo({
-    bool useFallback = false,
     int? stepIndex,
     bool autoPlay = true,
-  }) {
+  }) async {
     if (!mounted) return;
 
     final step = stepIndex ?? _currentStep;
-    
+    debugPrint('=== INIT VIDEO START: step=$step, path=${_videoPlaylist[step]}');
+
+    // Dispose old controller in background (non-blocking)
+    final oldController = _controller;
+    if (oldController != null) {
+      debugPrint('=== DISPOSING OLD CONTROLLER IN BACKGROUND');
+      oldController.removeListener(_videoPlayerListener);
+      
+      // Dispose asynchronously without blocking
+      Future.microtask(() async {
+        await oldController.pause();
+        await Future.delayed(const Duration(milliseconds: 50));
+        oldController.dispose();
+        debugPrint('=== OLD CONTROLLER DISPOSED');
+      });
+    }
+
     setState(() {
       _isVideoInitialized = false;
       _isError = false;
@@ -117,42 +126,35 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
 
     final String videoPath = _videoPlaylist[step];
     
-    if (useFallback && _networkFallback.containsKey(videoPath)) {
-      debugPrint("🛠 Memakai video fallback (Network) untuk: $videoPath");
-      _controller = VideoPlayerController.networkUrl(Uri.parse(_networkFallback[videoPath]!));
-    } else {
-      _controller = VideoPlayerController.asset(videoPath);
-    }
+    // Create new controller immediately
+    _controller = VideoPlayerController.asset(videoPath);
 
-    _controller.initialize().then((_) {
+    _controller!.initialize().then((_) {
       if (!mounted) return;
+      debugPrint('=== VIDEO INITIALIZED: duration=${_controller!.value.duration}');
+      
       setState(() {
         _isVideoInitialized = true;
         _isError = false;
       });
-      _controller.setLooping(true);
+      
+      _controller!.setLooping(false);
+      _controller!.addListener(_videoPlayerListener);
+      _hasCompletedWorkout = false;
+      
       final shouldPlay = autoPlay &&
           !_isInitialCountdown &&
           !_isTransitionCountdown;
       if (shouldPlay) {
-        _controller.play();
+        debugPrint('=== AUTO PLAYING VIDEO');
+        _controller!.play();
       }
     }).catchError((error) {
       if (!mounted) return;
-      
-      // Jika asset gagal dan belum mencoba fallback, coba otomatis ke network
-      if (!useFallback && _networkFallback.containsKey(videoPath)) {
-        _initializeVideo(
-          useFallback: true,
-          stepIndex: step,
-          autoPlay: autoPlay,
-        );
-      } else {
-        debugPrint("Video Player Error: $error");
-        setState(() {
-          _isError = true;
-        });
-      }
+      debugPrint('🔴 Video Asset Error: $error');
+      setState(() {
+        _isError = true;
+      });
     });
   }
 
@@ -165,14 +167,33 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
       // Jangan jalankan countdown jika video belum siap atau error (agar user bisa baca pesan error)
       if (!_isVideoInitialized && !_isError) return;
 
+      // Calculate next values BEFORE setState
+      final newElapsed = _elapsedSeconds + 1;
+      final newExerciseSeconds = _currentExerciseSeconds > 0 ? _currentExerciseSeconds - 1 : 0;
+      
+      // Check completion BEFORE setState
+      final shouldComplete = newExerciseSeconds <= 0;
+      final isLastVideo = _currentStep >= _totalSteps - 1;
+
+      // Update UI - keep setState minimal
       setState(() {
-        _elapsedSeconds++;
-        if (_currentExerciseSeconds > 0) {
-          _currentExerciseSeconds--;
-        } else {
-          _nextStep();
-        }
+        _elapsedSeconds = newElapsed;
+        _currentExerciseSeconds = newExerciseSeconds;
       });
+
+      // Handle completion AFTER setState (non-blocking)
+      if (shouldComplete) {
+        if (isLastVideo) {
+          // Show streak animation when last video timer hits 0
+          if (!_hasCompletedWorkout) {
+            _hasCompletedWorkout = true;
+            _workoutTimer?.cancel();
+            Future.microtask(() => _completeWorkout());
+          }
+        } else {
+          _nextStep(); // Go to next video normally
+        }
+      }
     });
   }
 
@@ -180,7 +201,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
     if (_currentStep >= _totalSteps - 1) return;
 
     _workoutTimer?.cancel();
-    _controller.pause();
+    _controller?.pause();
 
     setState(() {
       _transitionTargetStep = _currentStep + 1;
@@ -224,25 +245,26 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
       _transitionCountdownSeconds = _kCountdownDuration;
     });
     if (_isVideoInitialized && !_isError) {
-      _controller.play();
+      _controller?.play();
     }
     _startTimers();
   }
 
   void _loadPreviewVideo(int stepIndex) {
-    _controller.pause();
-    final oldController = _controller;
+    debugPrint('=== LOADING PREVIEW VIDEO: step=$stepIndex');
+    
+    _controller?.removeListener(_videoPlayerListener);
+    _controller?.pause();
 
     setState(() {
       _isVideoInitialized = false;
       _isError = false;
     });
+    
+    _hasCompletedWorkout = false;
 
+    // Initialize new video (old controller will be disposed in _initializeVideo)
     _initializeVideo(stepIndex: stepIndex, autoPlay: false);
-
-    Future.delayed(const Duration(milliseconds: 200), () {
-      oldController.dispose();
-    });
   }
   
   void _nextStep() {
@@ -258,8 +280,82 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
       return;
     }
 
+    // Check if this is the last video
+    print('=== VIDEO PROGRESS: ${_currentStep + 1} of $_totalSteps');
+    print('=== IS LAST VIDEO: ${_currentStep >= _totalSteps - 1}');
+    print('=== VIDEO COMPLETED 100%: ${_currentExerciseSeconds <= 0}');
+    
+    if (_currentStep >= _totalSteps - 1) {
+      // Last video completed - trigger workout completion
+      print('=== CALLING COMPLETE WORKOUT with id: ${widget.workoutId}');
+      _completeWorkout();
+      return;
+    }
+
     if (_currentStep < _totalSteps - 1) {
       _beginTransitionToNext();
+    }
+  }
+
+  /// Complete workout and show streak celebration
+  Future<void> _completeWorkout() async {
+    if (!mounted) return;
+    
+    debugPrint('🎉 DEBUG workout completed - workoutId: ${widget.workoutId}');
+    
+    // 1. Stop everything immediately
+    _workoutTimer?.cancel();
+    _transitionTimer?.cancel();
+    _initialTimer?.cancel();
+    _controller?.pause();
+
+    if (!mounted) return;
+
+    // 2. Call API in background (don't await - fire and forget)
+    int streakCount = 1;
+    int longestStreak = 1;
+    
+    if (widget.workoutId != null) {
+      // Fire and forget - don't block UI
+      StreakService().completeWorkout(widget.workoutId!).then((result) {
+        streakCount = result.streakActive;
+        longestStreak = result.streakLongest;
+        print('=== API SUCCESS: streak=$streakCount, longest=$longestStreak');
+        debugPrint('🎉 [WORKOUT] Streak result: active=$streakCount, isNew=${result.isNewStreakDay}');
+      }).catchError((e) {
+        print('=== API error (silent): $e');
+        debugPrint('🔴 Streak save failed silently: $e');
+        // Show snackbar for debugging
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Debug: $e'),
+              duration: const Duration(seconds: 5),
+            ),
+          );
+        }
+      });
+    } else {
+      debugPrint('🔴 DEBUG ERROR: workoutId is null, skipping streak save');
+    }
+
+    // 3. Show celebration immediately (no waiting for API)
+    print('=== SHOWING CELEBRATION ANIMATION');
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => StreakCelebrationOverlay(
+        streakActive: streakCount,
+        streakLongest: longestStreak,
+        onDismiss: () {
+          Navigator.of(context).pop();
+        },
+      ),
+    );
+
+    // 4. Navigate back
+    if (mounted) {
+      Navigator.of(context).pop(true); // Return true to indicate completion
     }
   }
 
@@ -286,25 +382,22 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
   }
 
   void _switchVideo() {
-    // 1. Matikan play saat ini
-    _controller.pause();
+    debugPrint('=== SWITCHING VIDEO');
     
-    // 2. Simpan referensi ke controller lama
-    final oldController = _controller;
+    // Remove listener and pause
+    _controller?.removeListener(_videoPlayerListener);
+    _controller?.pause();
     
-    // 3. Reset state
+    // Reset state
     setState(() {
       _isVideoInitialized = false;
       _isError = false;
     });
+    
+    _hasCompletedWorkout = false;
 
-    // 4. Inisialisasi video baru
+    // Initialize new video (old controller will be disposed in _initializeVideo)
     _initializeVideo(autoPlay: true);
-
-    // 5. Dispose controller lama setelah inisialisasi baru dimulai (menghindari jeda hitam)
-    Future.delayed(const Duration(milliseconds: 200), () {
-      oldController.dispose();
-    });
   }
 
   bool get _showCountdownOverlay =>
@@ -440,7 +533,8 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
     _initialTimer?.cancel();
     _transitionTimer?.cancel();
     _workoutTimer?.cancel();
-    _controller.dispose();
+    _controller?.removeListener(_videoPlayerListener);
+    _controller?.dispose();
     super.dispose();
   }
 
@@ -482,7 +576,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
                                   ),
                                   const SizedBox(height: 12),
                                   const Text(
-                                    "Format video tidak didukung atau file belum di-download (Git LFS).\n\nCoba jalankan 'git lfs pull' di terminal jika Anda developer.",
+                                    "Video gagal dimuat. Periksa koneksi internet kamu.",
                                     style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
                                     textAlign: TextAlign.center,
                                   ),
@@ -517,14 +611,14 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
                             ),
                           ),
                         )
-                      : _isVideoInitialized
+                      : _isVideoInitialized && _controller != null
                           ? SizedBox.expand(
                               child: FittedBox(
                                 fit: BoxFit.cover, // Video kembali dikembalikan ke cover untuk menutupi layar
                                 child: SizedBox(
-                                  width: _controller.value.size.width,
-                                  height: _controller.value.size.height,
-                                  child: VideoPlayer(_controller),
+                                  width: _controller?.value.size.width ?? 1,
+                                  height: _controller?.value.size.height ?? 1,
+                                  child: _controller != null ? VideoPlayer(_controller!) : Container(),
                                 ),
                               ),
                             )
@@ -728,55 +822,31 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
                       ),
                     ),
 
-                    // Fixed Bottom Buttons — selalu terlihat, tidak ikut scroll
+                    // Fixed Bottom Button — hanya tombol SEBELUMNYA
                     Container(
                       color: Colors.white,
                       padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _prevStep,
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(vertical: 18),
-                                side: const BorderSide(color: Colors.black12, width: 1),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: const Text(
-                                "SEBELUMNYA",
-                                style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 0.5),
-                              ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          onPressed: _prevStep,
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            side: const BorderSide(color: Colors.black12, width: 1),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: ElevatedButton(
-                              onPressed: _nextStep,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF8B5CF6),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(vertical: 18),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: const [
-                                  Text(
-                                    "BERIKUTNYA",
-                                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 0.5),
-                                  ),
-                                  SizedBox(width: 6),
-                                  Icon(Icons.arrow_forward, size: 18),
-                                ],
-                              ),
+                          child: const Text(
+                            "SEBELUMNYA",
+                            style: TextStyle(
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                              letterSpacing: 0.5,
                             ),
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ],

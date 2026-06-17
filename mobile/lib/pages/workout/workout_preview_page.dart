@@ -13,6 +13,7 @@ class WorkoutPreviewPage extends StatelessWidget {
   final List<String> instructions;
   final List<String> playlist;
   final List<ExerciseData> exerciseDetails;
+  final int? workoutId; // Add workout ID
 
   static const _defaultPlaylist = [
     'assets/videos/vid_1.mp4',
@@ -32,6 +33,7 @@ class WorkoutPreviewPage extends StatelessWidget {
     required this.instructions,
     required this.playlist,
     required this.exerciseDetails,
+    this.workoutId,
   });
 
   factory WorkoutPreviewPage.fromExercise(WorkoutExerciseModel exercise) {
@@ -74,6 +76,7 @@ class WorkoutPreviewPage extends StatelessWidget {
           ],
         ),
       ],
+      workoutId: exercise.id, // Pass workout ID
     );
   }
 
@@ -302,16 +305,22 @@ class WorkoutPreviewPage extends StatelessWidget {
               child: SafeArea(
                 top: false,
                 child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pushReplacement(
+                  onPressed: () async {
+                    final result = await Navigator.push(
                       context,
                       MaterialPageRoute(
                         builder: (context) => ActiveWorkoutPage(
                           playlist: playlist,
                           exerciseDetails: exerciseDetails,
+                          workoutId: workoutId ?? 1,
                         ),
                       ),
                     );
+                    
+                    // After workout completes, pop back to previous screen with result
+                    if (result == true && context.mounted) {
+                      Navigator.pop(context, true);
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF8B5CF6),

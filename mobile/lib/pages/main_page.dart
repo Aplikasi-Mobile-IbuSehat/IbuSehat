@@ -25,9 +25,11 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   late int _currentIndex;
+  final ScrollController _berandaScrollController = ScrollController();
 
   late final List<Widget> _pages = [
     BerandaPage(
+      scrollController: _berandaScrollController,
       onTabSelected: (index) {
         setState(() {
           _currentIndex = index;
@@ -47,6 +49,34 @@ class _MainPageState extends State<MainPage> {
   }
 
   @override
+  void dispose() {
+    _berandaScrollController.dispose();
+    super.dispose();
+  }
+
+  void _onTabTap(int index) {
+    if (index == 0) {
+      // Beranda tab selected
+      if (_currentIndex == 0) {
+        // Same tab tapped again - scroll to top
+        if (_berandaScrollController.hasClients) {
+          _berandaScrollController.jumpTo(0);
+        }
+      } else {
+        // Coming from another tab - scroll to top after navigation
+        setState(() => _currentIndex = index);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_berandaScrollController.hasClients) {
+            _berandaScrollController.jumpTo(0);
+          }
+        });
+      }
+    } else {
+      setState(() => _currentIndex = index);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(
@@ -58,7 +88,7 @@ class _MainPageState extends State<MainPage> {
         body: _pages[_currentIndex],
         bottomNavigationBar: AppNavbar(
           currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
+          onTap: _onTabTap,
         ),
         floatingActionButton: _currentIndex == 0 ? const SleepFab() : null,
       ),
