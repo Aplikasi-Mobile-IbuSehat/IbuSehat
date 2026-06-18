@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/models/sleep_log_result.dart';
 import 'package:mobile/pages/sleep/widgets/hasil_skor_tidur_dialog.dart';
+import 'package:mobile/providers/sleep_provider.dart';
 import 'package:mobile/services/sleep_service.dart';
+import 'package:provider/provider.dart';
 
 const _kPrimary = Color(0xFF7C3AED);
 const _kDark = Color(0xFF1F1235);
@@ -97,6 +99,17 @@ class _CatatTidurPageState extends State<CatatTidurPage> {
         _isLoading = false;
         _hasSubmitted = true;
       });
+
+      // 🔥 REFRESH DATA TIDUR MINGGUAN SETELAH SUBMIT BERHASIL
+      debugPrint('=== CatatTidurPage: Submit berhasil, refreshing weekly data...');
+      try {
+        final sleepProvider = context.read<SleepProvider>();
+        await sleepProvider.fetchWeeklySummary();
+        debugPrint('=== CatatTidurPage: Weekly data refreshed successfully');
+      } catch (e) {
+        debugPrint('=== CatatTidurPage: Failed to refresh weekly data: $e');
+        // Tidak perlu menampilkan error, data akan direfresh saat kembali ke Beranda
+      }
 
       try {
         await showHasilSkorTidurDialog(

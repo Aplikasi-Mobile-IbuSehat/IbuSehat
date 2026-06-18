@@ -5,9 +5,11 @@ import 'package:mobile/pages/beranda/share_achievement_page.dart';
 import 'package:mobile/pages/beranda/streak_detail_page.dart';
 import 'package:mobile/pages/beranda/welcome_dialog.dart';
 import 'package:mobile/pages/profile/premium_page.dart';
+import 'package:mobile/providers/sleep_provider.dart';
 import 'package:mobile/widgets/app_background.dart';
 import 'package:mobile/services/streak_service.dart';
 import 'package:mobile/models/streak_models.dart';
+import 'package:provider/provider.dart';
 
 // Design tokens — mockup IbuSehat Dashboard
 const _kPrimary = Color(0xFF6C4DFF);
@@ -52,6 +54,7 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     
     _fetchStreakData();
+    _fetchSleepData();
 
     if (!_hasShownWelcomeDialog) {
       _hasShownWelcomeDialog = true;
@@ -72,6 +75,18 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
     if (state == AppLifecycleState.resumed) {
       print('=== BERANDA: page focused, refreshing...');
       _fetchStreakData();
+      _fetchSleepData();
+    }
+  }
+  
+  Future<void> _fetchSleepData() async {
+    print('=== BERANDA: fetching sleep data...');
+    try {
+      final sleepProvider = context.read<SleepProvider>();
+      await sleepProvider.fetchWeeklySummary();
+      print('=== BERANDA: sleep data fetched');
+    } catch (e) {
+      debugPrint('Error fetching sleep data: $e');
     }
   }
   
@@ -540,11 +555,16 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
   }
 
   Widget _buildProgressTodaySection(BuildContext context) {
+    // Get sleep data from provider
+    final sleepProvider = context.watch<SleepProvider>();
+    final sleepTotalHours = sleepProvider.weeklyTotalHours;
+    final sleepPercent = sleepProvider.weeklyProgressPercent;
+    final sleepProgress = sleepPercent / 100.0;
+    
     // Variables for backend integration - reset all to 0
     int olahragaMenit = 0;
     int airPutihGelas = 0;
     int nutrisiKkal = 0;
-    int tidurJam = 0;
     
     final items = <Widget>[
       _buildProgressCard(
@@ -582,10 +602,10 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
       ),
       _buildProgressCard(
         title: 'Jam Tidur',
-        value: '$tidurJam jam',
+        value: '${sleepTotalHours.toStringAsFixed(1)} jam',
         target: 'Target Mingguan 49 jam',
-        percent: 0,
-        progress: 0.0,
+        percent: sleepPercent,
+        progress: sleepProgress,
         icon: Icons.bedtime,
         iconColor: _kPink,
         iconBg: const Color(0xFFFCE7F3),

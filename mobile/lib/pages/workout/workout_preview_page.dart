@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/models/workout_program_model.dart';
 import 'package:mobile/pages/workout/active_workout_page.dart';
+import 'package:mobile/utils/video_pool.dart';
 
 class WorkoutPreviewPage extends StatelessWidget {
   final String title;
@@ -11,15 +12,8 @@ class WorkoutPreviewPage extends StatelessWidget {
   final String target;
   final String equipment;
   final List<String> instructions;
-  final List<String> playlist;
   final List<ExerciseData> exerciseDetails;
-  final int? workoutId; // Add workout ID
-
-  static const _defaultPlaylist = [
-    'assets/videos/vid_1.mp4',
-    'assets/videos/vid_3.mp4',
-    'assets/videos/vid_4.mp4',
-  ];
+  final int? workoutId;
 
   WorkoutPreviewPage({
     super.key,
@@ -31,7 +25,6 @@ class WorkoutPreviewPage extends StatelessWidget {
     required this.target,
     required this.equipment,
     required this.instructions,
-    required this.playlist,
     required this.exerciseDetails,
     this.workoutId,
   });
@@ -64,7 +57,6 @@ class WorkoutPreviewPage extends StatelessWidget {
       target: exercise.targetMuscle ?? 'Full Body',
       equipment: exercise.equipment ?? 'None / Mat (opsional)',
       instructions: instructions,
-      playlist: _defaultPlaylist,
       exerciseDetails: [
         ExerciseData(
           title: exercise.name,
@@ -310,7 +302,7 @@ class WorkoutPreviewPage extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                         builder: (context) => ActiveWorkoutPage(
-                          playlist: playlist,
+                          playlist: VideoPool.getVideos(2),
                           exerciseDetails: exerciseDetails,
                           workoutId: workoutId ?? 1,
                         ),

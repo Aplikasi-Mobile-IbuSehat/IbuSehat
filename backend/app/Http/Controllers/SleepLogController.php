@@ -216,6 +216,7 @@ class SleepLogController extends Controller
                     'average_category' => null,
                     'average_category_message' => null,
                     'average_duration' => null,
+                    'total_duration' => null,
                     'average_sleep_time' => null,
                     'average_wake_time' => null,
                     'total_debt' => null,
@@ -226,36 +227,51 @@ class SleepLogController extends Controller
             ]);
         }
 
+        // 🔥 HITUNG TOTAL SEMUA CATATAN (BUKAN AVERAGE)
+        $totalMinutes = (int) $logs->sum('sleep_duration_minutes');
+        $daysWithLogs = max(1, $logs->count());
+        $avgMinutes = (int) round($totalMinutes / $daysWithLogs);
+        
+        // Hitung average score dari semua logs
+        $avgScore = (int) round($logs->avg('score'));
+        [$avgCategory, $avgCategoryMessage] = $this->categoryInfo($avgScore);
+        $quality = $this->weeklyQualityLabel($avgScore);
+
+        // Build chart - group by day, sum durations per day
         $chart = [];
-        $scoresWithData = [];
         $totalDebtMinutes = 0;
 
         for ($i = 0; $i < 7; $i++) {
             $day = $start->copy()->addDays($i);
-            $log = $logs->first(
+            
+            // 🔥 AMBIL SEMUA LOGS DI HARI INI (BUKAN HANYA PERTAMA)
+            $dayLogs = $logs->filter(
                 fn (SleepLog $l) => $l->created_at->isSameDay($day),
             );
 
-            if ($log !== null) {
-                $scoresWithData[] = (int) $log->score;
-                $minutes = (int) $log->sleep_duration_minutes;
-                $totalDebtMinutes += max(0, (8 * 60) - $minutes);
+            if ($dayLogs->isNotEmpty()) {
+                // Sum durasi semua catatan di hari ini
+                $dayTotalMinutes = (int) $dayLogs->sum('sleep_duration_minutes');
+                $dayAvgScore = (int) round($dayLogs->avg('score'));
+                
+                // Hitung sleep debt untuk hari ini
+                $totalDebtMinutes += max(0, (8 * 60) - $dayTotalMinutes);
+                
+                $chart[] = [
+                    'day' => $this->dayLabelShort($day),
+                    'score' => $dayAvgScore,
+                    'duration_minutes' => $dayTotalMinutes,
+                ];
             } else {
                 $totalDebtMinutes += 8 * 60;
+                
+                $chart[] = [
+                    'day' => $this->dayLabelShort($day),
+                    'score' => null,
+                    'duration_minutes' => 0,
+                ];
             }
-
-            $chart[] = [
-                'day' => $this->dayLabelShort($day),
-                'score' => $log?->score,
-            ];
         }
-
-        $totalMinutes = (int) $logs->sum('sleep_duration_minutes');
-        $daysWithLogs = max(1, $logs->count());
-        $avgMinutes = (int) round($totalMinutes / $daysWithLogs);
-        $avgScore = (int) round(array_sum($scoresWithData) / count($scoresWithData));
-        [$avgCategory, $avgCategoryMessage] = $this->categoryInfo($avgScore);
-        $quality = $this->weeklyQualityLabel($avgScore);
 
         return response()->json([
             'status' => 'success',
@@ -265,6 +281,8 @@ class SleepLogController extends Controller
                 'average_category' => $avgCategory,
                 'average_category_message' => $avgCategoryMessage,
                 'average_duration' => $this->formatDurationCompact($avgMinutes),
+                'total_duration' => $this->formatDurationCompact($totalMinutes),
+                'total_hours' => round($totalMinutes / 60, 1),
                 'average_sleep_time' => $this->averageTimeFromLogs($logs, 'sleep_time'),
                 'average_wake_time' => $this->averageTimeFromLogs($logs, 'wake_time'),
                 'total_debt' => $totalDebtMinutes === 0

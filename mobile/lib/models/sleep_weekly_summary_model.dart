@@ -1,14 +1,20 @@
 class SleepChartDay {
-  const SleepChartDay({required this.day, this.score});
+  const SleepChartDay({
+    required this.day,
+    this.score,
+    this.durationMinutes = 0,
+  });
 
   final String day;
   final int? score;
+  final int durationMinutes;
 
   factory SleepChartDay.fromJson(Map<String, dynamic> json) {
     final rawScore = json['score'];
     return SleepChartDay(
       day: json['day'] as String? ?? '',
       score: rawScore == null ? null : (rawScore as num).toInt(),
+      durationMinutes: (json['duration_minutes'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -20,6 +26,8 @@ class SleepWeeklySummaryModel {
     this.averageCategory,
     this.averageCategoryMessage,
     this.averageDuration,
+    this.totalDuration,
+    this.totalHours,
     this.averageSleepTime,
     this.averageWakeTime,
     required this.totalDebt,
@@ -33,6 +41,8 @@ class SleepWeeklySummaryModel {
   final String? averageCategory;
   final String? averageCategoryMessage;
   final String? averageDuration;
+  final String? totalDuration;
+  final double? totalHours;
   final String? averageSleepTime;
   final String? averageWakeTime;
   final String totalDebt;
@@ -61,6 +71,8 @@ class SleepWeeklySummaryModel {
       averageCategory: root['average_category'] as String?,
       averageCategoryMessage: root['average_category_message'] as String?,
       averageDuration: root['average_duration'] as String?,
+      totalDuration: root['total_duration'] as String?,
+      totalHours: (root['total_hours'] as num?)?.toDouble(),
       averageSleepTime: root['average_sleep_time'] as String?,
       averageWakeTime: root['average_wake_time'] as String?,
       totalDebt: root['total_debt'] as String? ?? '-',

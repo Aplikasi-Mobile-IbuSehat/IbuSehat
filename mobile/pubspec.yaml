@@ -65,9 +65,6 @@ flutter:
     - assets/icons/water_glass.svg
     - assets/icons/message_circle.svg
     - assets/icons/sparkles_premium.svg
-    - assets/videos/
-    - assets/videos/exercises/
-    - assets/videos/dumble/
 
     # skincare
     - assets/images/skincare/bekas_luka_sesar.webp

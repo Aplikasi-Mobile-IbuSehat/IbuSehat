@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/pages/workout/active_workout_page.dart';
 import 'package:mobile/pages/workout/workout_preview_page.dart';
+import 'package:mobile/utils/video_pool.dart';
 
 class RecommendedSection extends StatelessWidget {
   final String selectedCategory;
@@ -36,16 +37,6 @@ class RecommendedSection extends StatelessWidget {
                     'Tingkatkan detak jantung secara bertahap',
                     'Fokus pada pergerakan seluruh tubuh',
                     'Siapkan tubuh sebelum latihan inti dimulai',
-                  ],
-                  playlist: [
-                    "assets/videos/vid_1.mp4",
-                    "assets/videos/vid_3.mp4",
-                    "assets/videos/vid_4.mp4",
-                    "assets/videos/vid_5.mp4",
-                    "assets/videos/vid_6.mp4",
-                    "assets/videos/vid_7.mp4",
-                    "assets/videos/vid_8.mp4",
-                    "assets/videos/vid_9.mp4",
                   ],
                   exerciseDetails: [
                     ExerciseData(
@@ -210,14 +201,6 @@ class RecommendedSection extends StatelessWidget {
                     'Rest for 15 seconds between exercises',
                     'Complete 3 rounds of the circuit',
                     'Cool down and stretch for 5 minutes',
-                  ],
-                  playlist: [
-                    "assets/videos/dumble/1.mp4",
-                    "assets/videos/dumble/2.mp4",
-                    "assets/videos/dumble/3.mp4",
-                    "assets/videos/dumble/4.mp4",
-                    "assets/videos/dumble/5.mp4",
-                    "assets/videos/dumble/6.mp4",
                   ],
                   exerciseDetails: [
                     ExerciseData(
