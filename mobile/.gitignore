@@ -49,4 +49,4 @@ mobile/ffmpeg_ext/ffmpeg.exe
 
 # optional (biar aman)
 *.exe
-*.mp4
+# *.mp4

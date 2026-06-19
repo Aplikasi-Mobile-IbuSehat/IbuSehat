@@ -169,7 +169,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 6),
                             )
@@ -186,9 +186,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           ),
                           onPressed: _nextPage,
                           child: Text(
-                            _currentStep == 0 
-                                ? "Mulai Sekarang" 
-                                : (_currentStep == _totalSteps - 1 ? "Selesai" : "Lanjutkan"),
+                            _currentStep == 0
+                                ? "Mulai Sekarang"
+                                : (_currentStep == _totalSteps - 1
+                                    ? "Selesai"
+                                    : "Lanjutkan"),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
@@ -215,28 +217,17 @@ class _OnboardingPageState extends State<OnboardingPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF8B5CF6).withOpacity(0.2),
-                  blurRadius: 30,
-                  spreadRadius: 5,
-                )
-              ],
+            SizedBox(
+              width: 140,
+              height: 140,
+              child: Image.asset(
+                'assets/logo/ibusehat_logo_transparent.webp',
+                fit: BoxFit.contain,
+              ),
             ),
-            child: const Icon(
-              Icons.auto_awesome_rounded,
-              size: 80,
-              color: Color(0xFF8B5CF6),
-            ),
-          ),
           const SizedBox(height: 48),
           Text(
-            "Selamat Datang di Ibu Sehat",
+            "Selamat Datang di IbuSehat",
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 28,
@@ -622,7 +613,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   )
@@ -664,7 +655,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   )
@@ -706,7 +697,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   )
@@ -756,7 +747,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   )

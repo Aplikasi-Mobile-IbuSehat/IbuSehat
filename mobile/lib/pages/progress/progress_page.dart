@@ -8,8 +8,11 @@ import 'package:mobile/theme/app_theme.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:mobile/widgets/app_header_actions.dart';
 
+
 class ProgressPage extends StatefulWidget {
-  const ProgressPage({super.key});
+  const ProgressPage({super.key, this.refreshToken = 0});
+
+  final int refreshToken;
 
   @override
   State<ProgressPage> createState() => _ProgressPageState();
@@ -23,6 +26,14 @@ class _ProgressPageState extends State<ProgressPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void didUpdateWidget(ProgressPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshToken != widget.refreshToken) {
+      setState(() {});
+    }
   }
 
   @override
@@ -84,10 +95,16 @@ class _ProgressPageState extends State<ProgressPage> {
                 child: Column(
                   children: [
                     Row(
-                      children: const [
-                        Expanded(child: LangkahCard()),
-                        SizedBox(width: 16),
-                        Expanded(child: ScoreTidurCard()),
+                      children: [
+                        const Expanded(
+                          child: LangkahCard(),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: ScoreTidurCard(
+                            key: ValueKey(widget.refreshToken),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),

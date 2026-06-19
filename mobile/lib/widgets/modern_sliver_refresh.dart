@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
-import 'package:flutter/material.dart' show Brightness, Colors, RefreshIndicatorMode, Theme;
+import 'package:flutter/material.dart' show Brightness, Colors, Theme;
 
 /// Pull-to-refresh di bawah [SliverAppBar], di atas konten.
 class ModernSliverRefreshControl extends StatelessWidget {

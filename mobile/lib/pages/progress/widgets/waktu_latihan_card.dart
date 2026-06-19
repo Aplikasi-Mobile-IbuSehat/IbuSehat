@@ -11,6 +11,8 @@ class WaktuLatihanCard extends StatelessWidget {
     final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
     final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
     final border = isDark ? darkBorder : lightBorder;
+    const purple = Color(0xFF7C3AED);
+
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
@@ -37,7 +39,7 @@ class WaktuLatihanCard extends StatelessWidget {
                         color: textPrimary,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       '0/25 mnt',
                       style: TextStyle(
@@ -52,10 +54,14 @@ class WaktuLatihanCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.deepPurple.shade50,
+                    color: isDark ? const Color(0x227C3AED) : const Color(0xFFF3E8FF),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.fitness_center, color: Colors.deepPurple.shade300, size: 24),
+                  child: const Icon(
+                    Icons.fitness_center_rounded,
+                    color: purple,
+                    size: 24,
+                  ),
                 ),
               ],
             ),
@@ -86,19 +92,19 @@ class WaktuLatihanCard extends StatelessWidget {
                       right: 0,
                       child: Container(
                         height: 1,
-                        color: Colors.grey.shade300,
+                        color: border,
                       ),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildDayDot('S'),
-                        _buildDayDot('R'),
-                        _buildDayDot('K'),
-                        _buildDayDot('J'),
-                        _buildDayDot('S'),
-                        _buildDayDot('M'),
-                        _buildDayDot('HARI INI', isToday: true),
+                        _buildDayDot('S', textPrimary, textSecondary, border),
+                        _buildDayDot('R', textPrimary, textSecondary, border),
+                        _buildDayDot('K', textPrimary, textSecondary, border),
+                        _buildDayDot('J', textPrimary, textSecondary, border),
+                        _buildDayDot('S', textPrimary, textSecondary, border),
+                        _buildDayDot('M', textPrimary, textSecondary, border),
+                        _buildDayDot('HARI INI', textPrimary, textSecondary, border, isToday: true),
                       ],
                     ),
                   ],
@@ -129,14 +135,20 @@ class WaktuLatihanCard extends StatelessWidget {
     );
   }
 
-  Widget _buildDayDot(String label, {bool isToday = false}) {
+  Widget _buildDayDot(
+    String label,
+    Color textPrimary,
+    Color textSecondary,
+    Color border, {
+    bool isToday = false,
+  }) {
     return Column(
       children: [
         Container(
           width: 14,
           height: 14,
           decoration: BoxDecoration(
-            color: Colors.grey.shade300,
+            color: border,
             shape: BoxShape.circle,
           ),
         ),
@@ -146,7 +158,7 @@ class WaktuLatihanCard extends StatelessWidget {
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w700,
-            color: isToday ? const Color(0xFF1F1235) : Colors.grey.shade500,
+            color: isToday ? textPrimary : textSecondary,
           ),
         ),
       ],

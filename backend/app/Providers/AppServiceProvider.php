@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -21,20 +22,70 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        /**
-         * Rate limiter untuk endpoint chat AI.
-         *
-         * 5 request/menit dipilih sebagai batas anti-spam jangka pendek:
-         * cukup longgar untuk percakapan normal (rata-rata orang tidak
-         * mengetik >5 pesan dalam 1 menit), tapi mencegah bot/script
-         * memukul endpoint Gemini secara berturut-turut yang bisa
-         * membengkakkan biaya API.
-         *
-         * Limit per-menit ini terpisah dari kuota harian (chat_usages),
-         * yang mengatur penggunaan wajar jangka panjang.
-         */
+        // Rate limiter untuk chat AI
         RateLimiter::for('chat', function ($request) {
-            return Limit::perMinute(5)->by($request->user()?->id ?: $request->ip());
+            return Limit::perMinute(5)
+                ->by($request->user()?->id ?: $request->ip());
         });
+
+        // Auto-create database jika belum ada (fitur Hakim)
+        $this->ensureMysqlDatabaseExists();
+    }
+
+    private function ensureMysqlDatabaseExists(): void
+    {
+        if (config('database.default') !== 'mysql') {
+            return;
+        }
+
+        $host = (string) config('database.connections.mysql.host', '127.0.0.1');
+        $port = (int) config('database.connections.mysql.port', 3306);
+        $database = (string) config('database.connections.mysql.database', '');
+        $username = (string) config('database.connections.mysql.username', 'root');
+        $password = (string) config('database.connections.mysql.password', '');
+
+        if ($database === '') {
+            return;
+        }
+
+        try {
+            \DB::connection('mysql')->select('SELECT 1');
+            return;
+        } catch (QueryException $e) {
+            $message = (string) $e->getMessage();
+
+            $unknownDb =
+                str_contains($message, 'Unknown database') ||
+                str_contains($message, '1049');
+
+            if (!$unknownDb) {
+                return;
+            }
+        } catch (\Throwable) {
+            return;
+        }
+
+        try {
+            $dsn = "mysql:host={$host};port={$port};charset=utf8mb4";
+
+            $pdo = new \PDO(
+                $dsn,
+                $username,
+                $password,
+                [
+                    \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                ]
+            );
+
+            $quotedDb = '`' . str_replace('`', '``', $database) . '`';
+
+            $pdo->exec(
+                "CREATE DATABASE IF NOT EXISTS {$quotedDb}
+                CHARACTER SET utf8mb4
+                COLLATE utf8mb4_unicode_ci"
+            );
+        } catch (\Throwable) {
+            // Jika gagal membuat database, migration akan menampilkan error yang jelas
+        }
     }
 }

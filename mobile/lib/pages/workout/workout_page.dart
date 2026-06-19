@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/pages/workout/widgets/categories_section.dart';
+import 'package:mobile/pages/workout/widgets/program_latihan_section.dart';
 import 'package:mobile/pages/workout/widgets/recommended_section.dart';
 import 'package:mobile/pages/workout/widgets/running_banner.dart';
 import 'package:mobile/theme/app_theme.dart';
@@ -94,8 +95,11 @@ class _WorkoutPageState extends State<WorkoutPage> {
                         });
                       },
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 6),
                     RecommendedSection(selectedCategory: _selectedCategory),
+                    // Sama ritme vertikal dengan jarak banner → Rekomendasi (28)
+                    const SizedBox(height: 28),
+                    const ProgramLatihanSection(),
                   ],
                 ),
               ),

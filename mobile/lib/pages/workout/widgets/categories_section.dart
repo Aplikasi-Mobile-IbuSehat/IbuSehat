@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:ui';
+import 'package:mobile/theme/app_colors.dart';
 
 class CategoriesSection extends StatefulWidget {
   final String selectedCategory;
@@ -17,7 +18,6 @@ class CategoriesSection extends StatefulWidget {
 
 class _CategoriesSectionState extends State<CategoriesSection> {
   final ScrollController _scrollController = ScrollController();
-  double _scrollProgress = 0.0;
   String? _selectedWorkoutType;
 
   final List<String> _categories = [
@@ -25,66 +25,45 @@ class _CategoriesSectionState extends State<CategoriesSection> {
     'Pemanasan Tubuh',
     'Kekuatan Tubuh',
     'Latihan Mikro',
-    'Fitnest',
+    'Latihan Kelenturan',
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_updateScrollProgress);
-  }
-
-  void _updateScrollProgress() {
-    if (_scrollController.position.maxScrollExtent > 0) {
-      setState(() {
-        _scrollProgress = _scrollController.position.pixels /
-            _scrollController.position.maxScrollExtent;
-      });
-    }
-  }
-
-  @override
   void dispose() {
-    _scrollController.removeListener(_updateScrollProgress);
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _scrollLeft() {
-    if (_scrollController.hasClients) {
-      final newOffset = (_scrollController.offset - 150).clamp(0.0, _scrollController.position.maxScrollExtent);
-      _scrollController.animateTo(newOffset, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-    }
-  }
-
-  void _scrollRight() {
-    if (_scrollController.hasClients) {
-      final newOffset = (_scrollController.offset + 150).clamp(0.0, _scrollController.position.maxScrollExtent);
-      _scrollController.animateTo(newOffset, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final surface = isDark ? darkSurface : lightSurface;
+    final border = isDark ? darkBorder : const Color(0xFFE5E7EB);
+    const purple = Color(0xFF7C3AED);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Rekomendasi',
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1F1235),
+                color: textPrimary,
                 letterSpacing: -0.3,
               ),
             ),
             PopupMenuButton<String>(
               offset: const Offset(0, 40),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              color: surface,
               elevation: 4,
               onSelected: (String value) {
                 setState(() {
@@ -92,46 +71,74 @@ class _CategoriesSectionState extends State<CategoriesSection> {
                 });
               },
               itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-                const PopupMenuItem<String>(
+                PopupMenuItem<String>(
                   value: 'Untuk Umum',
-                  child: Text('Untuk Umum', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    'Untuk Umum',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: textPrimary,
+                    ),
+                  ),
                 ),
-                const PopupMenuItem<String>(
+                PopupMenuItem<String>(
                   value: 'Untuk Lahir Sesar',
-                  child: Text('Untuk Lahir Sesar', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    'Untuk Lahir Sesar',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: textPrimary,
+                    ),
+                  ),
                 ),
-                const PopupMenuItem<String>(
+                PopupMenuItem<String>(
                   value: 'Untuk Lahir Normal',
-                  child: Text('Untuk Lahir Normal', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  child: Text(
+                    'Untuk Lahir Normal',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: textPrimary,
+                    ),
+                  ),
                 ),
               ],
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
+                  color: surface,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: border),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       _selectedWorkoutType ?? 'Jenis Workout',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: Color(0xFF1F1235),
+                        color: textPrimary,
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.keyboard_arrow_down, color: Color(0xFF1F1235), size: 18),
+                    const SizedBox(width: 6),
+                    Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: textSecondary,
+                      size: 16,
+                    ),
                   ],
                 ),
               ),
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         ScrollConfiguration(
           behavior: ScrollConfiguration.of(context).copyWith(
             dragDevices: {
@@ -146,38 +153,37 @@ class _CategoriesSectionState extends State<CategoriesSection> {
             physics: const BouncingScrollPhysics(),
             child: Row(
               children: List.generate(_categories.length, (index) {
-                final isSelected = widget.selectedCategory == _categories[index];
+                final isSelected =
+                    widget.selectedCategory == _categories[index];
                 return Padding(
-                  padding: EdgeInsets.only(
-                    right: 12,
-                    left: index == 0 ? 0 : 0,
-                  ),
+                  padding: EdgeInsets.only(right: 8, left: index == 0 ? 0 : 0),
                   child: GestureDetector(
                     onTap: () {
                       widget.onCategoryChanged(_categories[index]);
                     },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
-                        color: isSelected ? const Color(0xFF8B5CF6) : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: isSelected ? null : Border.all(color: Colors.grey.shade200),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: const Color(0xFF8B5CF6).withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ]
-                            : [],
+                        color: isSelected
+                            ? purple
+                            : surface,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isSelected ? purple : border,
+                        ),
                       ),
                       child: Text(
                         _categories[index],
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: isSelected ? Colors.white : const Color(0xFF1F1235),
+                          color: isSelected
+                              ? Colors.white
+                              : textSecondary,
                         ),
                       ),
                     ),

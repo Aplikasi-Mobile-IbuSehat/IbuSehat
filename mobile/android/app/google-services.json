@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "502499232288-s4rpnkdnu1cl1n3f0690kl2eatfssk15.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ibusehat.app",
+            "certificate_hash": "62be17b10fd6a96cd3d6f3175c8884de344a7b48"
+          }
+        },
+        {
           "client_id": "502499232288-nla05vkd7ub40ll14ii567dugogmp9kb.apps.googleusercontent.com",
           "client_type": 3
         }

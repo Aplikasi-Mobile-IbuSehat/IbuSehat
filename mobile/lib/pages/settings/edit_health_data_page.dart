@@ -185,7 +185,7 @@ class _EditHealthDataPageState extends State<EditHealthDataPage> {
                 ? null
                 : [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -293,7 +293,7 @@ class _EditHealthDataPageState extends State<EditHealthDataPage> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF8B5CF6).withOpacity(0.3),
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),

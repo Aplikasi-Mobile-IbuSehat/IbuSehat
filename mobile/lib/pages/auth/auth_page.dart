@@ -160,35 +160,32 @@ class _AuroraPainter extends CustomPainter {
         radiusX: w * 0.55,
         radiusY: h * 0.25,
         colors: [
-          const Color(0xFFD4AAFF).withOpacity(0.75),
-          const Color(0xFFE8CCFF).withOpacity(0.0),
+          const Color(0xFFD4AAFF).withValues(alpha: 0.75),
+          const Color(0xFFE8CCFF).withValues(alpha: 0.0),
         ]);
-
     _drawBlob(canvas,
         center: Offset(w * 0.82, h * 0.05),
         radiusX: w * 0.40,
         radiusY: h * 0.20,
         colors: [
-          const Color(0xFFF4AAEE).withOpacity(0.65),
-          const Color(0xFFFCDDFF).withOpacity(0.0),
+          const Color(0xFFF4AAEE).withValues(alpha: 0.65),
+          const Color(0xFFFCDDFF).withValues(alpha: 0.0),
         ]);
-
     _drawBlob(canvas,
         center: Offset(w * 0.15, h * 0.08),
         radiusX: w * 0.36,
         radiusY: h * 0.18,
         colors: [
-          const Color(0xFFAADDFF).withOpacity(0.55),
-          const Color(0xFFCCEEFF).withOpacity(0.0),
+          const Color(0xFFAADDFF).withValues(alpha: 0.55),
+          const Color(0xFFCCEEFF).withValues(alpha: 0.0),
         ]);
-
     _drawBlob(canvas,
         center: Offset(w * 0.48, h * 0.16),
         radiusX: w * 0.26,
         radiusY: h * 0.13,
         colors: [
-          const Color(0xFFBB88FF).withOpacity(0.55),
-          const Color(0xFFCC99FF).withOpacity(0.0),
+          const Color(0xFFBB88FF).withValues(alpha: 0.55),
+          const Color(0xFFCC99FF).withValues(alpha: 0.0),
         ]);
 
     canvas.drawRect(
@@ -198,8 +195,8 @@ class _AuroraPainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.white.withOpacity(0.0),
-            Colors.white.withOpacity(0.88),
+            Colors.white.withValues(alpha: 0.0),
+            Colors.white.withValues(alpha: 0.88),
           ],
           stops: const [0.2, 0.5],
         ).createShader(Rect.fromLTWH(0, 0, w, h)),

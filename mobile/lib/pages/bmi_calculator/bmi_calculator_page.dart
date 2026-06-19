@@ -164,7 +164,7 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: surface.withOpacity(isDark ? 0.9 : 0.6),
+        color: surface.withValues(alpha: isDark ? 0.9 : 0.6),
         borderRadius: BorderRadius.circular(32),
         border: Border.all(color: border),
       ),
@@ -238,7 +238,7 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: textSecondary.withOpacity(0.12),
+                  color: textSecondary.withValues(alpha:0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -282,7 +282,7 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
               hintStyle: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
-                color: textSecondary.withOpacity(0.5),
+                color: textSecondary.withValues(alpha: 0.5),
               ),
               suffixText: unit,
               suffixStyle: TextStyle(
@@ -305,14 +305,14 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
       padding: const EdgeInsets.all(32),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [displayColor.withOpacity(0.8), displayColor],
+          colors: [displayColor.withValues(alpha: 0.8), displayColor],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: displayColor.withOpacity(0.3),
+            color: displayColor.withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -342,7 +342,7 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
@@ -372,7 +372,7 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: surface.withOpacity(isDark ? 0.9 : 0.6),
+        color: surface.withValues(alpha: isDark ? 0.9 : 0.6),
         borderRadius: BorderRadius.circular(32),
         border: Border.all(color: border),
       ),
@@ -382,7 +382,7 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: accentColor.withOpacity(0.12),
+              color: accentColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(Icons.favorite_rounded, color: accentColor, size: 28),
@@ -441,7 +441,7 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: surface.withOpacity(isDark ? 0.9 : 0.6),
+          color: surface.withValues(alpha: isDark ? 0.9 : 0.6),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: border),
         ),
@@ -471,7 +471,7 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: surface.withOpacity(isDark ? 0.9 : 0.6),
+        color: surface.withValues(alpha: isDark ? 0.9 : 0.6),
         borderRadius: BorderRadius.circular(32),
         border: Border.all(color: border),
       ),
@@ -481,7 +481,7 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: _whtrStatusColor.withOpacity(0.12),
+              color: _whtrStatusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Icon(Icons.monitor_weight_outlined, color: _whtrStatusColor, size: 28),
@@ -513,7 +513,7 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _whtrStatusColor.withOpacity(0.12),
+                    color: _whtrStatusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -554,7 +554,7 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
         const SizedBox(height: 16),
         Container(
           decoration: BoxDecoration(
-            color: surface.withOpacity(isDark ? 0.9 : 0.5),
+            color: surface.withValues(alpha: isDark ? 0.9 : 0.5),
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: border),
           ),

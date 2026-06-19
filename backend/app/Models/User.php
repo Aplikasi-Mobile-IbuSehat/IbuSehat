@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -50,15 +51,19 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'email_verified_at'  => 'datetime',
+            'password'           => 'hashed',
             'is_onboarding_done' => 'boolean',
-            'water_intake' => 'integer',
-            'water_intake_date' => 'date',
-            'is_premium' => 'boolean',
-            'premium_until' => 'datetime',
+            'water_intake'       => 'integer',
+            'water_intake_date'  => 'date',
+            'is_premium'         => 'boolean',
+            'premium_until'      => 'datetime',
         ];
     }
+
+    // -------------------------------------------------------------------------
+    // Business logic
+    // -------------------------------------------------------------------------
 
     /**
      * Cek apakah user memiliki akses premium yang masih berlaku.
@@ -71,9 +76,28 @@ class User extends Authenticatable
         }
 
         if ($this->premium_until === null) {
-            return true; // premium tanpa batas waktu (jaga-jaga)
+            return true; // premium tanpa batas waktu
         }
 
         return $this->premium_until->isFuture();
+    }
+
+    // -------------------------------------------------------------------------
+    // Relationships
+    // -------------------------------------------------------------------------
+
+    public function activities(): HasMany
+    {
+        return $this->hasMany(Activity::class);
+    }
+
+    public function sleepSessions(): HasMany
+    {
+        return $this->hasMany(SleepSession::class);
+    }
+
+    public function sleepLogs(): HasMany
+    {
+        return $this->hasMany(SleepLog::class);
     }
 }

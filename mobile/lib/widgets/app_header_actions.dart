@@ -4,7 +4,6 @@ import 'package:mobile/pages/chatbot/chatbot_page.dart';
 import 'package:mobile/pages/payments/premium_page.dart';
 import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/theme/app_colors.dart';
-import 'package:mobile/theme/app_theme.dart';
 
 /// Tombol premium + chatbot di header halaman utama.
 /// Chatbot hanya untuk premium; non-premium diarahkan ke [PremiumPage].

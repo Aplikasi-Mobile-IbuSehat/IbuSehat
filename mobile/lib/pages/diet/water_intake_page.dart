@@ -252,9 +252,9 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.4)),
+          border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
           borderRadius: BorderRadius.circular(14),
-          color: const Color(0xFF8B5CF6).withOpacity(0.06),
+          color: const Color(0xFF8B5CF6).withValues(alpha: 0.06),
         ),
         alignment: Alignment.center,
         child: Text(
@@ -325,7 +325,7 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                     borderRadius: BorderRadius.circular(28),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -347,7 +347,7 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: Text(
@@ -379,7 +379,7 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                               borderRadius: BorderRadius.circular(10),
                               child: LinearProgressIndicator(
                                 value: _progress,
-                                backgroundColor: Colors.white.withOpacity(0.25),
+                                backgroundColor: Colors.white.withValues(alpha: 0.25),
                                 valueColor: const AlwaysStoppedAnimation<Color>(
                                   Colors.white,
                                 ),
@@ -393,7 +393,7 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                                 Text(
                                   '0 ml',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
+                                    color: Colors.white.withValues(alpha: 0.7),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -409,7 +409,7 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                                 Text(
                                   '${widget.goalIntake} ml',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.7),
+                                    color: Colors.white.withValues(alpha: 0.7),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -513,7 +513,7 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 6),
                       ),
@@ -570,8 +570,8 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          splashColor: const Color(0xFF8B5CF6).withOpacity(0.15),
-          highlightColor: const Color(0xFF8B5CF6).withOpacity(0.05),
+          splashColor: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+          highlightColor: const Color(0xFF8B5CF6).withValues(alpha: 0.05),
           focusColor: Colors.transparent,
           hoverColor: Colors.transparent,
           onTap: _isSaving
@@ -616,7 +616,7 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                   width: 4,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                   ),
                 ),

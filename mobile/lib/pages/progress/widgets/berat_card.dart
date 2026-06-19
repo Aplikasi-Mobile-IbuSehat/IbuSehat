@@ -11,6 +11,7 @@ class BeratCard extends StatelessWidget {
     final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
     final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
     final border = isDark ? darkBorder : lightBorder;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -53,9 +54,9 @@ class BeratCard extends StatelessWidget {
                 Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildGridLine('80'),
-                    _buildGridLine('70'),
-                    _buildGridLine('60'),
+                    _buildGridLine('80', textSecondary, border),
+                    _buildGridLine('70', textSecondary, border),
+                    _buildGridLine('60', textSecondary, border),
                   ],
                 ),
                 // X-axis indicators
@@ -80,7 +81,7 @@ class BeratCard extends StatelessWidget {
                   child: Container(
                     width: 2,
                     height: 105,
-                    color: textPrimary,
+                    color: border,
                   ),
                 ),
                 // Point on graph
@@ -91,9 +92,9 @@ class BeratCard extends StatelessWidget {
                     width: 10,
                     height: 10,
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: isDark ? darkSurface : Colors.white,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.deepPurple.shade300, width: 2.5),
+                      border: Border.all(color: const Color(0xFF7C3AED), width: 2.5),
                     ),
                   ),
                 ),
@@ -104,12 +105,16 @@ class BeratCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2C223E),
+                      color: isDark ? darkBorder : const Color(0xFF2C223E),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
+                    child: Text(
                       '80 kg',
-                      style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: isDark ? textPrimary : Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -121,7 +126,7 @@ class BeratCard extends StatelessWidget {
     );
   }
 
-  Widget _buildGridLine(String label) {
+  Widget _buildGridLine(String label, Color textSecondary, Color border) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Row(
@@ -130,11 +135,17 @@ class BeratCard extends StatelessWidget {
           Expanded(
             child: Container(
               height: 1,
-              color: Colors.grey.shade300,
+              color: border,
             ),
           ),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: textSecondary,
+            ),
+          ),
         ],
       ),
     );

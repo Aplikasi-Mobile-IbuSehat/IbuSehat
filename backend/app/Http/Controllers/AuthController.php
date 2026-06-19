@@ -1,5 +1,7 @@
 <?php
 
+// app/Http/Controllers/AuthController.php
+
 namespace App\Http\Controllers;
 
 use App\Models\User;
@@ -78,6 +80,15 @@ class AuthController extends Controller
         ]);
     }
 
+    public function getUser(Request $request): JsonResponse
+    {
+        return response()->json($this->formatUser($request->user()));
+    }
+
+    // -------------------------------------------------------------------------
+    // Water Intake endpoints
+    // -------------------------------------------------------------------------
+
     public function getWaterIntake(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -111,11 +122,6 @@ class AuthController extends Controller
             'water_intake' => $user->water_intake,
             'goal_intake'  => self::GOAL_INTAKE,
         ]);
-    }
-
-    public function getUser(Request $request): JsonResponse
-    {
-        return response()->json($this->formatUser($request->user()));
     }
 
     public function reduceWaterIntake(Request $request): JsonResponse

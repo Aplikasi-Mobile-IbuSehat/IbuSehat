@@ -129,7 +129,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
               errorBuilder: (context, error, stackTrace) => Container(
                 color: widget.themeColor,
                 child: Center(
-                  child: Icon(Icons.image_not_supported_rounded, color: Colors.white.withOpacity(0.5), size: 64),
+                  child: Icon(Icons.image_not_supported_rounded, color: Colors.white.withValues(alpha: 0.5), size: 64),
                 ),
               ),
             ),
@@ -140,9 +140,9 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(0.3),
+                    Colors.black.withValues(alpha: 0.3),
                     Colors.transparent,
-                    Colors.black.withOpacity(0.6),
+                    Colors.black.withValues(alpha: 0.6),
                   ],
                   stops: const [0.0, 0.5, 1.0],
                 ),
@@ -161,7 +161,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
                     Text(
                       'PERAWATAN KULIT',
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.8),
+                        color: Colors.white.withValues(alpha: 0.8),
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 2,
@@ -203,7 +203,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
             borderRadius: BorderRadius.circular(24),
             boxShadow: isDark ? null : [
               BoxShadow(
-                color: widget.themeColor.withOpacity(0.05),
+                color: widget.themeColor.withValues(alpha: 0.05),
                 blurRadius: 20,
                 offset: const Offset(0, 10),
               ),
@@ -214,7 +214,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
             style: TextStyle(
               fontSize: 15,
               height: 1.7,
-              color: textPrimary.withOpacity(0.8),
+              color: textPrimary.withValues(alpha: 0.8),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -237,7 +237,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
   Widget _buildRecommendCard(ItemDetail item, bool isDark) {
     final surface = isDark ? darkSurface : Colors.white;
     final textPrimary = isDark ? darkTextPrimary : const Color(0xFF1F1235);
-    final textSecondary = isDark ? darkTextSecondary : const Color(0xFF1F1235).withOpacity(0.6);
+    final textSecondary = isDark ? darkTextSecondary : const Color(0xFF1F1235).withValues(alpha:0.6);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -245,7 +245,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
       decoration: BoxDecoration(
         color: surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.1)),
+        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.1)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,7 +253,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withOpacity(0.1),
+              color: const Color(0xFF10B981).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.check_circle_outline_rounded, 
@@ -304,7 +304,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
           decoration: BoxDecoration(
             color: boxColor,
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: const Color(0xFFEF4444).withOpacity(0.1)),
+            border: Border.all(color: const Color(0xFFEF4444).withValues(alpha: 0.1)),
           ),
           child: Column(
             children: widget.avoid.map((item) => Padding(
@@ -345,7 +345,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF8B5CF6).withOpacity(0.3),
+            color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -359,7 +359,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
+                  color: Colors.white.withValues(alpha: 0.2),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
@@ -379,7 +379,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
           Text(
             widget.tips,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white.withValues(alpha: 0.95),
               fontSize: 14,
               height: 1.6,
               fontWeight: FontWeight.w500,
@@ -394,7 +394,7 @@ class _SkincareDetailPageState extends State<SkincareDetailPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(

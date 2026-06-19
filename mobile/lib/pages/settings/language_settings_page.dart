@@ -46,7 +46,7 @@ class LanguageSettingsPage extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.6),
+          color: Colors.white.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: isSelected ? const Color(0xFF8B5CF6) : Colors.white),
         ),

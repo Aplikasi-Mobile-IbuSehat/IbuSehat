@@ -25,7 +25,7 @@ class AppNavbar extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.20 : 0.04),
+            color: Colors.black.withValues(alpha: isDark ? 0.20 : 0.04),
             blurRadius: 24,
             offset: const Offset(0, -4),
           ),

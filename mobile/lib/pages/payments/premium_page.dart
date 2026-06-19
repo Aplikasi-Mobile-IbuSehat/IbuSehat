@@ -26,7 +26,7 @@ class _PremiumPageState extends State<PremiumPage> {
       'price': 'Rp 39.000',
       'period': '/bulan',
       'badge': null,
-      'subtitle': 'Coba dulu, bebas berhenti kapan saja',
+      'subtitle': 'Nikmati semua fitur premium selama 30 hari',
     },
     {
       'type': '11M',
@@ -41,23 +41,18 @@ class _PremiumPageState extends State<PremiumPage> {
   final List<Map<String, dynamic>> _benefits = [
     {
       'icon': Icons.auto_awesome_rounded,
-      'title': 'AI Chatbot Nutrisi',
-      'desc': 'Catat makanan & suplemen otomatis lewat chat',
+      'title': 'AI Chatbot',
+      'desc': 'Akses asisten AI canggih, Catat makanan & suplement otomatis lewat chat',
     },
     {
       'icon': Icons.fitness_center_rounded,
-      'title': 'Video Workout',
-      'desc': 'Akses penuh koleksi video olahraga untuk ibu hamil',
+      'title': 'Program latihan khusus',
+      'desc': 'Akses penuh koleksi video olahraga',
     },
     {
       'icon': Icons.share_rounded,
       'title': 'Share Tracking',
-      'desc': 'Bagikan progres kehamilan & nutrisi ke pasangan/keluarga',
-    },
-    {
-      'icon': Icons.local_fire_department_rounded,
-      'title': 'Share Streak',
-      'desc': 'Tunjukkan konsistensi harianmu ke teman dan komunitas',
+      'desc': 'Bagikan aktivitas dan pencapaian kesehatan Anda dengan mudah',
     },
   ];
 
@@ -185,28 +180,12 @@ class _PremiumPageState extends State<PremiumPage> {
                   children: [
                     // Hero badge
                     Center(
-                      child: Container(
-                        width: 88,
-                        height: 88,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF8B5CF6).withOpacity(0.35),
-                              blurRadius: 24,
-                              offset: const Offset(0, 12),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.workspace_premium_rounded,
-                          color: Colors.white,
-                          size: 44,
+                      child: SizedBox(
+                        width: 120,
+                        height: 120,
+                        child: Image.asset(
+                          'assets/logo/ibusehat_logo_transparent.webp',
+                          fit: BoxFit.contain,
                         ),
                       ),
                     ),
@@ -224,7 +203,7 @@ class _PremiumPageState extends State<PremiumPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Satu langkah lebih dekat dengan kehamilan yang sehat dan terpantau setiap hari.',
+                      'Dirancang untuk mendukung setiap langkah pemulihan pasca melahirkan',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 14,
@@ -258,7 +237,7 @@ class _PremiumPageState extends State<PremiumPage> {
 
                     // Benefits
                     Text(
-                      'Apa yang Anda dapatkan',
+                      'Benefit yang Kamu Dapatkan',
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
@@ -286,38 +265,19 @@ class _PremiumPageState extends State<PremiumPage> {
                         }),
                       ),
                     ),
-                    const SizedBox(height: 12),
-                    Center(
-                      child: Text(
-                        'Berlaku untuk semua paket • Batalkan kapan saja',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: textSecondary,
-                        ),
-                      ),
-                    ),
+
                   ],
                 ),
               ),
 
-              // Sticky CTA di bawah
+              // Sticky CTA di bawah (Floating)
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
                 child: Container(
-                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 20),
-                  decoration: BoxDecoration(
-                    color: surface,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(isDark ? 0.3 : 0.06),
-                        blurRadius: 20,
-                        offset: const Offset(0, -4),
-                      ),
-                    ],
-                  ),
+                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                  color: Colors.transparent,
                   child: SafeArea(
                     top: false,
                     child: Container(
@@ -331,7 +291,7 @@ class _PremiumPageState extends State<PremiumPage> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
                             blurRadius: 16,
                             offset: const Offset(0, 8),
                           ),
@@ -392,7 +352,7 @@ class _PremiumPageState extends State<PremiumPage> {
       decoration: BoxDecoration(
         border: isLast
             ? null
-            : Border(bottom: BorderSide(color: border.withOpacity(0.6))),
+            : Border(bottom: BorderSide(color: border.withValues(alpha: 0.6))),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -400,7 +360,7 @@ class _PremiumPageState extends State<PremiumPage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: const Color(0xFF8B5CF6).withOpacity(0.1),
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
@@ -461,17 +421,21 @@ class _PremiumPageState extends State<PremiumPage> {
             duration: const Duration(milliseconds: 200),
             padding: const EdgeInsets.fromLTRB(16, 24, 16, 18),
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFFF5F3FF) : surface,
+              color: isSelected
+                  ? (isDark ? const Color(0x228B5CF6) : const Color(0xFFF5F3FF))
+                  : surface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: isSelected ? const Color(0xFF8B5CF6) : border,
+                color: isSelected
+                    ? (isDark ? const Color(0xFFA78BFA) : const Color(0xFF8B5CF6))
+                    : border,
                 width: isSelected ? 2 : 1,
               ),
               boxShadow: [
                 BoxShadow(
                   color: isSelected
-                      ? const Color(0xFF8B5CF6).withOpacity(0.15)
-                      : Colors.black.withOpacity(0.03),
+                      ? (isDark ? const Color(0x2A8B5CF6) : const Color(0xFF8B5CF6).withValues(alpha: 0.15))
+                      : Colors.black.withValues(alpha: 0.03),
                   blurRadius: isSelected ? 16 : 6,
                   offset: Offset(0, isSelected ? 8 : 3),
                 ),
@@ -488,7 +452,9 @@ class _PremiumPageState extends State<PremiumPage> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: isSelected ? const Color(0xFF8B5CF6) : textSecondary,
+                        color: isSelected
+                            ? (isDark ? const Color(0xFFA78BFA) : const Color(0xFF8B5CF6))
+                            : textSecondary,
                       ),
                     ),
                     Container(
@@ -496,9 +462,13 @@ class _PremiumPageState extends State<PremiumPage> {
                       height: 22,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isSelected ? const Color(0xFF8B5CF6) : Colors.transparent,
+                        color: isSelected
+                            ? (isDark ? const Color(0xFFA78BFA) : const Color(0xFF8B5CF6))
+                            : Colors.transparent,
                         border: Border.all(
-                          color: isSelected ? const Color(0xFF8B5CF6) : Colors.grey.shade300,
+                          color: isSelected
+                              ? (isDark ? const Color(0xFFA78BFA) : const Color(0xFF8B5CF6))
+                              : (isDark ? darkBorder : Colors.grey.shade300),
                           width: 2,
                         ),
                       ),
@@ -558,7 +528,7 @@ class _PremiumPageState extends State<PremiumPage> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFFF97316).withOpacity(0.35),
+                        color: const Color(0xFFF97316).withValues(alpha: 0.35),
                         blurRadius: 8,
                         offset: const Offset(0, 3),
                       ),

@@ -147,7 +147,7 @@ class _DietPageState extends State<DietPage> with AutomaticKeepAliveClientMixin 
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha:0.12),
             blurRadius: 24,
             offset: const Offset(0, 12),
           ),
@@ -185,7 +185,7 @@ class _DietPageState extends State<DietPage> with AutomaticKeepAliveClientMixin 
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Column(
@@ -209,7 +209,7 @@ class _DietPageState extends State<DietPage> with AutomaticKeepAliveClientMixin 
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
               value: progress,
-              backgroundColor: Colors.white.withOpacity(0.25),
+              backgroundColor: Colors.white.withValues(alpha: 0.25),
               valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
               minHeight: 8,
             ),
@@ -221,12 +221,12 @@ class _DietPageState extends State<DietPage> with AutomaticKeepAliveClientMixin 
               Text(
                 '${totalKcal.toStringAsFixed(0)} kkal dikonsumsi',
                 style: TextStyle(
-                    color: Colors.white.withOpacity(0.75), fontSize: 12, fontWeight: FontWeight.w500),
+                    color: Colors.white.withValues(alpha: 0.75), fontSize: 12, fontWeight: FontWeight.w500),
               ),
               Text(
                 'Target ${targetKcal.toStringAsFixed(0)}',
                 style: TextStyle(
-                    color: Colors.white.withOpacity(0.75), fontSize: 12, fontWeight: FontWeight.w500),
+                    color: Colors.white.withValues(alpha: 0.75), fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ],
           ),

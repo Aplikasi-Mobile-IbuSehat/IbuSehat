@@ -272,7 +272,7 @@ class _SupplementDetailPageState extends State<SupplementDetailPage> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: isDark ? null : [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),
@@ -299,7 +299,7 @@ class _SupplementDetailPageState extends State<SupplementDetailPage> {
     return Container(
       color: surface,
       child: Center(
-        child: Icon(Icons.medication_rounded, size: 80, color: textSecondary.withOpacity(0.5)),
+        child: Icon(Icons.medication_rounded, size: 80, color: textSecondary.withValues(alpha: 0.5)),
       ),
     );
   }
@@ -389,9 +389,9 @@ Widget _buildReminderTile(bool isDark, Color background, Color surface,
           margin: const EdgeInsets.symmetric(horizontal: 0),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF8B5CF6).withOpacity(0.08),
+            color: const Color(0xFF8B5CF6).withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.25)),
+            border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.25)),
           ),
           child: Row(
             children: [

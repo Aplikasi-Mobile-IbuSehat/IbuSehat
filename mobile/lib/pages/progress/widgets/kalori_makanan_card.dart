@@ -11,6 +11,8 @@ class KaloriMakananCard extends StatelessWidget {
     final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
     final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
     final border = isDark ? darkBorder : lightBorder;
+    const green = Color(0xFF22C55E);
+
     return Container(
       decoration: BoxDecoration(
         color: cardColor,
@@ -37,7 +39,7 @@ class KaloriMakananCard extends StatelessWidget {
                         color: textPrimary,
                       ),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       '0/2.067 kkal',
                       style: TextStyle(
@@ -52,10 +54,14 @@ class KaloriMakananCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade50,
+                    color: isDark ? const Color(0x2222C55E) : const Color(0xFFDCFCE7),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(Icons.restaurant, color: Colors.green.shade400, size: 24),
+                  child: const Icon(
+                    Icons.restaurant_rounded,
+                    color: green,
+                    size: 24,
+                  ),
                 ),
               ],
             ),
@@ -86,19 +92,19 @@ class KaloriMakananCard extends StatelessWidget {
                       right: 0,
                       child: Container(
                         height: 1,
-                        color: Colors.grey.shade300,
+                        color: border,
                       ),
                     ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        _buildDayDot('S'),
-                        _buildDayDot('R'),
-                        _buildDayDot('K'),
-                        _buildDayDot('J'),
-                        _buildDayDot('S'),
-                        _buildDayDot('M'),
-                        _buildDayDot('HARI INI', isToday: true),
+                        _buildDayDot('S', textPrimary, textSecondary, border),
+                        _buildDayDot('R', textPrimary, textSecondary, border),
+                        _buildDayDot('K', textPrimary, textSecondary, border),
+                        _buildDayDot('J', textPrimary, textSecondary, border),
+                        _buildDayDot('S', textPrimary, textSecondary, border),
+                        _buildDayDot('M', textPrimary, textSecondary, border),
+                        _buildDayDot('HARI INI', textPrimary, textSecondary, border, isToday: true),
                       ],
                     ),
                   ],
@@ -129,14 +135,20 @@ class KaloriMakananCard extends StatelessWidget {
     );
   }
 
-  Widget _buildDayDot(String label, {bool isToday = false}) {
+  Widget _buildDayDot(
+    String label,
+    Color textPrimary,
+    Color textSecondary,
+    Color border, {
+    bool isToday = false,
+  }) {
     return Column(
       children: [
         Container(
           width: 14,
           height: 14,
           decoration: BoxDecoration(
-            color: Colors.grey.shade300,
+            color: border,
             shape: BoxShape.circle,
           ),
         ),
@@ -146,7 +158,7 @@ class KaloriMakananCard extends StatelessWidget {
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w700,
-            color: isToday ? const Color(0xFF1F1235) : Colors.grey.shade500,
+            color: isToday ? textPrimary : textSecondary,
           ),
         ),
       ],

@@ -66,7 +66,7 @@ class _SettingsPageState extends State<SettingsPage> {
       return u.avatarUrl!;
     }
     final name = Uri.encodeComponent(u?.name ?? 'User');
-    return 'https://ui-avatars.com/api/?name=$name&background=8B5CF6&color=fff&size=256';
+    return 'https://ui-avatars.com/api/?name=$name&background=E5E7EB&color=374151&size=256';
   }
 
   Future<bool?> _showLogoutBottomSheet() {
@@ -94,8 +94,8 @@ class _SettingsPageState extends State<SettingsPage> {
                 margin: const EdgeInsets.symmetric(vertical: 12),
                 decoration: BoxDecoration(
                   color: isDark
-                      ? Colors.white.withOpacity(0.2)
-                      : Colors.black.withOpacity(0.12),
+                      ? Colors.white.withValues(alpha: 0.2)
+                      : Colors.black.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -108,7 +108,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 height: 64,
                 decoration: BoxDecoration(
                   color: isDark
-                      ? Colors.red.withOpacity(0.15)
+                      ? Colors.red.withValues(alpha: 0.15)
                       : Colors.red.shade50,
                   borderRadius: BorderRadius.circular(20),
                 ),
@@ -151,8 +151,8 @@ class _SettingsPageState extends State<SettingsPage> {
               Divider(
                 height: 0.5,
                 color: isDark
-                    ? Colors.white.withOpacity(0.08)
-                    : Colors.black.withOpacity(0.06),
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.06),
               ),
 
               const SizedBox(height: 20),
@@ -195,8 +195,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     style: TextButton.styleFrom(
                       foregroundColor: isDark ? Colors.white60 : Colors.black54,
                       backgroundColor: isDark
-                          ? Colors.white.withOpacity(0.06)
-                          : Colors.black.withOpacity(0.04),
+                          ? Colors.white.withValues(alpha: 0.06)
+                          : Colors.black.withValues(alpha: 0.04),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -380,13 +380,6 @@ class _SettingsPageState extends State<SettingsPage> {
           height: 80,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF8B5CF6).withOpacity(0.2),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
           ),
           clipBehavior: Clip.antiAlias,
           child: Image.network(
@@ -486,7 +479,7 @@ class _SettingsPageState extends State<SettingsPage> {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF9333EA).withOpacity(0.3),
+              color: const Color(0xFF9333EA).withValues(alpha: 0.3),
               blurRadius: 24,
               offset: const Offset(0, 12),
             ),
@@ -515,7 +508,7 @@ class _SettingsPageState extends State<SettingsPage> {
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
+                      color: Colors.white.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: const Text(
@@ -659,7 +652,7 @@ class _SettingsPageState extends State<SettingsPage> {
           Container(
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
-              color: isDark ? Colors.white10 : Colors.black.withOpacity(0.06),
+              color: isDark ? Colors.white10 : Colors.black.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -698,7 +691,7 @@ class _SettingsPageState extends State<SettingsPage> {
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFFA855F7).withOpacity(0.35),
+                    color: const Color(0xFFA855F7).withValues(alpha: 0.35),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),

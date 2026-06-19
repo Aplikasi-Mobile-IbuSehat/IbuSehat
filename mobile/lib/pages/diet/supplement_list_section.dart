@@ -280,7 +280,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -344,7 +344,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
                     decoration: BoxDecoration(
                       color: const Color(0xFFF5F3FF),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.12)),
+                      border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.12)),
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: _buildSupplementImage(supplement),
@@ -408,7 +408,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
                       height: 32,
                       decoration: BoxDecoration(
                         color: supplement.isTaken
-                            ? const Color(0xFF22C55E).withOpacity(0.1)
+                            ? const Color(0xFF22C55E).withValues(alpha: 0.1)
                             : (isDark ? darkBorder : lightBackground),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
@@ -526,7 +526,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Dismiss',
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       transitionDuration: const Duration(milliseconds: 400),
       pageBuilder: (context, anim1, anim2) {
         return StatefulBuilder(
@@ -548,7 +548,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
                     borderRadius: BorderRadius.circular(32),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
+                        color: Colors.black.withValues(alpha: 0.1),
                         blurRadius: 20,
                         offset: const Offset(0, 10),
                       ),
@@ -685,7 +685,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
                                   borderRadius: BorderRadius.circular(16),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                                       blurRadius: 12,
                                       offset: const Offset(0, 6),
                                     ),
@@ -747,7 +747,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Dismiss',
-      barrierColor: Colors.black.withOpacity(0.5),
+      barrierColor: Colors.black.withValues(alpha: 0.5),
       transitionDuration: const Duration(milliseconds: 400),
       pageBuilder: (context, anim1, anim2) {
         return Align(
@@ -764,7 +764,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
                 borderRadius: BorderRadius.circular(32),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -858,7 +858,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
+          color: color.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
