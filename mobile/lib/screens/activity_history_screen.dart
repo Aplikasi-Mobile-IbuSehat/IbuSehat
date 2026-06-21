@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:mobile/models/activity_model.dart';
 import 'package:mobile/screens/activity_detail_screen.dart';
 import 'package:mobile/services/activity_service.dart';
@@ -530,26 +532,114 @@ class _StatChipInline extends StatelessWidget {
   }
 }
 
-// ── Route preview thumbnail ──────────────────────────────────────────────
-class _RoutePreview extends StatelessWidget {
+// ── Route preview thumbnail dengan FlutterMap ────────────────────────────
+class _RoutePreview extends StatefulWidget {
   const _RoutePreview({required this.coordinates});
   final List<ActivityCoordinate> coordinates;
 
   @override
+  State<_RoutePreview> createState() => _RoutePreviewState();
+}
+
+class _RoutePreviewState extends State<_RoutePreview> {
+  final MapController _mapController = MapController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fitMapBounds();
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  void _fitMapBounds() {
+    if (widget.coordinates.length < 2) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        final points = widget.coordinates
+            .map((c) => LatLng(c.lat, c.lng))
+            .where((p) => p.latitude != 0.0 || p.longitude != 0.0)
+            .toList();
+
+        if (points.length < 2) return;
+
+        final bounds = LatLngBounds.fromPoints(points);
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.all(8),
+          ),
+        );
+      } catch (e) {
+        debugPrint('_RoutePreview._fitMapBounds: $e');
+      }
+    });
+  }
+
+  LatLng get _mapCenter {
+    if (widget.coordinates.isEmpty) return const LatLng(-6.2, 106.8);
+    if (widget.coordinates.length == 1) {
+      return LatLng(widget.coordinates.first.lat, widget.coordinates.first.lng);
+    }
+    double lat = 0, lng = 0;
+    for (final c in widget.coordinates) {
+      lat += c.lat;
+      lng += c.lng;
+    }
+    return LatLng(lat / widget.coordinates.length, lng / widget.coordinates.length);
+  }
+
+  List<LatLng> get _routePoints {
+    return widget.coordinates
+        .map((c) => LatLng(c.lat, c.lng))
+        .where((p) => p.latitude != 0.0 || p.longitude != 0.0)
+        .toList();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
-      width: 80, height: 80,
+      width: 80,
+      height: 80,
       decoration: BoxDecoration(
         color: _kChipBg,
         borderRadius: BorderRadius.circular(14),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
-        child: coordinates.length >= 2
-            ? CustomPaint(
-                painter: _RoutePainter(
-                  coordinates.map((c) => Offset(c.lng, c.lat)).toList(),
+        child: widget.coordinates.length >= 2
+            ? FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: _mapCenter,
+                  initialZoom: 14,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.none,
+                  ),
                 ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                    subdomains: const ['a', 'b', 'c', 'd'],
+                    userAgentPackageName: 'com.ibusehat.app',
+                  ),
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: _routePoints,
+                        strokeWidth: 3,
+                        color: _kPrimary,
+                      ),
+                    ],
+                  ),
+                ],
               )
             : const Center(
                 child: Icon(Icons.map_rounded, color: _kPrimary, size: 28),
@@ -559,54 +649,8 @@ class _RoutePreview extends StatelessWidget {
   }
 }
 
-class _RoutePainter extends CustomPainter {
-  _RoutePainter(this.points);
-  final List<Offset> points;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (points.length < 2) return;
-
-    double minX = points.first.dx, maxX = minX;
-    double minY = points.first.dy, maxY = minY;
-    for (final p in points) {
-      minX = min(minX, p.dx); maxX = max(maxX, p.dx);
-      minY = min(minY, p.dy); maxY = max(maxY, p.dy);
-    }
-
-    final rangeX = maxX - minX == 0 ? 0.001 : maxX - minX;
-    final rangeY = maxY - minY == 0 ? 0.001 : maxY - minY;
-    const pad = 12.0;
-    final w = size.width - pad * 2;
-    final h = size.height - pad * 2;
-
-    Offset map(Offset p) => Offset(
-      pad + (p.dx - minX) / rangeX * w,
-      pad + (1.0 - (p.dy - minY) / rangeY) * h,
-    );
-
-    final path = Path()..moveTo(map(points.first).dx, map(points.first).dy);
-    for (int i = 1; i < points.length; i++) {
-      final m = map(points[i]);
-      path.lineTo(m.dx, m.dy);
-    }
-
-    final paint = Paint()
-      ..color = _kPrimary
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(path, paint);
-
-    // Red dot at end
-    final last = map(points.last);
-    canvas.drawCircle(last, 4, Paint()..color = Colors.red);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
+// ─── CustomPainter sudah tidak digunakan lagi ────────────────────────────
+// Dihapus: _RoutePainter class
 
 // ── Shimmer loading card ─────────────────────────────────────────────────
 class _ShimmerCard extends StatelessWidget {
