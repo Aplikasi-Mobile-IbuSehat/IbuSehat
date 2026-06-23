@@ -12,6 +12,7 @@ class BMICalculatorPage extends StatefulWidget {
 class _BMICalculatorPageState extends State<BMICalculatorPage> {
   final _weightController = TextEditingController(text: '60');
   final _heightController = TextEditingController(text: '165');
+  final _waistController = TextEditingController(text: '70');
   double? _bmi;
   String _status = '';
   Color _statusColor = Colors.grey;
@@ -117,6 +118,13 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
             controller: _heightController,
             unit: 'Cm',
             onChanged: (v) => _calculateBMI(),
+          ),
+          const SizedBox(height: 20),
+          _buildInputField(
+            label: 'Lingkar Pinggang',
+            controller: _waistController,
+            unit: 'Cm',
+            onChanged: (v) => setState(() {}),
           ),
         ],
       ),

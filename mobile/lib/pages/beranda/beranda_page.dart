@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:mobile/pages/chat/ai_chat_page.dart';
+import 'package:mobile/pages/chatbot/chatbot_page.dart';
 import 'package:mobile/pages/beranda/share_achievement_page.dart';
 import 'package:mobile/pages/beranda/streak_detail_page.dart';
 import 'package:mobile/pages/beranda/welcome_dialog.dart';
-import 'package:mobile/pages/profile/premium_page.dart';
+import 'package:mobile/pages/payments/premium_page.dart';
 import 'package:mobile/providers/sleep_provider.dart';
 import 'package:mobile/widgets/app_background.dart';
 import 'package:mobile/services/streak_service.dart';
@@ -243,7 +243,7 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AiChatPage(),
+                  builder: (context) => const ChatbotPage(),
                 ),
               );
             },

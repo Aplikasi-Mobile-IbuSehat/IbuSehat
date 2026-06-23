@@ -1,17 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/models/sleep_log_result.dart';
 import 'package:mobile/pages/sleep/widgets/hasil_skor_tidur_dialog.dart';
-import 'package:mobile/providers/sleep_provider.dart';
 import 'package:mobile/services/sleep_service.dart';
-import 'package:provider/provider.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 const _kPrimary = Color(0xFF7C3AED);
-const _kDark = Color(0xFF1F1235);
-const _kGrey = Color(0xFF9CA3AF);
-const _kBg = Color(0xFFF8F9FB);
-const _kChipBg = Color(0xFFEDE9FE);
 
 class _MoodOption {
   const _MoodOption({
@@ -59,26 +55,109 @@ class _CatatTidurPageState extends State<CatatTidurPage> {
 
   Future<void> _pickTime({required bool isSleep}) async {
     final initial = isSleep ? _jamTidur : _jamBangun;
-    final picked = await showTimePicker(
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final border = isDark ? darkBorder : const Color(0xFFEEEEEE);
+
+    final now = DateTime.now();
+    var tempDateTime = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      initial.hour,
+      initial.minute,
+    );
+
+    await showModalBottomSheet<void>(
       context: context,
-      initialTime: initial,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(primary: _kPrimary),
+      backgroundColor: surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: Text(
+                        'Batal',
+                        style: TextStyle(
+                          color: isDark ? darkTextSecondary : Colors.grey.shade500,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      isSleep ? 'Pilih Jam Tidur' : 'Pilih Jam Bangun',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: textPrimary,
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        setState(() {
+                          final pickedTime = TimeOfDay(
+                            hour: tempDateTime.hour,
+                            minute: tempDateTime.minute,
+                          );
+                          if (isSleep) {
+                            _jamTidur = pickedTime;
+                          } else {
+                            _jamBangun = pickedTime;
+                          }
+                        });
+                        Navigator.pop(context);
+                      },
+                      child: const Text(
+                        'Simpan',
+                        style: TextStyle(
+                          color: _kPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(height: 1, color: border),
+              SizedBox(
+                height: 200,
+                child: CupertinoTheme(
+                  data: CupertinoThemeData(
+                    brightness: isDark ? Brightness.dark : Brightness.light,
+                    textTheme: CupertinoTextThemeData(
+                      dateTimePickerTextStyle: TextStyle(
+                        color: textPrimary,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  child: CupertinoDatePicker(
+                    mode: CupertinoDatePickerMode.time,
+                    use24hFormat: true,
+                    initialDateTime: tempDateTime,
+                    onDateTimeChanged: (DateTime newDateTime) {
+                      tempDateTime = newDateTime;
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
-          child: child!,
         );
       },
     );
-    if (picked == null) return;
-    setState(() {
-      if (isSleep) {
-        _jamTidur = picked;
-      } else {
-        _jamBangun = picked;
-      }
-    });
   }
 
   Future<void> _hitungSkor() async {
@@ -100,17 +179,6 @@ class _CatatTidurPageState extends State<CatatTidurPage> {
         _hasSubmitted = true;
       });
 
-      // 🔥 REFRESH DATA TIDUR MINGGUAN SETELAH SUBMIT BERHASIL
-      debugPrint('=== CatatTidurPage: Submit berhasil, refreshing weekly data...');
-      try {
-        final sleepProvider = context.read<SleepProvider>();
-        await sleepProvider.fetchWeeklySummary();
-        debugPrint('=== CatatTidurPage: Weekly data refreshed successfully');
-      } catch (e) {
-        debugPrint('=== CatatTidurPage: Failed to refresh weekly data: $e');
-        // Tidak perlu menampilkan error, data akan direfresh saat kembali ke Beranda
-      }
-
       try {
         await showHasilSkorTidurDialog(
           context,
@@ -123,8 +191,7 @@ class _CatatTidurPageState extends State<CatatTidurPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Data tersimpan (skor ${result.score}), tetapi gagal '
-              'menampilkan hasil.',
+              'Data tersimpan (skor ${result.score}), tetapi gagal menampilkan hasil.',
             ),
             backgroundColor: Colors.orange.shade800,
             behavior: SnackBarBehavior.floating,
@@ -157,215 +224,233 @@ class _CatatTidurPageState extends State<CatatTidurPage> {
     }
   }
 
-  Widget _buildFormAppBar() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 44,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: _isLoading
-                      ? null
-                      : () => Navigator.pop(context, _hasSubmitted),
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    size: 20,
-                  ),
-                  color: _kDark,
-                ),
-                const Expanded(
-                  child: Text(
-                    'Catat Tidur',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                      color: _kDark,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 48),
-              ],
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? darkBackground : lightBackground;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final border = isDark ? darkBorder : const Color(0xFFEEEEEE);
+
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: AppBar(
+        backgroundColor: bg,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          onPressed: _isLoading ? null : () => Navigator.pop(context, _hasSubmitted),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 18,
+            color: textPrimary,
+          ),
+        ),
+        centerTitle: true,
+        title: Text(
+          'Catat Tidur',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: textPrimary,
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(20),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Masukkan data tidurmu hari ini',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                color: textSecondary,
+              ),
             ),
           ),
-          const SizedBox(height: 2),
-          const Text(
-            'Masukkan data tidurmu hari ini',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: _kGrey,
+        ),
+      ),
+      body: Column(
+        children: [
+          Divider(height: 1, color: border),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _TimeField(
+                    label: 'Jam Tidur',
+                    value: _formatTime(_jamTidur),
+                    onTap: () => _pickTime(isSleep: true),
+                    surface: surface,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    border: border,
+                  ),
+                  const SizedBox(height: 16),
+                  _TimeField(
+                    label: 'Jam Bangun',
+                    value: _formatTime(_jamBangun),
+                    onTap: () => _pickTime(isSleep: false),
+                    surface: surface,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    border: border,
+                  ),
+                  const SizedBox(height: 16),
+                  _StepperField(
+                    label: 'Terbangun di Malam Hari',
+                    value: _terbangun,
+                    suffix: 'kali',
+                    surface: surface,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    isDark: isDark,
+                    onChanged: (v) => setState(() => _terbangun = v),
+                  ),
+                  const SizedBox(height: 16),
+                  _StepperField(
+                    label: 'Lama Terjaga (Total)',
+                    value: _lamaTerjaga,
+                    suffix: 'menit',
+                    step: 5,
+                    surface: surface,
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    isDark: isDark,
+                    onChanged: (v) => setState(() => _lamaTerjaga = v),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Mood Setelah Bangun',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: _moodOptions.map((m) {
+                      final selected = _mood == m.value;
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 3),
+                          child: GestureDetector(
+                            onTap: () => setState(() => _mood = m.value),
+                            child: Column(
+                              children: [
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: selected
+                                        ? _kPrimary
+                                        : surface,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(
+                                      color: selected
+                                          ? _kPrimary
+                                          : border,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    m.emoji,
+                                    textAlign: TextAlign.center,
+                                    style: const TextStyle(fontSize: 22),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  m.label,
+                                  textAlign: TextAlign.center,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                    color: selected ? _kPrimary : textSecondary,
+                                    height: 1.2,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Bottom button (Floating)
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            color: Colors.transparent,
+            child: SafeArea(
+              top: false,
+              child: FilledButton(
+                onPressed: _isLoading ? null : _hitungSkor,
+                style: FilledButton.styleFrom(
+                  backgroundColor: _kPrimary,
+                  disabledBackgroundColor: _kPrimary.withValues(alpha: 0.4),
+                  minimumSize: const Size(double.infinity, 52),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text(
+                        'Hitung Skor Tidur',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+              ),
             ),
           ),
         ],
       ),
     );
   }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _kBg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildFormAppBar(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _TimeField(
-                      label: 'Jam Tidur',
-                      value: _formatTime(_jamTidur),
-                      onTap: () => _pickTime(isSleep: true),
-                    ),
-                    const SizedBox(height: 20),
-                    _TimeField(
-                      label: 'Jam Bangun',
-                      value: _formatTime(_jamBangun),
-                      onTap: () => _pickTime(isSleep: false),
-                    ),
-                    const SizedBox(height: 20),
-                    _StepperField(
-                      label: 'Terbangun di Malam Hari',
-                      value: _terbangun,
-                      suffix: 'kali',
-                      onChanged: (v) => setState(() => _terbangun = v),
-                    ),
-                    const SizedBox(height: 20),
-                    _StepperField(
-                      label: 'Lama Terjaga (Total)',
-                      value: _lamaTerjaga,
-                      suffix: 'menit',
-                      step: 5,
-                      onChanged: (v) => setState(() => _lamaTerjaga = v),
-                    ),
-                    const SizedBox(height: 24),
-                    const Text(
-                      'Mood Setelah Bangun',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: _kDark,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: _moodOptions.map((m) {
-                        final selected = _mood == m.value;
-                        return Expanded(
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.symmetric(horizontal: 3),
-                            child: GestureDetector(
-                              onTap: () => setState(() => _mood = m.value),
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 10,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: selected
-                                          ? _kPrimary
-                                          : Colors.white,
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(
-                                        color: selected
-                                            ? _kPrimary
-                                            : Colors.grey.shade200,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      m.emoji,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(fontSize: 22),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(
-                                    m.label,
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w600,
-                                      color:
-                                          selected ? _kPrimary : _kGrey,
-                                      height: 1.2,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: FilledButton(
-                  onPressed: _isLoading ? null : _hitungSkor,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _kPrimary,
-                    disabledBackgroundColor:
-                        _kPrimary.withValues(alpha: 0.5),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Hitung Skor Tidur',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
+
+// ── Time Field ────────────────────────────────────────────────
 
 class _TimeField extends StatelessWidget {
   const _TimeField({
     required this.label,
     required this.value,
     required this.onTap,
+    required this.surface,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.border,
   });
 
   final String label;
   final String value;
   final VoidCallback onTap;
+  final Color surface;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color border;
 
   @override
   Widget build(BuildContext context) {
@@ -374,40 +459,46 @@ class _TimeField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            color: _kDark,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: textPrimary,
           ),
         ),
-        const SizedBox(height: 10),
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    value,
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: _kDark,
+        const SizedBox(height: 8),
+        Material(
+          color: surface,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: border),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.access_time_rounded, color: _kPrimary, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(fontSize: 14, color: textSecondary),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                const Icon(Icons.access_time_rounded, color: _kPrimary),
-              ],
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: textPrimary,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -416,12 +507,18 @@ class _TimeField extends StatelessWidget {
   }
 }
 
+// ── Stepper Field ─────────────────────────────────────────────
+
 class _StepperField extends StatelessWidget {
   const _StepperField({
     required this.label,
     required this.value,
     required this.suffix,
     required this.onChanged,
+    required this.surface,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.isDark,
     this.step = 1,
   });
 
@@ -430,34 +527,40 @@ class _StepperField extends StatelessWidget {
   final String suffix;
   final int step;
   final ValueChanged<int> onChanged;
+  final Color surface;
+  final Color textPrimary;
+  final Color textSecondary;
+  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
+    final chipBg = isDark ? darkBorder : const Color(0xFFEDE9FE);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            color: _kDark,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: textPrimary,
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Row(
           children: [
             Expanded(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
                 decoration: BoxDecoration(
-                  color: _kChipBg,
-                  borderRadius: BorderRadius.circular(16),
+                  color: chipBg,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Row(
                   children: [
-                    _StepperButton(
-                      icon: Icons.remove,
+                    _StepBtn(
+                      icon: Icons.remove_rounded,
                       onTap: value > 0
                           ? () => onChanged((value - step).clamp(0, 999))
                           : null,
@@ -467,22 +570,22 @@ class _StepperField extends StatelessWidget {
                         margin: const EdgeInsets.symmetric(horizontal: 6),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
+                          color: surface,
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
                           '$value',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: _kDark,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: textPrimary,
                           ),
                         ),
                       ),
                     ),
-                    _StepperButton(
-                      icon: Icons.add,
+                    _StepBtn(
+                      icon: Icons.add_rounded,
                       onTap: () => onChanged(value + step),
                     ),
                   ],
@@ -492,10 +595,10 @@ class _StepperField extends StatelessWidget {
             const SizedBox(width: 12),
             Text(
               suffix,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: _kGrey,
+                fontWeight: FontWeight.w500,
+                color: textSecondary,
               ),
             ),
           ],
@@ -505,8 +608,8 @@ class _StepperField extends StatelessWidget {
   }
 }
 
-class _StepperButton extends StatelessWidget {
-  const _StepperButton({required this.icon, required this.onTap});
+class _StepBtn extends StatelessWidget {
+  const _StepBtn({required this.icon, required this.onTap});
 
   final IconData icon;
   final VoidCallback? onTap;
@@ -517,14 +620,13 @@ class _StepperButton extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: 40,
-          height: 40,
-          alignment: Alignment.center,
+        borderRadius: BorderRadius.circular(10),
+        child: SizedBox(
+          width: 38,
+          height: 38,
           child: Icon(
             icon,
-            color: onTap != null ? _kPrimary : _kGrey.withValues(alpha: 0.4),
+            color: onTap != null ? _kPrimary : Colors.grey.shade400,
             size: 20,
           ),
         ),

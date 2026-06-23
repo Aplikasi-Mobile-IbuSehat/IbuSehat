@@ -3,12 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:mobile/models/sleep_history_item.dart';
 import 'package:mobile/pages/sleep/widgets/hasil_skor_tidur_dialog.dart';
 import 'package:mobile/services/sleep_service.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 const _kPrimary = Color(0xFF7C3AED);
-const _kDark = Color(0xFF1F1235);
-const _kGrey = Color(0xFF9CA3AF);
-const _kBg = Color(0xFFF8F9FB);
-const _kChipBg = Color(0xFFEDE9FE);
 
 class RiwayatTidurPage extends StatefulWidget {
   const RiwayatTidurPage({super.key});
@@ -69,36 +66,41 @@ class _RiwayatTidurPageState extends State<RiwayatTidurPage> {
   }
 
   Future<void> _confirmAndDelete(SleepHistoryItem item) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text(
+        title: Text(
           'Hapus riwayat?',
           style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: _kDark,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: textPrimary,
           ),
         ),
         content: Text(
           'Riwayat tidur ${item.date} (${item.sleepDuration}) akan dihapus permanen.',
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 14,
-            color: Colors.black87,
+            color: textSecondary,
             height: 1.45,
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text(
+            child: Text(
               'Batal',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
-                color: _kGrey,
+                color: textSecondary,
               ),
             ),
           ),
@@ -138,18 +140,15 @@ class _RiwayatTidurPageState extends State<RiwayatTidurPage> {
             style: TextStyle(fontWeight: FontWeight.w600),
           ),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: _kDark,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     } on SleepServiceException catch (e) {
       if (!mounted) return;
       setState(() => _deletingId = null);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       setState(() => _deletingId = null);
@@ -184,14 +183,12 @@ class _RiwayatTidurPageState extends State<RiwayatTidurPage> {
         loadingContext = dialogContext;
         return const PopScope(
           canPop: false,
-          child: Center(
-            child: CircularProgressIndicator(color: _kPrimary),
-          ),
+          child:
+              Center(child: CircularProgressIndicator(color: _kPrimary)),
         );
       },
     );
 
-    // Tunggu dialog benar-benar ada di navigator sebelum fetch selesai.
     await Future<void>.delayed(Duration.zero);
 
     try {
@@ -200,18 +197,14 @@ class _RiwayatTidurPageState extends State<RiwayatTidurPage> {
         Navigator.of(loadingContext!).pop();
       }
       if (!mounted) return;
-      await showHasilSkorTidurDialog(
-        context,
-        result.toDataMap(),
-      );
+      await showHasilSkorTidurDialog(context, result.toDataMap());
     } on SleepServiceException catch (e) {
       if (loadingContext?.mounted ?? false) {
         Navigator.of(loadingContext!).pop();
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e, st) {
       debugPrint('RiwayatTidurPage._openDetail: $e\n$st');
       if (loadingContext?.mounted ?? false) {
@@ -226,109 +219,119 @@ class _RiwayatTidurPageState extends State<RiwayatTidurPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? darkBackground : lightBackground;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final border = isDark ? darkBorder : const Color(0xFFEEEEEE);
+
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: _kBg,
+        backgroundColor: bg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          color: _kDark,
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              size: 18, color: textPrimary),
         ),
         centerTitle: true,
-        title: const Text(
+        title: Text(
           'Riwayat Tidur',
           style: TextStyle(
             fontSize: 17,
-            fontWeight: FontWeight.w800,
-            color: _kDark,
+            fontWeight: FontWeight.w700,
+            color: textPrimary,
           ),
         ),
-      ),
-      body: Column(
-        children: [
+        actions: [
+          // Delete toggle
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Material(
-                  color: _deleteMode ? const Color(0xFFEF4444) : const Color(0xFFFEE2E2),
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    onTap: (_items.isEmpty || _loading)
-                        ? null
-                        : () {
-                            setState(() => _deleteMode = !_deleteMode);
-                            if (_deleteMode) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Pilih riwayat yang ingin dihapus'),
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
-                          },
-                    borderRadius: BorderRadius.circular(14),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                      child: Icon(
-                        Icons.delete_outline_rounded,
-                        size: 18,
-                        color: _deleteMode ? Colors.white : const Color(0xFFEF4444),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Material(
-                  color: _kChipBg,
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    onTap: _togglePeriod,
-                    borderRadius: BorderRadius.circular(14),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 12,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _weeklyOnly ? 'Mingguan' : 'Semua',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: _kPrimary,
-                            ),
+            padding: const EdgeInsets.only(right: 4),
+            child: IconButton(
+              onPressed: (_items.isEmpty || _loading)
+                  ? null
+                  : () {
+                      setState(() => _deleteMode = !_deleteMode);
+                      if (_deleteMode) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Ketuk riwayat untuk menghapus'),
+                            behavior: SnackBarBehavior.floating,
                           ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.tune_rounded,
-                            size: 18,
-                            color: _kPrimary,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                        );
+                      }
+                    },
+              icon: Icon(
+                _deleteMode
+                    ? Icons.delete_rounded
+                    : Icons.delete_outline_rounded,
+                color: _deleteMode
+                    ? const Color(0xFFEF4444)
+                    : textSecondary,
+                size: 22,
+              ),
             ),
           ),
-          Expanded(child: _buildBody()),
+
+          // Period toggle
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              onTap: _togglePeriod,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _kPrimary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _weeklyOnly ? 'Mingguan' : 'Semua',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _kPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.swap_horiz_rounded,
+                        size: 14, color: _kPrimary),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, color: border),
+        ),
+      ),
+      body: _buildBody(
+        isDark: isDark,
+        bg: bg,
+        surface: surface,
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+        border: border,
       ),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody({
+    required bool isDark,
+    required Color bg,
+    required Color surface,
+    required Color textPrimary,
+    required Color textSecondary,
+    required Color border,
+  }) {
     if (_loading) {
       return const Center(
         child: CircularProgressIndicator(color: _kPrimary),
@@ -342,12 +345,14 @@ class _RiwayatTidurPageState extends State<RiwayatTidurPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              Icon(Icons.cloud_off_outlined, size: 48, color: textSecondary),
+              const SizedBox(height: 12),
               Text(
                 _error!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.w600,
-                  color: _kDark,
+                  color: textSecondary,
                 ),
               ),
               const SizedBox(height: 16),
@@ -363,28 +368,33 @@ class _RiwayatTidurPageState extends State<RiwayatTidurPage> {
     }
 
     if (_items.isEmpty) {
-      return const Center(
+      return Center(
         child: Text(
           'Belum ada riwayat tidur',
           style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            color: _kGrey,
+            color: textSecondary,
           ),
         ),
       );
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
       itemCount: _items.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      separatorBuilder: (context, index) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final item = _items[index];
         return _HistoryCard(
           item: item,
           isDeleting: _deletingId == item.id,
           deleteMode: _deleteMode,
+          isDark: isDark,
+          surface: surface,
+          textPrimary: textPrimary,
+          textSecondary: textSecondary,
+          border: border,
           onTap: () => _onCardTap(item),
         );
       },
@@ -398,96 +408,124 @@ class _HistoryCard extends StatelessWidget {
     required this.onTap,
     required this.isDeleting,
     required this.deleteMode,
+    required this.isDark,
+    required this.surface,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.border,
   });
 
   final SleepHistoryItem item;
   final VoidCallback onTap;
   final bool isDeleting;
   final bool deleteMode;
+  final bool isDark;
+  final Color surface;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color border;
 
   @override
   Widget build(BuildContext context) {
+    final activeBorder =
+        deleteMode ? const Color(0xFFEF4444) : border;
+
     return Material(
-      color: Colors.white,
+      color: surface,
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: deleteMode ? const Color(0xFFEF4444) : Colors.grey.shade200,
+      child: InkWell(
+        onTap: isDeleting ? null : onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: activeBorder),
           ),
-        ),
-        child: InkWell(
-          onTap: isDeleting ? null : onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.date,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: _kGrey,
-                        ),
+          child: Row(
+            children: [
+              // Date & Duration
+              Expanded(
+                flex: 3,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.date,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: textSecondary,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.sleepDuration,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: _kDark,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  flex: 2,
-                  child: Text(
-                    '${item.score}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: _kDark,
                     ),
-                  ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.sleepDuration,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: textPrimary,
+                      ),
+                    ),
+                  ],
                 ),
-                Expanded(
-                  flex: 3,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          item.statusLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: _kDark,
-                          ),
+              ),
+
+              // Score
+              Expanded(
+                flex: 2,
+                child: Column(
+                  children: [
+                    Text(
+                      '${item.score}',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: _kPrimary,
+                      ),
+                    ),
+                    Text(
+                      'skor',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Status
+              Expanded(
+                flex: 3,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        item.statusLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: textPrimary,
                         ),
                       ),
-                      const SizedBox(width: 6),
-                      Text(
-                        item.emoji,
-                        style: const TextStyle(fontSize: 22),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      item.emoji,
+                      style: const TextStyle(fontSize: 20),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),

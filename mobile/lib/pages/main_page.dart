@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:mobile/pages/beranda/beranda_page.dart';
 import 'package:mobile/pages/diet/diet_page.dart';
 import 'package:mobile/pages/progress/progress_page.dart';
-import 'package:mobile/pages/profile/profile_page.dart';
+import 'package:mobile/pages/settings/settings.dart';
 import 'package:mobile/pages/workout/workout_page.dart';
 import 'package:mobile/widgets/app_navbar.dart';
 import 'package:mobile/pages/beranda/sleep_fab.dart';
@@ -39,7 +39,7 @@ class _MainPageState extends State<MainPage> {
     ProgressPage(refreshToken: widget.progressRefreshToken),
     const DietPage(),
     const WorkoutPage(),
-    const ProfilePage(),
+    const SettingsPage(),
   ];
 
   @override

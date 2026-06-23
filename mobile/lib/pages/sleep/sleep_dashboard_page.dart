@@ -8,13 +8,11 @@ import 'package:mobile/pages/riwayat_tidur_page.dart';
 import 'package:mobile/pages/sleep/widgets/hasil_skor_tidur_dialog.dart';
 import 'package:mobile/pages/sleep/widgets/sleep_dashboard_skeleton.dart';
 import 'package:mobile/services/sleep_service.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 const _kPrimary = Color(0xFF7C3AED);
-const _kDark = Color(0xFF1F1235);
 const _kGrey = Color(0xFF9CA3AF);
-const _kBg = Color(0xFFF8F9FB);
 const _kGreen = Color(0xFF22C55E);
-const _kCardShadow = Color(0x14000000);
 const _kToggleBg = Color(0xFFEDE9FE);
 
 class SleepDashboardPage extends StatefulWidget {
@@ -93,44 +91,52 @@ class _SleepDashboardPageState extends State<SleepDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? darkBackground : lightBackground;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final border = isDark ? darkBorder : const Color(0xFFEEEEEE);
+    final surface = isDark ? darkSurface : lightSurface;
+
     return Scaffold(
-      backgroundColor: _kBg,
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: _kBg,
+        backgroundColor: bg,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          color: _kDark,
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 18, color: textPrimary),
         ),
-        title: const Text(
+        title: Text(
           'Pelacakan Tidur',
           style: TextStyle(
             fontSize: 17,
             fontWeight: FontWeight.w700,
-            color: _kDark,
+            color: textPrimary,
           ),
         ),
         centerTitle: true,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Divider(height: 1, color: border),
+        ),
       ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-            child: Center(child: _buildPeriodToggle()),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+            child: Center(child: _buildPeriodToggle(isDark)),
           ),
           Expanded(
             child: _buildBody(),
           ),
         ],
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-          child: SizedBox(
-            width: double.infinity,
-            height: 52,
+      bottomNavigationBar: Container(
+        color: Colors.transparent,
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
             child: FilledButton(
               onPressed: () {
                 Navigator.push(
@@ -143,17 +149,15 @@ class _SleepDashboardPageState extends State<SleepDashboardPage> {
               style: FilledButton.styleFrom(
                 backgroundColor: _kPrimary,
                 foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 52),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 elevation: 0,
               ),
               child: const Text(
                 'Lihat Riwayat',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -162,10 +166,10 @@ class _SleepDashboardPageState extends State<SleepDashboardPage> {
     );
   }
 
-  Widget _buildPeriodToggle() {
+  Widget _buildPeriodToggle(bool isDark) {
     return Container(
       decoration: BoxDecoration(
-        color: _kToggleBg,
+        color: isDark ? darkBorder : _kToggleBg,
         borderRadius: BorderRadius.circular(30),
       ),
       child: Row(
@@ -189,7 +193,7 @@ class _SleepDashboardPageState extends State<SleepDashboardPage> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
         decoration: BoxDecoration(
           color: isActive ? _kPrimary : Colors.transparent,
           borderRadius: BorderRadius.circular(30),
@@ -199,7 +203,7 @@ class _SleepDashboardPageState extends State<SleepDashboardPage> {
           style: TextStyle(
             color: isActive ? Colors.white : _kGrey,
             fontWeight: FontWeight.w600,
-            fontSize: 14,
+            fontSize: 13,
           ),
         ),
       ),
@@ -306,6 +310,7 @@ class _HariIniContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasToday = today?.hasData ?? false;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -366,12 +371,12 @@ class _HariIniContent extends StatelessWidget {
               ],
             ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Ringkasan Minggu Ini',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: _kDark,
+              color: isDark ? darkTextPrimary : lightTextPrimary,
             ),
           ),
           const SizedBox(height: 12),
@@ -395,6 +400,7 @@ class _MingguIniContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasWeekly = weekly?.hasData ?? false;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     if (!hasWeekly) {
       return SingleChildScrollView(
@@ -457,12 +463,12 @@ class _MingguIniContent extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 24),
-          const Text(
+          Text(
             'Ringkasan Minggu Ini',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: _kDark,
+              color: isDark ? darkTextPrimary : lightTextPrimary,
             ),
           ),
           const SizedBox(height: 12),
@@ -484,17 +490,23 @@ class _EmptyDataCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? darkSurface : lightSurface;
+    final border = isDark ? darkBorder : Colors.transparent;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
+        border: Border.all(color: border),
+        boxShadow: isDark ? null : [
           BoxShadow(
-            color: _kCardShadow,
+            color: Colors.black.withValues(alpha: 0.07),
             blurRadius: 16,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -509,10 +521,10 @@ class _EmptyDataCard extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w600,
-              color: _kGrey,
+              color: textSecondary,
             ),
           ),
           const SizedBox(height: 20),
@@ -557,18 +569,24 @@ class _SleepScoreCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = (score.clamp(0, 100)) / 100;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final border = isDark ? darkBorder : Colors.transparent;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
+        border: Border.all(color: border),
+        boxShadow: isDark ? null : [
           BoxShadow(
-            color: _kCardShadow,
+            color: const Color(0x14000000),
             blurRadius: 16,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -577,10 +595,10 @@ class _SleepScoreCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: _kDark,
+              color: textPrimary,
             ),
           ),
           const SizedBox(height: 16),
@@ -598,7 +616,7 @@ class _SleepScoreCard extends StatelessWidget {
                       child: CircularProgressIndicator(
                         value: progress,
                         strokeWidth: 10,
-                        backgroundColor: _kToggleBg,
+                        backgroundColor: isDark ? darkBorder : _kToggleBg,
                         color: _kPrimary,
                         strokeCap: StrokeCap.round,
                       ),
@@ -608,19 +626,19 @@ class _SleepScoreCard extends StatelessWidget {
                       children: [
                         Text(
                           '$score',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 32,
                             fontWeight: FontWeight.w800,
-                            color: _kDark,
+                            color: textPrimary,
                             height: 1,
                           ),
                         ),
-                        const Text(
+                        Text(
                           '/100',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: _kGrey,
+                            color: textSecondary,
                           ),
                         ),
                       ],
@@ -644,10 +662,10 @@ class _SleepScoreCard extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       message,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: _kGrey,
+                        color: textSecondary,
                         height: 1.4,
                       ),
                     ),
@@ -693,16 +711,23 @@ class _StatMiniCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final border = isDark ? darkBorder : Colors.transparent;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
+        border: Border.all(color: border),
+        boxShadow: isDark ? null : [
           BoxShadow(
-            color: _kCardShadow,
+            color: const Color(0x14000000),
             blurRadius: 12,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -721,19 +746,19 @@ class _StatMiniCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: _kGrey,
+              color: textSecondary,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w800,
-              color: _kDark,
+              color: textPrimary,
             ),
           ),
         ],
@@ -760,29 +785,34 @@ class _WeeklySummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final summary = weekly;
     final hasData = summary?.hasData ?? false;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final border = isDark ? darkBorder : Colors.transparent;
 
     if (!hasData || summary == null) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surface,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: const [
+          border: Border.all(color: border),
+          boxShadow: isDark ? null : [
             BoxShadow(
-              color: _kCardShadow,
+              color: const Color(0x14000000),
               blurRadius: 12,
-              offset: Offset(0, 2),
+              offset: const Offset(0, 2),
             ),
           ],
         ),
-        child: const Text(
+        child: Text(
           'Belum ada ringkasan mingguan',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: _kGrey,
+            color: textSecondary,
           ),
         ),
       );
@@ -790,15 +820,16 @@ class _WeeklySummaryCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
+        border: Border.all(color: border),
+        boxShadow: isDark ? null : [
           BoxShadow(
-            color: _kCardShadow,
+            color: const Color(0x14000000),
             blurRadius: 12,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -813,10 +844,10 @@ class _WeeklySummaryCard extends StatelessWidget {
                     value: summary.averageDuration ?? '-',
                   ),
                 ),
-                const VerticalDivider(
+                VerticalDivider(
                   width: 1,
                   thickness: 1,
-                  color: Color(0xFFF3F4F6),
+                  color: isDark ? darkBorder : const Color(0xFFF3F4F6),
                 ),
                 Expanded(
                   child: _WeeklyStatColumn(
@@ -824,10 +855,10 @@ class _WeeklySummaryCard extends StatelessWidget {
                     value: summary.totalDebt,
                   ),
                 ),
-                const VerticalDivider(
+                VerticalDivider(
                   width: 1,
                   thickness: 1,
-                  color: Color(0xFFF3F4F6),
+                  color: isDark ? darkBorder : const Color(0xFFF3F4F6),
                 ),
                 Expanded(
                   child: _WeeklyStatColumn(
@@ -843,20 +874,20 @@ class _WeeklySummaryCard extends StatelessWidget {
           SizedBox(
             height: 160,
             child: summary.chart.isEmpty
-                ? const Center(
+                ? Center(
                     child: Text(
                       'Belum ada data grafik',
-                      style: TextStyle(color: _kGrey, fontSize: 13),
+                      style: TextStyle(color: textSecondary, fontSize: 13),
                     ),
                   )
-                : LineChart(_buildChartData(summary.chart)),
+                : LineChart(_buildChartData(summary.chart, isDark)),
           ),
         ],
       ),
     );
   }
 
-  LineChartData _buildChartData(List<SleepChartDay> chart) {
+  LineChartData _buildChartData(List<SleepChartDay> chart, bool isDark) {
     final spots = <FlSpot>[];
     final dayLabels = <String>[];
 
@@ -877,6 +908,8 @@ class _WeeklySummaryCard extends StatelessWidget {
         ? 100.0
         : (scores.reduce((a, b) => a > b ? a : b) + 10).toDouble();
 
+    final gridLineColor = isDark ? darkBorder : const Color(0xFFF3F4F6);
+
     return LineChartData(
       minY: 0,
       maxY: maxY.clamp(50, 120),
@@ -884,8 +917,8 @@ class _WeeklySummaryCard extends StatelessWidget {
         show: true,
         drawVerticalLine: false,
         horizontalInterval: 20,
-        getDrawingHorizontalLine: (_) => const FlLine(
-          color: Color(0xFFF3F4F6),
+        getDrawingHorizontalLine: (_) => FlLine(
+          color: gridLineColor,
           strokeWidth: 1,
         ),
       ),
@@ -906,10 +939,10 @@ class _WeeklySummaryCard extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   dayLabels[i],
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: _kGrey,
+                    color: isDark ? darkTextSecondary : _kGrey,
                   ),
                 ),
               );
@@ -932,7 +965,7 @@ class _WeeklySummaryCard extends StatelessWidget {
             getDotPainter: (spot, percent, barData, index) =>
                 FlDotCirclePainter(
               radius: 4,
-              color: Colors.white,
+              color: isDark ? darkSurface : Colors.white,
               strokeWidth: 2.5,
               strokeColor: _kPrimary,
             ),
@@ -958,15 +991,19 @@ class _WeeklyStatColumn extends StatelessWidget {
   const _WeeklyStatColumn({
     required this.label,
     required this.value,
-    this.valueColor = _kDark,
+    this.valueColor,
   });
 
   final String label;
   final String value;
-  final Color valueColor;
+  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       child: Column(
@@ -974,10 +1011,10 @@ class _WeeklyStatColumn extends StatelessWidget {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w500,
-              color: _kGrey,
+              color: textSecondary,
             ),
           ),
           const SizedBox(height: 6),
@@ -987,7 +1024,7 @@ class _WeeklyStatColumn extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w800,
-              color: valueColor,
+              color: valueColor ?? textPrimary,
             ),
           ),
         ],
@@ -1007,6 +1044,10 @@ class _ErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -1018,10 +1059,10 @@ class _ErrorView extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: _kDark,
+                color: textPrimary,
               ),
             ),
             const SizedBox(height: 20),
