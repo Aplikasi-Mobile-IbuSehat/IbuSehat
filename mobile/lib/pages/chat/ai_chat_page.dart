@@ -36,14 +36,14 @@ class _AiChatPageState extends State<AiChatPage> {
     _scrollToBottom();
 
     try {
-      final answer = await _apiService.sendChatMessage(text);
+      final result = await _apiService.sendChatMessage(text);
 
       if (mounted) {
         setState(() {
           _messages.insert(
             0,
             Message(
-              text: answer,
+              text: result.reply,
               isAi: true,
               timestamp: DateTime.now(),
             ),
