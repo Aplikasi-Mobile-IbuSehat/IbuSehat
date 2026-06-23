@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 /// Background layar utama aplikasi.
 class AppBackground extends StatelessWidget {
@@ -8,13 +9,15 @@ class AppBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       height: double.infinity,
-      decoration: const BoxDecoration(
-        color: Color(0xFFFAFAFC),
+      decoration: BoxDecoration(
+        color: isDark ? darkBackground : const Color(0xFFFAFAFC),
       ),
       child: child,
     );
   }
 }
+

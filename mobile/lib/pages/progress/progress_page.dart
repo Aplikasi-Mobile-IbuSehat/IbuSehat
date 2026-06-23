@@ -6,8 +6,8 @@ import 'package:mobile/pages/progress/widgets/waktu_latihan_card.dart';
 import 'package:mobile/pages/progress/widgets/kalori_makanan_card.dart';
 import 'package:mobile/widgets/app_background.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:mobile/pages/payments/premium_page.dart';
-import 'package:mobile/pages/chatbot/chatbot_page.dart';
+import 'package:mobile/pages/profile/premium_page.dart';
+import 'package:mobile/pages/chat/ai_chat_page.dart';
 
 class ProgressPage extends StatefulWidget {
   const ProgressPage({super.key, this.refreshToken = 0});
@@ -122,7 +122,7 @@ class _ProgressPageState extends State<ProgressPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const ChatbotPage(),
+                              builder: (context) => const AiChatPage(),
                             ),
                           );
                         },

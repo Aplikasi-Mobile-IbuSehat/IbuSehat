@@ -5,8 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/config/api_config.dart';
-// import 'package:mobile/services/api_cache_manager.dart';
-// import 'package:mobile/services/fcm_service.dart';
+import 'package:mobile/services/api_cache_manager.dart';
+import 'package:mobile/services/fcm_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthUser {
@@ -373,8 +373,7 @@ class AuthService {
     await _saveToken(sanctumToken);
 
     // upload FCM token setelah login
-    // TODO: Implement FCM notification service
-    // await FcmNotificationService.instance.uploadTokenAfterLogin();
+    await FcmNotificationService.instance.uploadTokenAfterLogin();
 
     final userMap = body['user'];
 
@@ -393,8 +392,7 @@ class AuthService {
 
   Future<void> signOut() async {
     // clear cache aplikasi
-    // TODO: Implement API cache manager
-    // ApiCacheManager.instance.clearAll();
+    ApiCacheManager.instance.clearAll();
 
     final t = await token;
 

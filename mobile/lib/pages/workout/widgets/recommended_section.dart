@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/pages/workout/active_workout_page.dart';
 import 'package:mobile/pages/workout/workout_preview_page.dart';
-import 'package:mobile/utils/video_pool.dart';
 
 class RecommendedSection extends StatelessWidget {
   final String selectedCategory;

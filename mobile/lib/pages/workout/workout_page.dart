@@ -5,8 +5,8 @@ import 'package:mobile/pages/workout/widgets/recommended_section.dart';
 import 'package:mobile/pages/workout/widgets/running_banner.dart';
 import 'package:mobile/widgets/app_background.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:mobile/pages/payments/premium_page.dart';
-import 'package:mobile/pages/chatbot/chatbot_page.dart';
+import 'package:mobile/pages/profile/premium_page.dart';
+import 'package:mobile/pages/chat/ai_chat_page.dart';
 
 class WorkoutPage extends StatefulWidget {
   const WorkoutPage({super.key});
@@ -112,7 +112,7 @@ class _WorkoutPageState extends State<WorkoutPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const ChatbotPage(),
+                              builder: (context) => const AiChatPage(),
                             ),
                           );
                         },

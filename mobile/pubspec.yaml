@@ -41,7 +41,11 @@ dependencies:
   fl_chart: ^0.70.2
   confetti: ^0.7.0
   path_drawing: ^1.0.1
-
+  webview_flutter: ^4.8.0
+  webview_flutter_android: ^3.16.0
+  timezone: ^0.10.0
+  firebase_messaging: ^16.2.0
+  app_settings: ^5.1.1
 
 dev_dependencies:
   flutter_test:
@@ -71,6 +75,10 @@ flutter:
     - assets/logo/ibusehat_logo.webp
     - assets/logo/Ibusehat_logo_transparent.webp
 
+    # videos
+    - assets/videos/
+    - assets/videos/exercises/
+
     # skincare
     - assets/images/skincare/bekas_luka_sesar.webp
     - assets/images/skincare/bekas_operasi.webp
@@ -81,3 +89,4 @@ flutter:
     - assets/images/skincare/stretch_marks_sesar.webp
     - assets/images/skincare/hero_section_normal.webp
     - assets/images/skincare/hero_section_sesar.webp
+

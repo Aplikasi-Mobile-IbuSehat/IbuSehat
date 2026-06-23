@@ -7,6 +7,7 @@ import 'package:mobile/pages/settings/settings.dart';
 import 'package:mobile/pages/workout/workout_page.dart';
 import 'package:mobile/widgets/app_navbar.dart';
 import 'package:mobile/pages/beranda/sleep_fab.dart';
+import 'package:mobile/services/auth_service.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({
@@ -45,6 +46,8 @@ class _MainPageState extends State<MainPage> {
   @override
   void initState() {
     super.initState();
+    // Cache/sync user login data from API
+    AuthService.instance.syncUserFromApi();
     _currentIndex = widget.initialIndex.clamp(0, _pages.length - 1);
   }
 
@@ -78,10 +81,10 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark.copyWith(
-        statusBarColor: Colors.transparent,
-      ),
+      value: (isDark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+          .copyWith(statusBarColor: Colors.transparent),
       child: Scaffold(
         extendBody: true,
         backgroundColor: Colors.transparent,
@@ -95,3 +98,4 @@ class _MainPageState extends State<MainPage> {
     );
   }
 }
+

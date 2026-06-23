@@ -4,7 +4,7 @@ import 'package:mobile/models/water_intake.dart';
 import 'package:mobile/pages/diet/water_intake_page.dart';
 import 'package:mobile/services/water_intake_service.dart';
 import 'package:mobile/theme/app_colors.dart';
-import 'package:skeletonizer/skeletonizer.dart';
+// import 'package:skeletonizer/skeletonizer.dart'; // Removed
 
 class DietWaterIntakeSection extends StatefulWidget {
   const DietWaterIntakeSection({super.key});
@@ -112,14 +112,28 @@ class DietWaterIntakeSectionState extends State<DietWaterIntakeSection> {
   }) {
     final shimmerBase =
         isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE);
+    // Simple loading placeholder (skeletonizer removed for compatibility)
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: border),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+    
+    /* Old skeleton code - removed for compatibility
     final shimmerHighlight =
         isDark ? const Color(0xFF3A3A3A) : const Color(0xFFFFFFFF);
     final blockColor =
         isDark ? const Color(0xFF2C2C2C) : const Color(0xFFE0E0E0);
 
-    return Skeletonizer(
+    return Container(
       enabled: true,
-      effect: ShimmerEffect(
+      effect: // ShimmerEffect(
         baseColor: shimmerBase,
         highlightColor: shimmerHighlight,
         duration: const Duration(milliseconds: 1200),
@@ -195,6 +209,7 @@ class DietWaterIntakeSectionState extends State<DietWaterIntakeSection> {
         ),
       ),
     );
+    */
   }
 
   Widget _buildError() {

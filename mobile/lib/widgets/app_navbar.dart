@@ -1,5 +1,5 @@
-import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 class AppNavbar extends StatelessWidget {
   final int currentIndex;

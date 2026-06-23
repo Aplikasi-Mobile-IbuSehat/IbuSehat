@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:mobile/loading_screen/loading_screen.dart';
 import 'package:mobile/pages/catat_tidur_page.dart';
 import 'package:mobile/pages/riwayat_tidur_page.dart';
@@ -7,6 +9,7 @@ import 'package:mobile/pages/sleep/sleep_dashboard_page.dart';
 import 'package:mobile/providers/sleep_provider.dart';
 import 'package:mobile/screens/tracking_screen.dart';
 import 'package:mobile/services/tracking_notifications.dart';
+import 'package:mobile/services/fcm_service.dart';
 import 'package:mobile/theme/app_theme.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +19,11 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp();
+  await FcmNotificationService.instance.init();
+
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.dumpErrorToConsole(details);

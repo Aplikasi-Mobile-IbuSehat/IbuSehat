@@ -9,7 +9,7 @@ import 'package:mobile/pages/diet/add_supplement_page.dart';
 import 'package:mobile/services/api_cache_manager.dart';
 import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/theme/app_colors.dart';
-import 'package:skeletonizer/skeletonizer.dart';
+// import 'package:skeletonizer/skeletonizer.dart'; // Removed
 
 class DietSupplementListSection extends StatefulWidget {
   const DietSupplementListSection({
@@ -437,11 +437,25 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
     required Color cardColor,
     required Color border,
   }) {
+    // Simple loading placeholder (skeletonizer removed for compatibility)
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: border),
+      ),
+      child: const Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+    
+    /* Old skeleton code - removed for compatibility
     final shimmerBase = isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE);
     final shimmerHighlight = isDark ? const Color(0xFF3A3A3A) : const Color(0xFFFFFFFF);
-    return Skeletonizer(
+    return Container(
       enabled: true,
-      effect: ShimmerEffect(
+      effect: // ShimmerEffect(
         baseColor: shimmerBase,
         highlightColor: shimmerHighlight,
         duration: const Duration(milliseconds: 1200),
@@ -516,6 +530,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
         ),
       ),
     );
+    */
   }
 
   void _showTimePickerSheet(int index) {
