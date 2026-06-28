@@ -29,7 +29,7 @@ class Supplement {
     this.dosageForm = '',
     this.packaging = '',
     this.rules = 'Gunakan sesuai anjuran dokter atau petunjuk pada kemasan',
-    this.source = 'Halodoc',
+    this.source = '',
     this.imageUrl,
   });
 
@@ -80,7 +80,7 @@ class Supplement {
       dosageForm: (json['bentuk_sediaan'] ?? '').toString(),
       packaging: (json['kemasan'] ?? '').toString(),
       rules: (json['aturan_pakai'] ?? '').toString(),
-      source: (json['sumber'] ?? 'Halodoc').toString(),
+      source: (json['sumber'] ?? '').toString(),
       imageUrl: resolvedImage,
     );
   }
@@ -100,7 +100,7 @@ class Supplement {
       composition: (json['komposisi'] ?? '').toString(),
       packaging: (json['kemasan'] ?? '').toString(),
       rules: (json['aturan_pakai'] ?? '').toString(),
-      source: (json['source'] ?? 'Halodoc').toString(),
+      source: (json['source'] ?? '').toString(),
       imageUrl: resolvedImage,
       reminderTime: reminder,
       isTaken: json['is_taken'] == true || json['is_taken']?.toString() == '1',

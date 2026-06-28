@@ -14,7 +14,7 @@ class FcmService
 
     public function __construct()
     {
-        $this->credentialsPath = storage_path('firebase/ibusehat-7905b-firebase-adminsdk-fbsvc-16a93ffb16.json');
+        $this->credentialsPath = storage_path('firebase/ibusehat-7905b-firebase-adminsdk-fbsvc-9656275e49.json');
 
         $json = json_decode(file_get_contents($this->credentialsPath), true);
         $this->projectId = $json['project_id'];

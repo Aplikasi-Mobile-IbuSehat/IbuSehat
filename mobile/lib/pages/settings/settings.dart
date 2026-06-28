@@ -6,7 +6,7 @@ import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/pages/settings/edit_health_data_page.dart';
 import 'package:mobile/pages/settings/language_settings_page.dart';
 import 'package:mobile/pages/skincare/skincare_page.dart';
-import 'package:mobile/pages/bmi_calculator/bmi_calculator_page.dart';
+import 'package:mobile/pages/settings/bmi_calculator/bmi_calculator_page.dart';
 import 'package:mobile/pages/payments/premium_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mobile/theme/app_colors.dart';

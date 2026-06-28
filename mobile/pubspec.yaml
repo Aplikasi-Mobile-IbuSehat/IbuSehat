@@ -16,6 +16,9 @@ dependencies:
   # Markdown dependencies
   flutter_markdown: ^0.7.0
 
+  # Secure storage dependencies
+  flutter_secure_storage: ^9.2.2
+
   # HTTP dependencies
   http: ^1.6.0
   cupertino_icons: ^1.0.8

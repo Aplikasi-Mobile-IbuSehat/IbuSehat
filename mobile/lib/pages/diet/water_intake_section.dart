@@ -256,13 +256,6 @@ class DietWaterIntakeSectionState extends State<DietWaterIntakeSection> {
           color: surfaceColor,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: borderColor),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.12),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
         ),
         child: Row(
           children: [

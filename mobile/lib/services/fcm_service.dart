@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
@@ -17,47 +18,63 @@ class FcmNotificationService {
   final _localNotif = FlutterLocalNotificationsPlugin();
 
   Future<void> init() async {
-    // 1. Minta izin notifikasi
-    await _fcm.requestPermission(alert: true, badge: true, sound: true);
+    try {
+      // 1. Minta izin notifikasi
+      await _fcm.requestPermission(alert: true, badge: true, sound: true);
 
-    // 2. Setup flutter_local_notifications (untuk foreground)
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const iosSettings = DarwinInitializationSettings();
-    await _localNotif.initialize(
-      const InitializationSettings(android: androidSettings, iOS: iosSettings),
-    );
+      // 2. Setup flutter_local_notifications (untuk foreground)
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const iosSettings = DarwinInitializationSettings();
+      await _localNotif.initialize(
+        const InitializationSettings(android: androidSettings, iOS: iosSettings),
+      );
 
-    // 3. Daftarkan background handler
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      // 3. Daftarkan background handler
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
-    // 4. Tampilkan notifikasi saat app di foreground
-    FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      // 4. Tampilkan notifikasi saat app di foreground
+      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-    // 5. Kirim token ke backend
-    await _uploadToken();
+      // 5. Kirim token ke backend (non-blocking, ada timeout di dalamnya)
+      unawaited(_uploadToken());
 
-    // 6. Refresh token jika berubah
-    _fcm.onTokenRefresh.listen(_sendTokenToBackend);
+      // 6. Refresh token jika berubah
+      _fcm.onTokenRefresh.listen(_sendTokenToBackend);
+    } catch (e) {
+      // Jangan biarkan kegagalan FCM menghambat / merusak startup app
+      // ignore: avoid_print
+      print('FcmNotificationService.init error: $e');
+    }
   }
 
   Future<void> _uploadToken() async {
-    final token = await _fcm.getToken();
-    if (token != null) await _sendTokenToBackend(token);
+    try {
+      final token = await _fcm.getToken().timeout(const Duration(seconds: 8));
+      if (token != null) await _sendTokenToBackend(token);
+    } catch (_) {
+      // gagal ambil token tidak boleh mengganggu app
+    }
   }
 
-    Future<void> uploadTokenAfterLogin() async {
+  Future<void> uploadTokenAfterLogin() async {
     await _uploadToken();
   }
 
   Future<void> _sendTokenToBackend(String token) async {
     try {
-      final headers = await AuthService.instance.jsonHeadersWithAuth();
-      await http.post(
-        Uri.parse('${ApiConfig.apiBaseUrl}/fcm-token'),
-        headers: headers,
-        body: jsonEncode({'fcm_token': token}),
-      );
-    } catch (_) {}
+      final headers = await AuthService.instance
+          .jsonHeadersWithAuth()
+          .timeout(const Duration(seconds: 5));
+      await http
+          .post(
+            Uri.parse('${ApiConfig.apiBaseUrl}/fcm-token'),
+            headers: headers,
+            body: jsonEncode({'fcm_token': token}),
+          )
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // diam-diam gagal, tidak kritis untuk jalannya app
+    }
   }
 
   Future<void> _handleForegroundMessage(RemoteMessage message) async {

@@ -23,7 +23,7 @@ class _SkincarePageState extends State<SkincarePage> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
-          'Skincare Ibu',
+          'Skincare Rekomendasi',
           style: TextStyle(
             fontWeight: FontWeight.w900,
             color: textPrimary,

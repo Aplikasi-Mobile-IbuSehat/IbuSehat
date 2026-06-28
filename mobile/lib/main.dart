@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,13 +34,28 @@ Future<void> main() async {
     return true;
   };
 
-  await Firebase.initializeApp();
-  await FcmNotificationService.instance.init();
+  // Hanya init yang BENAR-BENAR wajib sebelum runApp.
+  // Firebase.initializeApp() dipindahkan ke sini saja (jangan duplikat
+  // di AppInitializer).
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint('Firebase init error: $e');
+  }
 
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
-  await initializeDateFormatting('id', null);
-  await TrackingNotifications.init(appNavigatorKey);
+  try {
+    await initializeDateFormatting('id', null);
+  } catch (e) {
+    debugPrint('Date formatting init error: $e');
+  }
+
+  try {
+    await TrackingNotifications.init(appNavigatorKey);
+  } catch (e) {
+    debugPrint('TrackingNotifications init error: $e');
+  }
 
   runApp(
     ChangeNotifierProvider(
@@ -47,6 +63,11 @@ Future<void> main() async {
       child: const MyApp(),
     ),
   );
+
+  // FCM tidak kritis untuk render UI pertama → jalankan di background
+  // setelah app tampil, supaya tidak ada kemungkinan menggantung dan
+  // menyebabkan layar putih.
+  unawaited(FcmNotificationService.instance.init());
 }
 
 class MyApp extends StatefulWidget {

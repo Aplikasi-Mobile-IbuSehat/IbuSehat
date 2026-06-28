@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/config/api_config.dart';
@@ -10,24 +9,35 @@ import 'package:mobile/theme/app_theme.dart';
 enum InitialRoute { login, onboarding, home }
 
 class AppInitializer {
-  static Future<InitialRoute> initialize() async {
-    return await Future.any([
-      _performInitialization(),
-      Future.delayed(const Duration(seconds: 15), () {
-        throw TimeoutException('Koneksi lambat. Gagal terhubung ke server dalam 15 detik.');
-      }),
-    ]);
+  static Future<InitialRoute> initialize() {
+    final completer = Completer<InitialRoute>();
+
+    final timeoutTimer = Timer(const Duration(seconds: 15), () {
+      if (!completer.isCompleted) {
+        completer.completeError(
+          TimeoutException(
+            'Koneksi lambat. Gagal terhubung ke server dalam 15 detik.',
+          ),
+        );
+      }
+    });
+
+    _performInitialization().then((result) {
+      if (!completer.isCompleted) completer.complete(result);
+    }).catchError((Object e) {
+      if (!completer.isCompleted) completer.completeError(e);
+    }).whenComplete(() {
+      timeoutTimer.cancel();
+    });
+
+    return completer.future;
   }
 
   static Future<InitialRoute> _performInitialization() async {
-    try {
-      await http.get(Uri.parse('${ApiConfig.apiBaseUrl}/')).timeout(const Duration(seconds: 5));
-    } catch (e) {
-      throw Exception('Tidak dapat terhubung ke server. Pastikan koneksi internet Anda stabil.');
-    }
-
+    // Semua init dijalankan PARALEL, bukan berurutan, supaya total waktu
+    // startup = waktu proses terlama, bukan jumlah semuanya.
     await Future.wait([
-      _initFirebase(),
+      _checkConnection(),
       initializeDateFormatting('id', null),
       appThemeController.load(),
       _initChatbot(),
@@ -58,11 +68,13 @@ class AppInitializer {
     }
   }
 
-  static Future<void> _initFirebase() async {
+  static Future<void> _checkConnection() async {
     try {
-      await Firebase.initializeApp();
+      await http
+          .get(Uri.parse('${ApiConfig.apiBaseUrl}/'))
+          .timeout(const Duration(seconds: 5));
     } catch (e) {
-      debugPrint('Firebase init error: $e');
+      throw Exception('Tidak dapat terhubung ke server. Pastikan koneksi internet Anda stabil.');
     }
   }
 

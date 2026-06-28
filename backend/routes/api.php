@@ -95,6 +95,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Food logging
     Route::prefix('food-logs')->group(function () {
+        Route::get('/summary', [FoodLogController::class, 'summary']);
         Route::get('/', [FoodLogController::class, 'index']);
         Route::post('/', [FoodLogController::class, 'store']);
         Route::put('/{id}', [FoodLogController::class, 'update']);

@@ -17,39 +17,42 @@ class _AuthPageState extends State<AuthPage> {
     if (_busy) return;
     setState(() => _busy = true);
 
-    final err = await AuthService.instance.signInWithGoogle();
+    final result = await AuthService.instance.signInWithGoogle();
 
     if (!mounted) return;
-    setState(() => _busy = false);
 
-    if (err != null && err.isEmpty) return;
+    switch (result) {
+      case AuthCancelled():
+        setState(() => _busy = false);
+        return;
 
-    if (err != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(err),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
+      case AuthFailure(:final message):
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+
+      case AuthSuccess():
+        await AuthService.instance.syncUserFromApi();
+        final user = await AuthService.instance.currentUser;
+        if (!mounted) return;
+
+        setState(() => _busy = false);
+
+        final isDone = user?.isOnboardingDone ?? false;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => isDone ? const MainPage() : const OnboardingPage(),
+          ),
+        );
+        return;
     }
-
-    await AuthService.instance.syncUserFromApi();
-
-    final user = await AuthService.instance.currentUser;
-    if (!mounted) return;
-
-    final isDone = user?.isOnboardingDone ?? false;
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => isDone
-            ? const MainPage()
-            : const OnboardingPage(),
-      ),
-    );
   }
 
   @override
@@ -63,10 +66,7 @@ class _AuthPageState extends State<AuthPage> {
       ),
       body: Stack(
         children: [
-          Positioned.fill(
-            child: CustomPaint(painter: _AuroraPainter()),
-          ),
-
+          Positioned.fill(child: CustomPaint(painter: _AuroraPainter())),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -81,9 +81,7 @@ class _AuthPageState extends State<AuthPage> {
                       height: 100,
                     ),
                   ),
-
                   const SizedBox(height: 32),
-
                   const Text(
                     'Welcome to IbuSehat',
                     style: TextStyle(
@@ -92,45 +90,58 @@ class _AuthPageState extends State<AuthPage> {
                       color: Color(0xFF1F1235),
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
                   Text(
                     'Pendamping kesehatan ibu pasca melahirkan',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade500,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                   ),
-
                   const SizedBox(height: 40),
-
                   SizedBox(
                     width: double.infinity,
                     height: 54,
                     child: OutlinedButton.icon(
                       onPressed: _busy ? null : _onGooglePressed,
+                      style: OutlinedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: const Color(
+                          0xFF1F1F1F,
+                        ), 
+                        side: BorderSide(color: Colors.grey.shade300, width: 1),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        overlayColor: Colors.grey.shade200,
+                        elevation: 0,
+                        textStyle: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          fontFamily:
+                              'Roboto',
+                        ),
+                      ),
                       icon: _busy
                           ? const SizedBox(
                               width: 20,
                               height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF1F1F1F),
+                                ),
+                              ),
                             )
                           : Image.asset('assets/icons/google.webp', height: 20),
-                      label: Text(_busy ? 'Memproses...' : 'Continue with Google'),
+                      label: Text(
+                        _busy ? 'Memproses...' : 'Continue with Google',
+                      ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
                   Text(
                     'By continuing, you agree to our\nTerms of Service and Privacy Policy',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade400,
-                    ),
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                   ),
                 ],
               ),
@@ -141,8 +152,6 @@ class _AuthPageState extends State<AuthPage> {
     );
   }
 }
-
-// Aurora background
 
 class _AuroraPainter extends CustomPainter {
   @override
@@ -155,38 +164,46 @@ class _AuroraPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    _drawBlob(canvas,
-        center: Offset(w * 0.5, h * 0.10),
-        radiusX: w * 0.55,
-        radiusY: h * 0.25,
-        colors: [
-          const Color(0xFFD4AAFF).withValues(alpha: 0.75),
-          const Color(0xFFE8CCFF).withValues(alpha: 0.0),
-        ]);
-    _drawBlob(canvas,
-        center: Offset(w * 0.82, h * 0.05),
-        radiusX: w * 0.40,
-        radiusY: h * 0.20,
-        colors: [
-          const Color(0xFFF4AAEE).withValues(alpha: 0.65),
-          const Color(0xFFFCDDFF).withValues(alpha: 0.0),
-        ]);
-    _drawBlob(canvas,
-        center: Offset(w * 0.15, h * 0.08),
-        radiusX: w * 0.36,
-        radiusY: h * 0.18,
-        colors: [
-          const Color(0xFFAADDFF).withValues(alpha: 0.55),
-          const Color(0xFFCCEEFF).withValues(alpha: 0.0),
-        ]);
-    _drawBlob(canvas,
-        center: Offset(w * 0.48, h * 0.16),
-        radiusX: w * 0.26,
-        radiusY: h * 0.13,
-        colors: [
-          const Color(0xFFBB88FF).withValues(alpha: 0.55),
-          const Color(0xFFCC99FF).withValues(alpha: 0.0),
-        ]);
+    _drawBlob(
+      canvas,
+      center: Offset(w * 0.5, h * 0.10),
+      radiusX: w * 0.55,
+      radiusY: h * 0.25,
+      colors: [
+        const Color(0xFFD4AAFF).withValues(alpha: 0.75),
+        const Color(0xFFE8CCFF).withValues(alpha: 0.0),
+      ],
+    );
+    _drawBlob(
+      canvas,
+      center: Offset(w * 0.82, h * 0.05),
+      radiusX: w * 0.40,
+      radiusY: h * 0.20,
+      colors: [
+        const Color(0xFFF4AAEE).withValues(alpha: 0.65),
+        const Color(0xFFFCDDFF).withValues(alpha: 0.0),
+      ],
+    );
+    _drawBlob(
+      canvas,
+      center: Offset(w * 0.15, h * 0.08),
+      radiusX: w * 0.36,
+      radiusY: h * 0.18,
+      colors: [
+        const Color(0xFFAADDFF).withValues(alpha: 0.55),
+        const Color(0xFFCCEEFF).withValues(alpha: 0.0),
+      ],
+    );
+    _drawBlob(
+      canvas,
+      center: Offset(w * 0.48, h * 0.16),
+      radiusX: w * 0.26,
+      radiusY: h * 0.13,
+      colors: [
+        const Color(0xFFBB88FF).withValues(alpha: 0.55),
+        const Color(0xFFCC99FF).withValues(alpha: 0.0),
+      ],
+    );
 
     canvas.drawRect(
       Rect.fromLTWH(0, 0, w, h),
@@ -203,18 +220,21 @@ class _AuroraPainter extends CustomPainter {
     );
   }
 
-  void _drawBlob(Canvas canvas,
-      {required Offset center,
-      required double radiusX,
-      required double radiusY,
-      required List<Color> colors}) {
+  void _drawBlob(
+    Canvas canvas, {
+    required Offset center,
+    required double radiusX,
+    required double radiusY,
+    required List<Color> colors,
+  }) {
     final paint = Paint()
-      ..shader = RadialGradient(colors: colors)
-          .createShader(Rect.fromCenter(
-        center: center,
-        width: radiusX * 2,
-        height: radiusY * 2,
-      ));
+      ..shader = RadialGradient(colors: colors).createShader(
+        Rect.fromCenter(
+          center: center,
+          width: radiusX * 2,
+          height: radiusY * 2,
+        ),
+      );
 
     canvas.save();
     canvas.translate(center.dx, center.dy);

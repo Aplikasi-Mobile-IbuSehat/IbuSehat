@@ -6,15 +6,12 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('food_logs', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('user_id')->nullable();
-            $table->string('makanan_id')->nullable(); 
+            $table->string('makanan_id')->nullable();
             $table->string('nama_makanan');
             $table->decimal('weight', 8, 2);
             $table->decimal('kcal', 8, 2);
@@ -24,12 +21,12 @@ return new class extends Migration
             $table->string('category')->nullable();
             $table->string('jenis')->nullable();
             $table->timestamps();
+
+            // ✅ Index SETELAH kolom didefinisikan
+            $table->index(['user_id', 'created_at']);
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('food_logs');

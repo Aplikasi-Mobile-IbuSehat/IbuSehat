@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\FoodLog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class FoodLogController extends Controller
 {
@@ -19,25 +20,16 @@ class FoodLogController extends Controller
             'page'     => ['nullable', 'integer', 'min:1'],
         ]);
 
+        $date = $validated['date'] ?? now()->toDateString();
+
         $query = FoodLog::query()
             ->where('user_id', Auth::id())
+            ->whereDate('created_at', $date)
             ->select([
-                'id',
-                'user_id',
-                'makanan_id',
-                'nama_makanan',
-                'weight',
-                'kcal',
-                'protein',
-                'carbs',
-                'fat',
-                'category',
-                'created_at',
+                'id', 'user_id', 'makanan_id', 'nama_makanan',
+                'weight', 'kcal', 'protein', 'carbs', 'fat',
+                'category', 'created_at',
             ]);
-        
-        if (!empty($validated['date'])) {
-            $query->whereDate('created_at', $validated['date']);
-        }
 
         $perPage = $validated['per_page'] ?? 30;
         $logs = $query
@@ -45,15 +37,59 @@ class FoodLogController extends Controller
             ->paginate($perPage)
             ->appends($request->query());
 
+        $summary = FoodLog::where('user_id', Auth::id())
+            ->whereDate('created_at', $date)
+            ->selectRaw('
+                COALESCE(SUM(kcal), 0)    as total_kcal,
+                COALESCE(SUM(protein), 0) as total_protein,
+                COALESCE(SUM(carbs), 0)   as total_carbs,
+                COALESCE(SUM(fat), 0)     as total_fat
+            ')
+            ->first();
+
         return response()->json([
             'success' => true,
+            'date'    => $date,
             'data'    => $logs->items(),
+            'summary' => $summary,
             'meta'    => [
                 'current_page' => $logs->currentPage(),
                 'last_page'    => $logs->lastPage(),
                 'per_page'     => $logs->perPage(),
                 'total'        => $logs->total(),
             ],
+        ]);
+    }
+
+    public function summary(Request $request)
+    {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to'   => ['nullable', 'date'],
+        ]);
+
+        $from = $validated['from'] ?? now()->startOfWeek()->toDateString();
+        $to   = $validated['to']   ?? now()->toDateString();
+
+        $summary = FoodLog::where('user_id', Auth::id())
+            ->whereBetween(DB::raw('DATE(created_at)'), [$from, $to])
+            ->selectRaw('
+                DATE(created_at)          as date,
+                COALESCE(SUM(kcal), 0)    as total_kcal,
+                COALESCE(SUM(protein), 0) as total_protein,
+                COALESCE(SUM(carbs), 0)   as total_carbs,
+                COALESCE(SUM(fat), 0)     as total_fat,
+                COUNT(*)                   as total_entries
+            ')
+            ->groupBy(DB::raw('DATE(created_at)'))
+            ->orderBy('date')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'from'    => $from,
+            'to'      => $to,
+            'data'    => $summary,
         ]);
     }
 

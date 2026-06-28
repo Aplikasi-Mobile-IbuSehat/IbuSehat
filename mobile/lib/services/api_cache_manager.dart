@@ -38,4 +38,9 @@ class ApiCacheManager {
   void clearAll() {
     _cache.clear();
   }
+
+  void set(String key, dynamic value) {
+    _cache[key] = value;
+    debugPrint('ApiCacheManager: Cache SET for $key');
+  }
 }

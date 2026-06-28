@@ -115,7 +115,7 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
-          'Kalkulator BMI',
+          'Kalkulator Kesehatan',
           style: TextStyle(
             fontWeight: FontWeight.w800,
             color: textPrimary,

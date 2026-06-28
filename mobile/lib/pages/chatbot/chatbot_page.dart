@@ -250,7 +250,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
           children: [
             const PremiumSparklesInlineIcon(),
             Text(
-              'Ibu Sehat AI',
+              'IbuSehat AI',
               style: TextStyle(
                 fontWeight: FontWeight.w600,
                 color: textPrimary,

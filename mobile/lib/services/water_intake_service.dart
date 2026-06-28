@@ -36,9 +36,7 @@ class WaterIntakeService {
 
     if (response.statusCode == 200) {
       final updated = WaterIntakeModel.fromJson(body);
-      // Invalidate lalu seed cache supaya request berikutnya tidak hit API
-      ApiCacheManager.instance.invalidate(_cacheKey);
-      ApiCacheManager.instance.getOrFetch(_cacheKey, () async => updated);
+      ApiCacheManager.instance.set(_cacheKey, updated);
       return updated;
     }
 
@@ -59,8 +57,7 @@ class WaterIntakeService {
 
     if (response.statusCode == 200) {
       final updated = WaterIntakeModel.fromJson(body);
-      ApiCacheManager.instance.invalidate(_cacheKey);
-      ApiCacheManager.instance.getOrFetch(_cacheKey, () async => updated);
+      ApiCacheManager.instance.set(_cacheKey, updated);
       return updated;
     }
 
