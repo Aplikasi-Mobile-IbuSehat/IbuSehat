@@ -7,6 +7,7 @@ import 'package:mobile/pages/catat_tidur_page.dart';
 import 'package:mobile/pages/riwayat_tidur_page.dart';
 import 'package:mobile/pages/sleep/sleep_dashboard_page.dart';
 import 'package:mobile/providers/sleep_provider.dart';
+import 'package:mobile/providers/progress_provider.dart';
 import 'package:mobile/screens/tracking_screen.dart';
 import 'package:mobile/services/tracking_notifications.dart';
 import 'package:mobile/services/fcm_service.dart';
@@ -47,6 +48,7 @@ Future<void> main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => SleepProvider()),
+        ChangeNotifierProvider(create: (_) => ProgressProvider()),
         ChangeNotifierProvider.value(value: appThemeController),
       ],
       child: const MyApp(),

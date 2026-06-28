@@ -10,7 +10,11 @@ class StreakService {
 
   /// Complete a workout and update streak
   /// Returns StreakResult with streak information
-  Future<StreakResult> completeWorkout(int? workoutId) async {
+  Future<StreakResult> completeWorkout(
+    int? workoutId, {
+    int durationSeconds = 0,
+    bool isCompleted = true,
+  }) async {
     try {
       final token = await AuthService.instance.token;
       if (token == null || token.isEmpty) {
@@ -21,6 +25,8 @@ class StreakService {
       
       final requestBody = {
         'workout_id': workoutId,
+        'duration_seconds': durationSeconds,
+        'is_completed': isCompleted,
       };
       
       print('=== SERVICE URL: ${uri.toString()}');

@@ -73,7 +73,7 @@ flutter:
     
     # logo
     - assets/logo/ibusehat_logo.webp
-    - assets/logo/Ibusehat_logo_transparent.webp
+    - assets/logo/ibusehat_logo_transparent.webp
 
     # videos
     - assets/videos/

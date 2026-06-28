@@ -191,7 +191,7 @@ class _PremiumPageState extends State<PremiumPage> {
                         width: 120,
                         height: 120,
                         child: Image.asset(
-                          'assets/logo/Ibusehat_logo_transparent.webp',
+                          'assets/logo/ibusehat_logo_transparent.webp',
                           fit: BoxFit.contain,
                         ),
                       ),

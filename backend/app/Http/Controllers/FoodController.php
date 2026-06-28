@@ -37,6 +37,7 @@ class FoodController extends Controller
             DB::raw('carbohydrate as karbo_g'),
             DB::raw('protein as protein_g'),
             DB::raw('NULL as jenis'),
+            DB::raw("IF(image IS NOT NULL, CONCAT('" . url('images/food') . "/', image), NULL) as gambar"),
         ]);
 
         // Filter by category
@@ -118,6 +119,7 @@ class FoodController extends Controller
             DB::raw('carbohydrate as karbo_g'),
             DB::raw('protein as protein_g'),
             DB::raw('NULL as jenis'),
+            DB::raw("IF(image IS NOT NULL, CONCAT('" . url('images/food') . "/', image), NULL) as gambar"),
             'created_at',
         ])->find($id);
 

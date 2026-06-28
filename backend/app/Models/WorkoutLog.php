@@ -12,11 +12,13 @@ class WorkoutLog extends Model
         'workout_id',
         'completed_at',
         'is_completed',
+        'duration_seconds',
     ];
 
     protected $casts = [
         'completed_at' => 'date',
         'is_completed' => 'boolean',
+        'duration_seconds' => 'integer',
     ];
 
     public function user(): BelongsTo

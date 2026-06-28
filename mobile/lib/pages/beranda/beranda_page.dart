@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:mobile/pages/chat/ai_chat_page.dart';
+import 'package:mobile/pages/chatbot/chatbot_page.dart';
 import 'package:mobile/pages/beranda/share_achievement_page.dart';
 import 'package:mobile/pages/beranda/streak_detail_page.dart';
 import 'package:mobile/pages/beranda/welcome_dialog.dart';
-import 'package:mobile/pages/profile/premium_page.dart';
+import 'package:mobile/pages/payments/premium_page.dart';
 import 'package:mobile/providers/sleep_provider.dart';
+import 'package:mobile/providers/progress_provider.dart';
 import 'package:mobile/widgets/app_background.dart';
 import 'package:mobile/services/streak_service.dart';
 import 'package:mobile/models/streak_models.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 
 // Design tokens — mockup IbuSehat Dashboard
 const _kPrimary = Color(0xFF6C4DFF);
@@ -55,6 +57,7 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
     
     _fetchStreakData();
     _fetchSleepData();
+    _fetchProgressData();
 
     if (!_hasShownWelcomeDialog) {
       _hasShownWelcomeDialog = true;
@@ -76,6 +79,18 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
       print('=== BERANDA: page focused, refreshing...');
       _fetchStreakData();
       _fetchSleepData();
+      _fetchProgressData();
+    }
+  }
+
+  Future<void> _fetchProgressData() async {
+    print('=== BERANDA: fetching progress data...');
+    try {
+      final progressProvider = context.read<ProgressProvider>();
+      await progressProvider.fetchSummary();
+      print('=== BERANDA: progress data fetched');
+    } catch (e) {
+      debugPrint('Error fetching progress data: $e');
     }
   }
   
@@ -243,7 +258,7 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const AiChatPage(),
+                  builder: (context) => const ChatbotPage(),
                 ),
               );
             },
@@ -560,19 +575,39 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
     final sleepTotalHours = sleepProvider.weeklyTotalHours;
     final sleepPercent = sleepProvider.weeklyProgressPercent;
     final sleepProgress = sleepPercent / 100.0;
-    
-    // Variables for backend integration - reset all to 0
-    int olahragaMenit = 0;
-    int airPutihGelas = 0;
-    int nutrisiKkal = 0;
+
+    // Get progress data from provider
+    final progressProvider = context.watch<ProgressProvider>();
+    final progressData = progressProvider.summary;
+
+    // Olahraga dari API
+    final int olahragaMenit = progressData?.weekly.workout.today ?? 0;
+    final int olahragaPercent = progressData?.weekly.workout.percent ?? 0;
+    final double olahragaProgress = olahragaPercent / 100.0;
+    final int olahragaTargetMinutes = progressData?.weekly.workout.targetMinutes ?? 75;
+    final String olahragaTargetText = 'Target mingguan $olahragaTargetMinutes menit';
+
+    // Air putih dari API
+    final int airPutihMl = progressData?.weekly.water.today ?? 0;
+    final int airPutihPercent = progressData?.weekly.water.percent ?? 0;
+    final double airPutihProgress = airPutihPercent / 100.0;
+    final int airPutihTargetMl = progressData?.weekly.water.targetMl ?? 14000;
+    final String airPutihTargetText = 'Target mingguan ${NumberFormat('#,###', 'id').format(airPutihTargetMl ~/ 1000)} liter';
+
+    // Nutrisi dari API
+    final int nutrisiKkal = progressData?.weekly.nutrition.today ?? 0;
+    final int nutrisiPercent = progressData?.weekly.nutrition.percent ?? 0;
+    final double nutrisiProgress = nutrisiPercent / 100.0;
+    final int nutrisiTargetKkal = progressData?.weekly.nutrition.targetKkal ?? 14469;
+    final String nutrisiTargetText = 'Target Mingguan ${NumberFormat('#,###', 'id').format(nutrisiTargetKkal)} kkal';
     
     final items = <Widget>[
       _buildProgressCard(
         title: 'Olahraga',
         value: '$olahragaMenit menit',
-        target: 'Target mingguan 75 menit',
-        percent: 0,
-        progress: 0.0,
+        target: olahragaTargetText,
+        percent: olahragaPercent,
+        progress: olahragaProgress,
         icon: Icons.directions_run_rounded,
         iconColor: _kPrimary,
         iconBg: _kVeryLightPurple,
@@ -580,10 +615,10 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
       ),
       _buildProgressCard(
         title: 'Air Putih',
-        value: '$airPutihGelas ML',
-        target: 'Target mingguan 15 liter',
-        percent: 0,
-        progress: 0.0,
+        value: '$airPutihMl ML',
+        target: airPutihTargetText,
+        percent: airPutihPercent,
+        progress: airPutihProgress,
         icon: Icons.water_drop_rounded,
         iconColor: _kBlue,
         iconBg: const Color(0xFFDBEAFE),
@@ -592,9 +627,9 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
       _buildProgressCard(
         title: 'Nutrisi',
         value: '$nutrisiKkal kkal',
-        target: 'Target Mingguan 15.400 kkal',
-        percent: 0,
-        progress: 0.0,
+        target: nutrisiTargetText,
+        percent: nutrisiPercent,
+        progress: nutrisiProgress,
         icon: Icons.restaurant_rounded,
         iconColor: _kSuccess,
         iconBg: const Color(0xFFDCFCE7),

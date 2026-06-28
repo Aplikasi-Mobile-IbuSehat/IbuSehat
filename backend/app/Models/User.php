@@ -5,6 +5,7 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -23,6 +24,15 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'google_id',
+        'avatar',
+        'is_onboarding_done',
+        'fcm_token',
+        'height',
+        'weight',
+        'waist',
+        'birth_date',
+        'gender',
     ];
 
     /**
@@ -61,5 +71,43 @@ class User extends Authenticatable
     public function sleepLogs(): HasMany
     {
         return $this->hasMany(SleepLog::class);
+    }
+
+    public function foodLogs(): HasMany
+    {
+        return $this->hasMany(FoodLog::class);
+    }
+
+    public function supplementLogs(): HasMany
+    {
+        return $this->hasMany(SupplementLog::class);
+    }
+
+    public function waterIntakes(): HasMany
+    {
+        return $this->hasMany(WaterIntake::class);
+    }
+
+    public function activeSubscription(): HasOne
+    {
+        return $this->hasOne(Subscription::class)
+            ->where('status', 'active')
+            ->where(function ($q) {
+                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })
+            ->latestOfMany();
+    }
+
+    public function subscriptions(): HasMany
+    {
+        return $this->hasMany(Subscription::class);
+    }
+
+    /**
+     * Cek apakah user saat ini adalah premium.
+     */
+    public function isPremium(): bool
+    {
+        return $this->activeSubscription()->exists();
     }
 }

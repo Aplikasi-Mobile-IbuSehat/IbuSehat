@@ -5,7 +5,7 @@ import 'package:mobile/pages/profile/edit_health_data_page.dart';
 import 'package:mobile/pages/profile/language_settings_page.dart';
 import 'package:mobile/pages/skincare/skincare_page.dart';
 import 'package:mobile/pages/calculator/bmi_calculator_page.dart';
-import 'package:mobile/pages/profile/premium_page.dart';
+import 'package:mobile/pages/payments/premium_page.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class ProfilePage extends StatefulWidget {

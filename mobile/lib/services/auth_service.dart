@@ -107,7 +107,6 @@ class AuthService {
     }
   }
 
-  // ================= USER =================
 
   Future<void> _saveUser(AuthUser? user) async {
     _cachedUser = user;

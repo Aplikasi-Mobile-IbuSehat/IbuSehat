@@ -4,6 +4,8 @@ import 'package:mobile/services/water_intake_service.dart';
 import 'package:mobile/models/water_intake.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:mobile/theme/app_theme.dart';
+import 'package:provider/provider.dart';
+import 'package:mobile/providers/progress_provider.dart';
 
 class WaterIntakePage extends StatefulWidget {
   final int currentIntake;
@@ -66,6 +68,7 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
           _currentIntake = updated.waterIntake;
           _pendingDelta = 0;
         });
+        context.read<ProgressProvider>().fetchSummary(forceRefresh: true);
         Navigator.pop(context);
       }
     } catch (e) {

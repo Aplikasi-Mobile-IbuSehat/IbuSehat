@@ -16,9 +16,9 @@ class StreakService
      * @param int|null $workoutId
      * @return array
      */
-    public function completeWorkout(int $userId, ?int $workoutId = null): array
+    public function completeWorkout(int $userId, ?int $workoutId = null, int $durationSeconds = 0, bool $isCompleted = true): array
     {
-        return DB::transaction(function () use ($userId, $workoutId) {
+        return DB::transaction(function () use ($userId, $workoutId, $durationSeconds, $isCompleted) {
             $today = Carbon::today();
 
             // 1. Check if user already completed a workout today
@@ -32,17 +32,20 @@ class StreakService
                 'user_id' => $userId,
                 'workout_id' => $workoutId,
                 'completed_at' => $today,
-                'is_completed' => true,
+                'is_completed' => $isCompleted,
+                'duration_seconds' => $durationSeconds,
             ]);
 
-            // If already completed today, don't update streak
-            if ($alreadyCompletedToday) {
+            // If not completed or if already completed today, don't update streak
+            if (!$isCompleted || $alreadyCompletedToday) {
                 $userStreak = $this->getUserStreak($userId);
                 return [
                     'streak_active' => $userStreak->streak_active,
                     'streak_longest' => $userStreak->streak_longest,
                     'is_new_streak_day' => false,
-                    'message' => 'Workout berhasil dicatat, namun streak sudah dihitung hari ini.',
+                    'message' => !$isCompleted 
+                        ? 'Durasi workout berhasil dicatat.'
+                        : 'Workout berhasil dicatat, namun streak sudah dihitung hari ini.',
                 ];
             }
 

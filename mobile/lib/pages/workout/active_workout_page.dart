@@ -39,6 +39,25 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
   bool _isVideoInitialized = false;
   bool _isError = false;
   bool _hasCompletedWorkout = false;
+  bool _isDurationSaved = false;
+
+  Future<void> _saveWorkoutDuration({required bool isCompleted}) async {
+    if (_isDurationSaved) return;
+    final durationSeconds = _elapsedSeconds;
+    if (durationSeconds < 60) return;
+
+    _isDurationSaved = true;
+    try {
+      await StreakService().completeWorkout(
+        widget.workoutId,
+        durationSeconds: durationSeconds,
+        isCompleted: isCompleted,
+      );
+      debugPrint('🎉 Saved workout duration: $durationSeconds seconds, isCompleted: $isCompleted');
+    } catch (e) {
+      debugPrint('🔴 Failed to save workout duration: $e');
+    }
+  }
   
   late final List<String> _videoPlaylist = widget.playlist;
 
@@ -277,22 +296,30 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
     int longestStreak = 1;
     
     if (widget.workoutId != null) {
-      StreakService().completeWorkout(widget.workoutId!).then((result) {
+      try {
+        final result = await StreakService().completeWorkout(
+          widget.workoutId,
+          durationSeconds: _elapsedSeconds,
+          isCompleted: true,
+        );
+        _isDurationSaved = true; // Mark as saved so PopScope doesn't log it again
         streakCount = result.streakActive;
         longestStreak = result.streakLongest;
-        debugPrint('🎉 [WORKOUT] Streak result: active=$streakCount, isNew=${result.isNewStreakDay}');
-      }).catchError((e) {
-        debugPrint('🔴 Streak save failed silently: $e');
+        debugPrint('🎉 [WORKOUT] Streak result: active=$streakCount, longest=$longestStreak');
+      } catch (e) {
+        debugPrint('🔴 Streak save failed: $e');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Debug: $e'),
+              content: Text('Gagal menyimpan streak: $e'),
               duration: const Duration(seconds: 5),
             ),
           );
         }
-      });
+      }
     }
+
+    if (!mounted) return;
 
     await showDialog(
       context: context,
@@ -480,83 +507,90 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: SafeArea(
-        top: false, 
-        child: Column(
-          children: [
-            // Video Section (Top Half)
-            Expanded(
-              flex: 7,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  // Video Player (Cloudinary)
-                  _isError
-                      ? Container(
-                          color: Colors.black87,
-                          child: Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(24.0),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.error_outline, color: Colors.orangeAccent, size: 48),
-                                  const SizedBox(height: 16),
-                                  const Text(
-                                    "Video gagal dimuat",
-                                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  const Text(
-                                    "Periksa koneksi internet kamu.",
-                                    style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                  const SizedBox(height: 24),
-                                  ElevatedButton.icon(
-                                    onPressed: () => _initializeVideo(),
-                                    icon: const Icon(Icons.refresh, size: 18),
-                                    label: const Text("Muat Ulang"),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.white24,
-                                      foregroundColor: Colors.white,
+    return PopScope(
+      canPop: true,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) {
+          _saveWorkoutDuration(isCompleted: false);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          top: false, 
+          child: Column(
+            children: [
+              // Video Section (Top Half)
+              Expanded(
+                flex: 7,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Video Player (Cloudinary)
+                    _isError
+                        ? Container(
+                            color: Colors.black87,
+                            child: Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24.0),
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.error_outline, color: Colors.orangeAccent, size: 48),
+                                    const SizedBox(height: 16),
+                                    const Text(
+                                      "Video gagal dimuat",
+                                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                      textAlign: TextAlign.center,
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        )
-                      : _isVideoInitialized && _controller != null
-                          ? SizedBox.expand(
-                              child: FittedBox(
-                                fit: BoxFit.cover,
-                                child: SizedBox(
-                                  width: _controller?.value.size.width ?? 1,
-                                  height: _controller?.value.size.height ?? 1,
-                                  child: VideoPlayer(_controller!),
+                                    const SizedBox(height: 12),
+                                    const Text(
+                                      "Periksa koneksi internet kamu.",
+                                      style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 24),
+                                    ElevatedButton.icon(
+                                      onPressed: () => _initializeVideo(),
+                                      icon: const Icon(Icons.refresh, size: 18),
+                                      label: const Text("Muat Ulang"),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.white24,
+                                        foregroundColor: Colors.white,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            )
-                          : Container(
-                              color: Colors.grey[200],
-                              child: const Center(
-                                child: CircularProgressIndicator(color: Colors.purple),
-                              ),
                             ),
-                  
-                  // Countdown Overlay
-                  if (_showCountdownOverlay) _buildCountdownOverlay(),
-                            
-                  // Back Button Top Left
-                  Positioned(
-                    top: 50,
-                    left: 20,
-                    child: GestureDetector(
-                      onTap: () => Navigator.pop(context),
+                          )
+                        : _isVideoInitialized && _controller != null
+                            ? SizedBox.expand(
+                                child: FittedBox(
+                                  fit: BoxFit.cover,
+                                  child: SizedBox(
+                                    width: _controller?.value.size.width ?? 1,
+                                    height: _controller?.value.size.height ?? 1,
+                                    child: VideoPlayer(_controller!),
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: CircularProgressIndicator(color: Colors.purple),
+                                ),
+                              ),
+                    
+                    // Countdown Overlay
+                    if (_showCountdownOverlay) _buildCountdownOverlay(),
+                              
+                    // Back Button Top Left
+                    Positioned(
+                      top: 50,
+                      left: 20,
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -747,6 +781,7 @@ class _ActiveWorkoutPageState extends State<ActiveWorkoutPage> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

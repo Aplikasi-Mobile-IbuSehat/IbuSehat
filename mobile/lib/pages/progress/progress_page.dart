@@ -4,10 +4,13 @@ import 'package:mobile/pages/progress/widgets/score_tidur_card.dart';
 import 'package:mobile/pages/progress/widgets/berat_card.dart';
 import 'package:mobile/pages/progress/widgets/waktu_latihan_card.dart';
 import 'package:mobile/pages/progress/widgets/kalori_makanan_card.dart';
+import 'package:mobile/pages/progress/widgets/air_putih_card.dart';
 import 'package:mobile/widgets/app_background.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:mobile/pages/profile/premium_page.dart';
-import 'package:mobile/pages/chat/ai_chat_page.dart';
+import 'package:mobile/pages/payments/premium_page.dart';
+import 'package:mobile/pages/chatbot/chatbot_page.dart';
+import 'package:provider/provider.dart';
+import 'package:mobile/providers/progress_provider.dart';
 
 class ProgressPage extends StatefulWidget {
   const ProgressPage({super.key, this.refreshToken = 0});
@@ -26,6 +29,11 @@ class _ProgressPageState extends State<ProgressPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ProgressProvider>().fetchSummary();
+      }
+    });
   }
 
   @override
@@ -122,7 +130,7 @@ class _ProgressPageState extends State<ProgressPage> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const AiChatPage(),
+                              builder: (context) => const ChatbotPage(),
                             ),
                           );
                         },
@@ -169,6 +177,8 @@ class _ProgressPageState extends State<ProgressPage> {
                     const WaktuLatihanCard(),
                     const SizedBox(height: 16),
                     const KaloriMakananCard(),
+                    const SizedBox(height: 16),
+                    const AirPutihCard(),
                     const SizedBox(height: 16),
                   ],
                 ),

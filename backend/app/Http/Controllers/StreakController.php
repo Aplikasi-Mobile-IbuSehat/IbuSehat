@@ -26,7 +26,9 @@ class StreakController extends Controller
     public function completeWorkout(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'workout_id' => 'nullable|integer',
+            'workout_id' => 'nullable|integer|exists:workout_programs,id',
+            'duration_seconds' => 'nullable|integer|min:0',
+            'is_completed' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -40,8 +42,10 @@ class StreakController extends Controller
         try {
             $userId = $request->user()->id;
             $workoutId = $request->input('workout_id');
+            $durationSeconds = (int) $request->input('duration_seconds', 0);
+            $isCompleted = $request->has('is_completed') ? (bool) $request->input('is_completed') : true;
 
-            $result = $this->streakService->completeWorkout($userId, $workoutId);
+            $result = $this->streakService->completeWorkout($userId, $workoutId, $durationSeconds, $isCompleted);
 
             return response()->json([
                 'success' => true,
