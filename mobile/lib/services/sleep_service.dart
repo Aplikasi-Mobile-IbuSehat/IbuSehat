@@ -7,7 +7,7 @@ import 'package:mobile/models/sleep_latest_model.dart';
 import 'package:mobile/models/sleep_log_result.dart';
 import 'package:mobile/models/sleep_today_model.dart';
 import 'package:mobile/models/sleep_weekly_summary_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/services/auth_service.dart';
 
 class SleepServiceException implements Exception {
   SleepServiceException(this.message);
@@ -36,10 +36,7 @@ class SleepService {
     );
   }
 
-  Future<String?> _bearerToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('sanctum_token');
-  }
+  Future<String?> _bearerToken() => AuthService.instance.token;
 
   Map<String, dynamic> _asJsonMap(dynamic data, String errorMessage) {
     if (data is! Map<String, dynamic>) {

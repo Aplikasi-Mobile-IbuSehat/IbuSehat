@@ -1,6 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:mobile/pages/beranda/share_achievement_page.dart';
+import 'package:mobile/services/streak_service.dart';
+import 'package:mobile/models/streak_models.dart';
+import 'package:mobile/theme/app_colors.dart';
 
-class StreakDetailPage extends StatelessWidget {
+class StreakDetailPage extends StatefulWidget {
   const StreakDetailPage({
     super.key,
     required this.currentStreak,
@@ -10,54 +14,129 @@ class StreakDetailPage extends StatelessWidget {
   final int currentStreak;
   final int longestStreak;
 
+  @override
+  State<StreakDetailPage> createState() => _StreakDetailPageState();
+}
+
+class _StreakDetailPageState extends State<StreakDetailPage> {
+  StreakData? _streakData;
+  bool _isLoading = true;
+  DateTime _selectedMonth = DateTime.now();
+  
+  int get currentStreak => _streakData?.streakActive ?? 0;
+
   static const _bgColor = Color(0xFFF8F8FF);
   static const _titleColor = Color(0xFF1A1A2E);
   static const _mutedColor = Color(0xFF9E9E9E);
   static const _primary = Color(0xFF6C4DFF);
 
-  DateTime get _displayMonth => DateTime.now();
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
 
-  String get _selectedMonthLabel => _formatMonthLabel(_displayMonth);
+  Future<void> _fetchData() async {
+    setState(() {
+      _isLoading = true;
+    });
+    
+    try {
+      final data = await StreakService().getStreakData(
+        year: _selectedMonth.year,
+        month: _selectedMonth.month,
+      );
+      if (mounted) {
+        setState(() {
+          _streakData = data;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error fetching streak data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
 
-  String get _longestStreakRange => '–';
+  void _changeMonth(int delta) {
+    setState(() {
+      _selectedMonth = DateTime(_selectedMonth.year, _selectedMonth.month + delta);
+    });
+    _fetchData();
+  }
 
-  int get _activeDaysThisMonth => 0;
+  String get _selectedMonthLabel => _formatMonthLabel(_selectedMonth);
+
+  String get _longestStreakRange => '—';
+
+  int get _activeDaysThisMonth => _streakData?.hariAktifBulanIni ?? 0;
 
   int get _totalDaysInMonth =>
-      DateTime(_displayMonth.year, _displayMonth.month + 1, 0).day;
+      DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day;
 
-  int get _totalActivities => 0;
+  int get _totalActivities => _streakData?.totalAktivitas ?? 0;
 
   List<_StreakCalendarDay> get _calendarDays =>
-      _buildCalendarDays(_displayMonth);
+      _buildCalendarDays(_selectedMonth);
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _bgColor,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        leading: GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Container(
-            margin: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF0F0F0),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.arrow_back,
-              color: _titleColor,
-              size: 20,
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final surface = isDark ? darkSurface : lightSurface;
+    final bgColor = isDark ? darkBackground : const Color(0xFFF8F8FF);
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: bgColor,
+        appBar: AppBar(
+          backgroundColor: surface,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0,
+          centerTitle: true,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back_ios_new_rounded, color: textPrimary, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          title: Text(
+            'Detail Streak',
+            style: TextStyle(
+              color: textPrimary,
+              fontWeight: FontWeight.w800,
+              fontSize: 18,
             ),
           ),
         ),
-        title: const Text(
+        body: const Center(
+          child: CircularProgressIndicator(
+            color: _primary,
+          ),
+        ),
+      );
+    }
+
+    final currentStreak = _streakData?.streakActive ?? widget.currentStreak;
+    final longestStreak = _streakData?.streakLongest ?? widget.longestStreak;
+
+    return Scaffold(
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        backgroundColor: surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: textPrimary, size: 20),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
           'Detail Streak',
           style: TextStyle(
-            color: _titleColor,
+            color: textPrimary,
             fontWeight: FontWeight.w800,
             fontSize: 18,
           ),
@@ -99,13 +178,24 @@ class StreakDetailPage extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '$currentStreak Hari 🔥',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      '$currentStreak Hari',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Icon(
+                      Icons.local_fire_department_rounded,
+                      color: Color(0xFFFF9500),
+                      size: 30,
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -137,19 +227,12 @@ class StreakDetailPage extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text(
-                'Fitur bagikan streak segera hadir',
-                style: TextStyle(fontWeight: FontWeight.w600),
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ShareAchievementPage(
+                streakDays: currentStreak,
               ),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: _titleColor,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              margin: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-              duration: const Duration(seconds: 2),
             ),
           );
         },
@@ -214,7 +297,7 @@ class StreakDetailPage extends StatelessWidget {
               iconBgColor: const Color(0xFFEDE7F6),
               iconColor: const Color(0xFF7C3AED),
               label: 'Streak Aktif',
-              value: '$currentStreak Hari',
+              value: '${_streakData?.streakActive ?? 0} Hari',
               valueColor: const Color(0xFF7C3AED),
               sublabel: 'Saat ini',
             ),
@@ -223,7 +306,7 @@ class StreakDetailPage extends StatelessWidget {
               iconBgColor: const Color(0xFFE3F2FD),
               iconColor: const Color(0xFF2196F3),
               label: 'Streak Terpanjang',
-              value: '$longestStreak Hari',
+              value: '${_streakData?.streakLongest ?? 0} Hari',
               valueColor: const Color(0xFF2196F3),
               sublabel: _longestStreakRange,
             ),
@@ -232,7 +315,7 @@ class StreakDetailPage extends StatelessWidget {
               iconBgColor: const Color(0xFFE8F5E9),
               iconColor: const Color(0xFF4CAF50),
               label: 'Hari Aktif Bulan Ini',
-              value: '$_activeDaysThisMonth Hari',
+              value: '${_streakData?.hariAktifBulanIni ?? 0} Hari',
               valueColor: const Color(0xFF4CAF50),
               sublabel: 'dari $_totalDaysInMonth hari',
             ),
@@ -241,7 +324,7 @@ class StreakDetailPage extends StatelessWidget {
               iconBgColor: const Color(0xFFEDE7F6),
               iconColor: const Color(0xFF7C3AED),
               label: 'Total Aktivitas',
-              value: '$_totalActivities',
+              value: '${_streakData?.totalAktivitas ?? 0}',
               valueColor: const Color(0xFF7C3AED),
               sublabel: 'Sejak bergabung',
             ),
@@ -327,21 +410,33 @@ class StreakDetailPage extends StatelessWidget {
                 color: _titleColor,
               ),
             ),
-            GestureDetector(
-              onTap: () {},
-              child: Row(
-                children: [
-                  Text(
-                    _selectedMonthLabel,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: _titleColor,
-                      fontWeight: FontWeight.w600,
-                    ),
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () => _changeMonth(-1),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    child: const Icon(Icons.chevron_left, size: 20, color: _titleColor),
                   ),
-                  const Icon(Icons.keyboard_arrow_down, size: 18),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _selectedMonthLabel,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: _titleColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () => _changeMonth(1),
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    child: const Icon(Icons.chevron_right, size: 20, color: _titleColor),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -409,31 +504,61 @@ class StreakDetailPage extends StatelessWidget {
       return const SizedBox();
     }
 
-    final isOutsideMonth = day.date!.month != _displayMonth.month;
+    final isOutsideMonth = day.date!.month != _selectedMonth.month;
     final textColor =
         isOutsideMonth ? _mutedColor.withValues(alpha: 0.6) : _titleColor;
+
+    // Find matching calendar day from API data
+    CalendarDay? calendarDay;
+    if (_streakData != null) {
+      try {
+        calendarDay = _streakData!.calendar.firstWhere(
+          (cd) {
+            final cdDate = DateTime.parse(cd.date);
+            return cdDate.year == day.date!.year &&
+                   cdDate.month == day.date!.month &&
+                   cdDate.day == day.date!.day;
+          },
+        );
+      } catch (e) {
+        // No matching day found
+      }
+    }
 
     Color bgColor;
     Widget? iconWidget;
 
-    switch (day.status) {
-      case 'activity':
-        bgColor = const Color(0xFFE8F5E9);
-        iconWidget = const Icon(
-          Icons.check_circle,
-          color: Color(0xFF4CAF50),
-          size: 14,
-        );
-      case 'streak':
+    if (calendarDay != null) {
+      if (calendarDay.status == 'completed') {
+        // Check if it's part of current unbroken streak
+        // For simplicity, assume purple if it's recent completed
+        // You could add more logic here to check if streak was broken
         bgColor = const Color(0xFFEDE7F6);
         iconWidget = const Icon(
           Icons.check_circle,
           color: Color(0xFF7C3AED),
           size: 14,
         );
-      default:
+      } else if (calendarDay.status == 'today') {
+        bgColor = const Color(0xFFF5F5F5);
+        iconWidget = Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFF7C3AED), width: 2),
+          ),
+        );
+      } else if (calendarDay.status == 'missed') {
         bgColor = const Color(0xFFF5F5F5);
         iconWidget = null;
+      } else {
+        bgColor = const Color(0xFFF5F5F5);
+        iconWidget = null;
+      }
+    } else {
+      bgColor = const Color(0xFFF5F5F5);
+      iconWidget = null;
     }
 
     return Container(
@@ -517,6 +642,7 @@ class StreakDetailPage extends StatelessWidget {
         _StreakCalendarDay(
           date: date,
           dayNumber: date.day,
+          status: null,
         ),
       );
     }
@@ -526,7 +652,7 @@ class StreakDetailPage extends StatelessWidget {
         _StreakCalendarDay(
           date: DateTime(month.year, month.month, d),
           dayNumber: d,
-          status: 'inactive',
+          status: null,
         ),
       );
     }
@@ -538,6 +664,7 @@ class StreakDetailPage extends StatelessWidget {
         _StreakCalendarDay(
           date: date,
           dayNumber: date.day,
+          status: null,
         ),
       );
       trailing++;
@@ -558,3 +685,4 @@ class _StreakCalendarDay {
   final int? dayNumber;
   final String? status;
 }
+

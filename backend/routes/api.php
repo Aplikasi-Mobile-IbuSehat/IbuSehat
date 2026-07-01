@@ -14,86 +14,99 @@ use App\Http\Controllers\SleepController;
 use App\Http\Controllers\SleepLogController;
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\WorkoutProgramController;
+use App\Http\Controllers\StreakController;
+use App\Http\Controllers\ProgressController;
+use App\Http\Controllers\WaterIntakeController;
 
+// ─────────────────────────────────────────────
+// Sanity-check route
+// ─────────────────────────────────────────────
 Route::get('/test', function () {
-    return "OK";
+    return response()->json(['status' => 'OK']);
 });
 
-// Auth routes
+// ─────────────────────────────────────────────
+// Auth routes (public)
+// ─────────────────────────────────────────────
 Route::post('/auth/google', [AuthController::class, 'googleLogin']);
 
-// Payment routes
+// ─────────────────────────────────────────────
+// Payment routes (public — webhook dari Midtrans)
+// ─────────────────────────────────────────────
 Route::post('/payment/notification', [PaymentController::class, 'handleNotification']);
 
-// Workout programs
+// ─────────────────────────────────────────────
+// Workout programs (public)
+// ─────────────────────────────────────────────
 Route::get('/workout-programs', [WorkoutProgramController::class, 'index']);
 Route::get('/workout-programs/{id}', [WorkoutProgramController::class, 'show']);
 
-// Public search routes
+// ─────────────────────────────────────────────
+// Foods catalog (public read)
+// ─────────────────────────────────────────────
 Route::prefix('foods')->group(function () {
     Route::get('/', [FoodController::class, 'index']);
     Route::get('/categories', [FoodController::class, 'categories']);
     Route::get('/{id}', [FoodController::class, 'show']);
 });
 
+// ─────────────────────────────────────────────
+// Supplements catalog (public read)
+// ─────────────────────────────────────────────
 Route::prefix('supplements')->group(function () {
     Route::get('/', [SupplementController::class, 'index']);
     Route::get('/sources', [SupplementController::class, 'sources']);
     Route::get('/{id}', [SupplementController::class, 'show']);
 });
 
-// Protected routes
+// ─────────────────────────────────────────────
+// Protected routes (requires Sanctum token)
+// ─────────────────────────────────────────────
 Route::middleware('auth:sanctum')->group(function () {
 
+    // ── Auth / Session ─────────────────────────
     Route::get('/user', [AuthController::class, 'getUser']);
+    
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/user/onboarding', [AuthController::class, 'updateOnboarding']);
 
-    // Water Intake
-    Route::get('/user/water-intake', [AuthController::class, 'getWaterIntake']);
-    Route::post('/user/water-intake/add', [AuthController::class, 'updateWaterIntake']);
-    Route::post('/user/water-intake/reduce', [AuthController::class, 'reduceWaterIntake']);
+    // ── Water Intake ───────────────────────────
+    Route::get('/user/water-intake', [WaterIntakeController::class, 'index']);
+    Route::get('/user/water-intake/weekly', [WaterIntakeController::class, 'weekly']);
+    Route::post('/user/water-intake/add', [WaterIntakeController::class, 'add']);
+    Route::post('/user/water-intake/reduce', [WaterIntakeController::class, 'reduce']);
 
-    // FCM
+    // ── FCM Token ──────────────────────────────
     Route::post('/fcm-token', [FcmTokenController::class, 'store']);
 
-    // Gemini Premium Only
+    // ── Chatbot AI (Gemini) — Premium Only ─────
     Route::middleware(['throttle:chat', 'premium.chat-quota'])->group(function () {
         Route::post('/gemini/chat', [GeminiController::class, 'ask']);
     });
 
-    // Payment
+    // ── Payment ────────────────────────────────
     Route::post('/payment/create', [PaymentController::class, 'createTransaction']);
 
-    // Activities
+    // ── Activities ─────────────────────────────
     Route::get('/activities/summary', [ActivityController::class, 'summary']);
     Route::get('/activities', [ActivityController::class, 'index']);
     Route::post('/activities', [ActivityController::class, 'store']);
     Route::get('/activities/{activity}', [ActivityController::class, 'show']);
 
-    // Sleep Dashboard
+    // ── Sleep ──────────────────────────────────
     Route::get('/sleep/dashboard', [SleepController::class, 'dashboard']);
 
-    // Sleep Logs
     Route::get('/sleep/log/latest', [SleepLogController::class, 'latest']);
     Route::get('/sleep/log/today', [SleepLogController::class, 'today']);
     Route::get('/sleep/log/history', [SleepLogController::class, 'history']);
-
-    Route::get('/sleep/log/detail/{id}', [SleepLogController::class, 'show'])
-        ->whereNumber('id');
-
-    Route::get('/sleep/log/{id}', [SleepLogController::class, 'show'])
-        ->whereNumber('id');
-
     Route::get('/sleep/log/weekly-summary', [SleepLogController::class, 'weeklySummary']);
-
+    Route::get('/sleep/log/detail/{id}', [SleepLogController::class, 'show'])->whereNumber('id');
+    Route::get('/sleep/log/{id}', [SleepLogController::class, 'show'])->whereNumber('id');
     Route::post('/sleep/log', [SleepLogController::class, 'store']);
     Route::post('/sleep/log/save', [SleepLogController::class, 'save']);
+    Route::delete('/sleep/log/{id}', [SleepLogController::class, 'destroy'])->whereNumber('id');
 
-    Route::delete('/sleep/log/{id}', [SleepLogController::class, 'destroy'])
-        ->whereNumber('id');
-
-    // Food logging
+    // ── Diet: Food Logs ────────────────────────
     Route::prefix('food-logs')->group(function () {
         Route::get('/summary', [FoodLogController::class, 'summary']);
         Route::get('/', [FoodLogController::class, 'index']);
@@ -103,7 +116,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}', [FoodLogController::class, 'destroy']);
     });
 
-    // Supplement logging
+    // ── Diet: Supplement Logs ──────────────────
     Route::prefix('supplement-logs')->group(function () {
         Route::get('/', [SupplementLogController::class, 'index']);
         Route::post('/', [SupplementLogController::class, 'store']);
@@ -112,17 +125,26 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('/{id}', [SupplementLogController::class, 'destroy']);
     });
 
-    // Food Management
+    // ── Admin: Foods CRUD ──────────────────────
     Route::prefix('foods')->group(function () {
         Route::post('/', [FoodController::class, 'store']);
         Route::put('/{id}', [FoodController::class, 'update']);
         Route::delete('/{id}', [FoodController::class, 'destroy']);
     });
 
-    // Supplement Management
+    // ── Admin: Supplements CRUD ────────────────
     Route::prefix('supplements')->group(function () {
         Route::post('/', [SupplementController::class, 'store']);
         Route::put('/{id}', [SupplementController::class, 'update']);
         Route::delete('/{id}', [SupplementController::class, 'destroy']);
     });
+
+    // ── Streak & Workout Tracking ──
+    Route::post('/workout/complete', [StreakController::class, 'completeWorkout']);
+    Route::get('/streak', [StreakController::class, 'getStreak']);
+
+    // ── Progress Tracking ───
+    Route::get('/progress/summary', [ProgressController::class, 'summary']);
+    Route::post('/diet/food/add', [ProgressController::class, 'addFood']);
+    Route::post('/diet/water/add', [ProgressController::class, 'addWater']);
 });

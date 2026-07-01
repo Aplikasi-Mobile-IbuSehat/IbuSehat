@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mobile/services/water_intake_service.dart';
-import 'package:mobile/models/water_intake.dart';
+import 'package:mobile/models/water_intake_model.dart';
 import 'package:mobile/theme/app_colors.dart';
-import 'package:mobile/theme/app_theme.dart';
 
 class WaterIntakePage extends StatefulWidget {
   final int currentIntake;
@@ -25,7 +24,6 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
   final _service = WaterIntakeService.instance;
 
   late int _currentIntake;
-
   int _pendingDelta = 0;
   bool _isSaving = false;
 
@@ -44,16 +42,81 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
     widget.onAddWater(amount);
   }
 
-  Future<void> _save() async {
+  Future<bool> _onWillPop() async {
+    if (!_hasPendingChanges || _isSaving) return true;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final confirm = await showDialog<String>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: isDark ? darkSurface : lightSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'Ada perubahan belum disimpan',
+          style: TextStyle(
+            fontWeight: FontWeight.w700,
+            color: isDark ? darkTextPrimary : lightTextPrimary,
+          ),
+        ),
+        content: Text(
+          'Mau simpan perubahan sebelum keluar?',
+          style: TextStyle(
+            color: isDark ? darkTextSecondary : lightTextSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, 'discard'),
+            child: Text(
+              'Buang',
+              style: TextStyle(
+                color: isDark ? darkTextSecondary : lightTextSecondary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF8B5CF6),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              elevation: 0,
+            ),
+            onPressed: () => Navigator.pop(context, 'save'),
+            child: const Text(
+              'Simpan',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == 'save') {
+      await _save(popAfter: false);
+      return true;
+    } else if (confirm == 'discard') {
+      // Revert perubahan yang belum disimpan ke parent
+      if (_pendingDelta != 0) widget.onAddWater(-_pendingDelta);
+      return true;
+    }
+
+    return false; // user dismiss dialog → tetap di halaman
+  }
+
+  Future<void> _save({bool popAfter = true}) async {
     if (!_hasPendingChanges) {
-      Navigator.pop(context);
+      if (popAfter && mounted) Navigator.pop(context);
       return;
     }
 
     setState(() => _isSaving = true);
 
     try {
-      WaterIntakeModel updated;
+      final WaterIntakeModel updated;
 
       if (_pendingDelta > 0) {
         updated = await _service.addWaterIntake(_pendingDelta);
@@ -66,10 +129,11 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
           _currentIntake = updated.waterIntake;
           _pendingDelta = 0;
         });
-        Navigator.pop(context);
+        if (popAfter) Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
+        // Revert perubahan di parent
         widget.onAddWater(-_pendingDelta);
         setState(() => _pendingDelta = 0);
 
@@ -222,7 +286,6 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                       padding: EdgeInsets.only(right: amount != 1000 ? 12 : 0),
                       child: _buildReduceChip(
                         amount: amount,
-                        border: border,
                         onTap: () {
                           Navigator.pop(context);
                           setState(() => _pendingDelta -= amount);
@@ -243,7 +306,6 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
 
   Widget _buildReduceChip({
     required int amount,
-    required Color border,
     required VoidCallback onTap,
   }) {
     return InkWell(
@@ -252,7 +314,8 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
+          border: Border.all(
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.4)),
           borderRadius: BorderRadius.circular(14),
           color: const Color(0xFF8B5CF6).withValues(alpha: 0.06),
         ),
@@ -275,43 +338,55 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
     final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
     final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
 
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: Text(
-          'Catatan Asupan Air',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            color: textPrimary,
-            letterSpacing: -0.5,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        surfaceTintColor: Colors.transparent,
-        scrolledUnderElevation: 0,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.remove_circle_outline_rounded,
-              color: _isSaving ? textSecondary : const Color(0xFF8B5CF6),
-              size: 24,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        final canLeave = await _onWillPop();
+        if (canLeave && mounted) Navigator.pop(context);
+      },
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          title: Text(
+            'Catatan Asupan Air',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: textPrimary,
+              letterSpacing: -0.5,
             ),
-            tooltip: 'Koreksi asupan',
-            onPressed: _isSaving ? null : _showReduceSheet,
           ),
-        ],
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: textPrimary,
-            size: 20,
+          backgroundColor: Colors.transparent,
+          surfaceTintColor: Colors.transparent,
+          scrolledUnderElevation: 0,
+          elevation: 0,
+          actions: [
+            IconButton(
+              icon: Icon(
+                Icons.remove_circle_outline_rounded,
+                color:
+                    _isSaving ? textSecondary : const Color(0xFF8B5CF6),
+                size: 24,
+              ),
+              tooltip: 'Koreksi asupan',
+              onPressed: _isSaving ? null : _showReduceSheet,
+            ),
+          ],
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back_ios_new_rounded,
+              color: textPrimary,
+              size: 20,
+            ),
+            onPressed: _isSaving
+                ? null
+                : () async {
+                    final canLeave = await _onWillPop();
+                    if (canLeave && mounted) Navigator.pop(context);
+                  },
           ),
-          onPressed: _isSaving ? null : () => Navigator.pop(context),
         ),
-      ),
-      body: AppBackground(
-        child: SafeArea(
+        body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 40),
             child: Column(
@@ -372,15 +447,18 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                       ),
                       const SizedBox(height: 16),
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        padding:
+                            const EdgeInsets.symmetric(horizontal: 32),
                         child: Column(
                           children: [
                             ClipRRect(
                               borderRadius: BorderRadius.circular(10),
                               child: LinearProgressIndicator(
                                 value: _progress,
-                                backgroundColor: Colors.white.withValues(alpha: 0.25),
-                                valueColor: const AlwaysStoppedAnimation<Color>(
+                                backgroundColor:
+                                    Colors.white.withValues(alpha: 0.25),
+                                valueColor:
+                                    const AlwaysStoppedAnimation<Color>(
                                   Colors.white,
                                 ),
                                 minHeight: 8,
@@ -388,12 +466,14 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                             ),
                             const SizedBox(height: 8),
                             Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
                                   '0 ml',
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.7),
+                                    color: Colors.white
+                                        .withValues(alpha: 0.7),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -409,7 +489,8 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                                 Text(
                                   '${widget.goalIntake} ml',
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.7),
+                                    color: Colors.white
+                                        .withValues(alpha: 0.7),
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -513,7 +594,8 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                     borderRadius: BorderRadius.circular(20),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                        color:
+                            const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                         blurRadius: 12,
                         offset: const Offset(0, 6),
                       ),
@@ -616,7 +698,8 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
                   width: 4,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                    color:
+                        const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                   ),
                 ),

@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/config/api_config.dart';
 import 'package:mobile/models/activity_model.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/services/auth_service.dart';
 
 /// User-facing error for Langkah / summary API failures.
 class LangkahSummaryError implements Exception {
@@ -22,10 +22,7 @@ class ActivityService {
 
   static const Duration _httpTimeout = Duration(seconds: 10);
 
-  static Future<String?> _bearerToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('sanctum_token');
-  }
+  static Future<String?> _bearerToken() => AuthService.instance.token;
 
   static Map<String, String> _jsonHeaders(String? token) {
     return {

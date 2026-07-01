@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/theme/app_theme.dart';
 import 'package:mobile/pages/skincare/skincare_detail_page.dart';
 import 'package:mobile/theme/app_colors.dart';
 
@@ -16,10 +15,9 @@ class _SkincarePageState extends State<SkincarePage> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? darkTextPrimary : const Color(0xFF1F1235);
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
@@ -39,36 +37,34 @@ class _SkincarePageState extends State<SkincarePage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: AppBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 12),
-                _buildTypeSelector(isDark),
-                const SizedBox(height: 24),
-                _buildHeroSection(isDark),
-                const SizedBox(height: 32),
-                _buildSectionTitle('Masalah Kulit', textPrimary),
-                const SizedBox(height: 16),
-                _buildSkinProblemsHorizontal(isDark),
-                const SizedBox(height: 32),
-                _buildSectionTitle('Quick Routine', textPrimary),
-                const SizedBox(height: 16),
-                _buildQuickRoutineCard(isDark),
-                const SizedBox(height: 32),
-                _buildSectionTitle('Kandungan Aman', textPrimary),
-                const SizedBox(height: 16),
-                _buildSafeIngredientsSection(isDark),
-                const SizedBox(height: 32),
-                _buildSectionTitle('Tips Singkat', textPrimary),
-                const SizedBox(height: 16),
-                _buildQuickTipsFooter(isDark),
-                const SizedBox(height: 100),
-              ],
-            ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 12),
+              _buildTypeSelector(isDark),
+              const SizedBox(height: 24),
+              _buildHeroSection(isDark),
+              const SizedBox(height: 32),
+              _buildSectionTitle('Masalah Kulit', textPrimary),
+              const SizedBox(height: 16),
+              _buildSkinProblemsHorizontal(isDark),
+              const SizedBox(height: 32),
+              _buildSectionTitle('Quick Routine', textPrimary),
+              const SizedBox(height: 16),
+              _buildQuickRoutineCard(isDark),
+              const SizedBox(height: 32),
+              _buildSectionTitle('Kandungan Aman', textPrimary),
+              const SizedBox(height: 16),
+              _buildSafeIngredientsSection(isDark),
+              const SizedBox(height: 32),
+              _buildSectionTitle('Tips Singkat', textPrimary),
+              const SizedBox(height: 16),
+              _buildQuickTipsFooter(isDark),
+              const SizedBox(height: 100),
+            ],
           ),
         ),
       ),

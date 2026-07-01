@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/theme/app_colors.dart';
-import 'package:mobile/theme/app_theme.dart';
 import 'package:mobile/pages/payments/midtrans_screen.dart';
 import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/services/api_service.dart';
@@ -168,9 +167,8 @@ class _PremiumPageState extends State<PremiumPage> {
           ),
         ),
       ),
-      body: AppBackground(
-        child: SafeArea(
-          child: Stack(
+      body: SafeArea(
+        child: Stack(
             children: [
               SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
@@ -332,7 +330,6 @@ class _PremiumPageState extends State<PremiumPage> {
             ],
           ),
         ),
-      ),
     );
   }
 

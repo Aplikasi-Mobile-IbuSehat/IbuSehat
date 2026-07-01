@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/models/sleep_log_result.dart';
 import 'package:mobile/pages/sleep/widgets/hasil_skor_tidur_dialog.dart';
@@ -60,105 +59,193 @@ class _CatatTidurPageState extends State<CatatTidurPage> {
     final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
     final border = isDark ? darkBorder : const Color(0xFFEEEEEE);
 
-    final now = DateTime.now();
-    var tempDateTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      initial.hour,
-      initial.minute,
-    );
+    int tempHour = initial.hour;
+    int tempMinute = initial.minute;
 
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(
-                        'Batal',
-                        style: TextStyle(
-                          color: isDark ? darkTextSecondary : Colors.grey.shade500,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      isSleep ? 'Pilih Jam Tidur' : 'Pilih Jam Bangun',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: textPrimary,
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {
-                          final pickedTime = TimeOfDay(
-                            hour: tempDateTime.hour,
-                            minute: tempDateTime.minute,
-                          );
-                          if (isSleep) {
-                            _jamTidur = pickedTime;
-                          } else {
-                            _jamBangun = pickedTime;
-                          }
-                        });
-                        Navigator.pop(context);
-                      },
-                      child: const Text(
-                        'Simpan',
-                        style: TextStyle(
-                          color: _kPrimary,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Divider(height: 1, color: border),
-              SizedBox(
-                height: 200,
-                child: CupertinoTheme(
-                  data: CupertinoThemeData(
-                    brightness: isDark ? Brightness.dark : Brightness.light,
-                    textTheme: CupertinoTextThemeData(
-                      dateTimePickerTextStyle: TextStyle(
-                        color: textPrimary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                      ),
+      builder: (ctx) {
+        final hourController = FixedExtentScrollController(initialItem: tempHour);
+        final minuteController = FixedExtentScrollController(initialItem: tempMinute);
+
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle bar
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? darkBorder : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  child: CupertinoDatePicker(
-                    mode: CupertinoDatePickerMode.time,
-                    use24hFormat: true,
-                    initialDateTime: tempDateTime,
-                    onDateTimeChanged: (DateTime newDateTime) {
-                      tempDateTime = newDateTime;
-                    },
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(
+                            'Batal',
+                            style: TextStyle(
+                              color: isDark ? darkTextSecondary : Colors.grey.shade500,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          isSleep ? 'Jam Tidur' : 'Jam Bangun',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: textPrimary,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              final pickedTime = TimeOfDay(hour: tempHour, minute: tempMinute);
+                              if (isSleep) {
+                                _jamTidur = pickedTime;
+                              } else {
+                                _jamBangun = pickedTime;
+                              }
+                            });
+                            Navigator.pop(ctx);
+                          },
+                          child: const Text(
+                            'Simpan',
+                            style: TextStyle(
+                              color: _kPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  Divider(height: 1, color: border),
+                  const SizedBox(height: 8),
+                  // Wheel picker
+                  SizedBox(
+                    height: 180,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Selection highlight strip
+                        Positioned(
+                          left: 40,
+                          right: 40,
+                          child: Container(
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: _kPrimary.withValues(alpha: isDark ? 0.18 : 0.08),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Hour picker
+                            SizedBox(
+                              width: 90,
+                              child: ListWheelScrollView.useDelegate(
+                                controller: hourController,
+                                itemExtent: 48,
+                                perspective: 0.004,
+                                diameterRatio: 1.4,
+                                physics: const FixedExtentScrollPhysics(),
+                                onSelectedItemChanged: (v) {
+                                  setModalState(() => tempHour = v);
+                                },
+                                childDelegate: ListWheelChildBuilderDelegate(
+                                  childCount: 24,
+                                  builder: (ctx, i) {
+                                    final isSelected = tempHour == i;
+                                    return Center(
+                                      child: AnimatedDefaultTextStyle(
+                                        duration: const Duration(milliseconds: 180),
+                                        style: TextStyle(
+                                          fontSize: isSelected ? 30 : 22,
+                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w400,
+                                          color: isSelected ? _kPrimary : (isDark ? darkTextSecondary : Colors.grey.shade400),
+                                        ),
+                                        child: Text(i.toString().padLeft(2, '0')),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                            // Separator
+                            Text(
+                              ':',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: textPrimary,
+                              ),
+                            ),
+                            // Minute picker
+                            SizedBox(
+                              width: 90,
+                              child: ListWheelScrollView.useDelegate(
+                                controller: minuteController,
+                                itemExtent: 48,
+                                perspective: 0.004,
+                                diameterRatio: 1.4,
+                                physics: const FixedExtentScrollPhysics(),
+                                onSelectedItemChanged: (v) {
+                                  setModalState(() => tempMinute = v);
+                                },
+                                childDelegate: ListWheelChildBuilderDelegate(
+                                  childCount: 60,
+                                  builder: (ctx, i) {
+                                    final isSelected = tempMinute == i;
+                                    return Center(
+                                      child: AnimatedDefaultTextStyle(
+                                        duration: const Duration(milliseconds: 180),
+                                        style: TextStyle(
+                                          fontSize: isSelected ? 30 : 22,
+                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w400,
+                                          color: isSelected ? _kPrimary : (isDark ? darkTextSecondary : Colors.grey.shade400),
+                                        ),
+                                        child: Text(i.toString().padLeft(2, '0')),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
   }
+
 
   Future<void> _hitungSkor() async {
     setState(() => _isLoading = true);

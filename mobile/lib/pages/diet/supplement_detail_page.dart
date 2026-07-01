@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:mobile/models/supplement.dart';
 import 'package:mobile/theme/app_colors.dart';
+import 'package:mobile/services/fcm_service.dart';
 
 class SupplementDetailPage extends StatefulWidget {
   final Supplement supplement;
@@ -34,86 +35,181 @@ class _SupplementDetailPageState extends State<SupplementDetailPage> {
   // ── Time picker — slides up from bottom ─────────────────────────────────
   void _showTimePickerSheet(bool isDark, Color background, Color surface, Color textPrimary, Color textSecondary) {
     TimeOfDay tempTime = _selectedTime ?? TimeOfDay.now();
+    final border = isDark ? darkBorder : const Color(0xFFEEEEEE);
+    const kPrimary = Color(0xFF7C3AED);
 
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
+      backgroundColor: surface,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) {
+        int tempHour = tempTime.hour;
+        int tempMinute = tempTime.minute;
+        final hourController = FixedExtentScrollController(initialItem: tempHour);
+        final minuteController = FixedExtentScrollController(initialItem: tempMinute);
+
         return StatefulBuilder(
           builder: (ctx, setModalState) {
-            final FixedExtentScrollController hourController =
-                FixedExtentScrollController(initialItem: tempTime.hour);
-            final FixedExtentScrollController minuteController =
-                FixedExtentScrollController(initialItem: tempTime.minute);
-
-            return Container(
-              padding: EdgeInsets.fromLTRB(24, 20, 24,
-                  24 + MediaQuery.of(ctx).viewInsets.bottom),
-              decoration: BoxDecoration(
-                color: background,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-              ),
+            return SafeArea(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Handle bar
+                  const SizedBox(height: 12),
                   Container(
-                    width: 36,
+                    width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: isDark ? darkBorder : const Color(0xFFC7C7CC),
+                      color: isDark ? darkBorder : Colors.grey.shade300,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Waktu Konsumsi',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: textPrimary),
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: surface,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: SizedBox(
-                      height: 140,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          _buildWheel(hourController, 24, tempTime.hour, textPrimary, textSecondary, (idx) {
-                            setModalState(() => tempTime = TimeOfDay(hour: idx, minute: tempTime.minute));
-                          }),
-                          Text(
-                            ':',
-                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w300, color: textPrimary),
+                  // Header row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(
+                            'Batal',
+                            style: TextStyle(
+                              color: isDark ? darkTextSecondary : Colors.grey.shade500,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
                           ),
-                          _buildWheel(minuteController, 60, tempTime.minute, textPrimary, textSecondary, (idx) {
-                            setModalState(() => tempTime = TimeOfDay(hour: tempTime.hour, minute: idx));
-                          }),
-                        ],
-                      ),
+                        ),
+                        Text(
+                          'Atur Pengingat',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: textPrimary,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            await FcmNotificationService.instance.checkAndPromptPermission(context);
+                            if (mounted) {
+                              setState(() {
+                                _selectedTime = TimeOfDay(hour: tempHour, minute: tempMinute);
+                              });
+                            }
+                          },
+                          child: const Text(
+                            'Simpan',
+                            style: TextStyle(
+                              color: kPrimary,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  Divider(height: 1, color: border),
+                  const SizedBox(height: 8),
+                  // Wheel picker with highlight strip
                   SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        setState(() => _selectedTime = tempTime);
-                        Navigator.pop(ctx);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF8B5CF6),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('Simpan', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                    height: 180,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Positioned(
+                          left: 40,
+                          right: 40,
+                          child: Container(
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: kPrimary.withValues(alpha: isDark ? 0.18 : 0.08),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 90,
+                              child: ListWheelScrollView.useDelegate(
+                                controller: hourController,
+                                itemExtent: 48,
+                                perspective: 0.004,
+                                diameterRatio: 1.4,
+                                physics: const FixedExtentScrollPhysics(),
+                                onSelectedItemChanged: (v) => setModalState(() => tempHour = v),
+                                childDelegate: ListWheelChildBuilderDelegate(
+                                  childCount: 24,
+                                  builder: (ctx, i) {
+                                    final isSelected = tempHour == i;
+                                    return Center(
+                                      child: AnimatedDefaultTextStyle(
+                                        duration: const Duration(milliseconds: 180),
+                                        style: TextStyle(
+                                          fontSize: isSelected ? 30 : 22,
+                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w400,
+                                          color: isSelected
+                                              ? kPrimary
+                                              : (isDark ? darkTextSecondary : Colors.grey.shade400),
+                                        ),
+                                        child: Text(i.toString().padLeft(2, '0')),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                            Text(
+                              ':',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                color: textPrimary,
+                              ),
+                            ),
+                            SizedBox(
+                              width: 90,
+                              child: ListWheelScrollView.useDelegate(
+                                controller: minuteController,
+                                itemExtent: 48,
+                                perspective: 0.004,
+                                diameterRatio: 1.4,
+                                physics: const FixedExtentScrollPhysics(),
+                                onSelectedItemChanged: (v) => setModalState(() => tempMinute = v),
+                                childDelegate: ListWheelChildBuilderDelegate(
+                                  childCount: 60,
+                                  builder: (ctx, i) {
+                                    final isSelected = tempMinute == i;
+                                    return Center(
+                                      child: AnimatedDefaultTextStyle(
+                                        duration: const Duration(milliseconds: 180),
+                                        style: TextStyle(
+                                          fontSize: isSelected ? 30 : 22,
+                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w400,
+                                          color: isSelected
+                                              ? kPrimary
+                                              : (isDark ? darkTextSecondary : Colors.grey.shade400),
+                                        ),
+                                        child: Text(i.toString().padLeft(2, '0')),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 20),
                 ],
               ),
             );
@@ -123,40 +219,6 @@ class _SupplementDetailPageState extends State<SupplementDetailPage> {
     );
   }
 
-  Widget _buildWheel(
-    FixedExtentScrollController ctrl,
-    int count,
-    int current,
-    Color textPrimary,
-    Color textSecondary,
-    Function(int) onSelected,
-  ) {
-    return SizedBox(
-      width: 64,
-      child: ListWheelScrollView.useDelegate(
-        controller: ctrl,
-        itemExtent: 46,
-        physics: const FixedExtentScrollPhysics(),
-        onSelectedItemChanged: onSelected,
-        childDelegate: ListWheelChildBuilderDelegate(
-          childCount: count,
-          builder: (context, idx) {
-            final isSelected = idx == current;
-            return Center(
-              child: Text(
-                idx.toString().padLeft(2, '0'),
-                style: TextStyle(
-                  fontSize: isSelected ? 22 : 17,
-                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                  color: isSelected ? textPrimary : textSecondary,
-                ),
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -342,48 +404,128 @@ class _SupplementDetailPageState extends State<SupplementDetailPage> {
 
 Widget _buildReminderTile(bool isDark, Color background, Color surface,
     Color textPrimary, Color textSecondary) {
+  // Supplement harus sudah di-log (punya logId) sebelum pengingat bisa diatur
+  final bool isLogged = widget.supplement.logId != null && widget.supplement.logId!.isNotEmpty;
+
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       // Tile untuk memilih waktu
       GestureDetector(
-        onTap: () => _showTimePickerSheet(
-            isDark, background, surface, textPrimary, textSecondary),
-        child: Container(
+        onTap: () {
+          if (!isLogged) {
+            // Tampilkan pesan — harus tambah ke log dulu
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Tambahkan suplemen ke log terlebih dahulu untuk mengatur pengingat.',
+                ),
+                behavior: SnackBarBehavior.floating,
+                duration: Duration(seconds: 3),
+              ),
+            );
+            return;
+          }
+          _showTimePickerSheet(isDark, background, surface, textPrimary, textSecondary);
+        },
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration:
-              BoxDecoration(color: surface, borderRadius: BorderRadius.circular(12)),
+          decoration: BoxDecoration(
+            color: isLogged ? surface : (isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF7F7F7)),
+            borderRadius: BorderRadius.circular(12),
+            border: isLogged
+                ? null
+                : Border.all(
+                    color: isDark ? const Color(0xFF333333) : const Color(0xFFE5E5EA),
+                    width: 1,
+                  ),
+          ),
           child: Row(
             children: [
-              const Icon(Icons.access_time_rounded,
-                  size: 20, color: Color(0xFF8B5CF6)),
+              Icon(
+                isLogged ? Icons.access_time_rounded : Icons.lock_outline_rounded,
+                size: 20,
+                color: isLogged
+                    ? const Color(0xFF8B5CF6)
+                    : (isDark ? const Color(0xFF555555) : Colors.grey.shade400),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Waktu Konsumsi',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: textPrimary)),
+                    Text(
+                      'Waktu Konsumsi',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: isLogged
+                            ? textPrimary
+                            : (isDark ? const Color(0xFF555555) : Colors.grey.shade400),
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
-                      _selectedTime != null
-                          ? _selectedTime!.format(context)
-                          : 'Belum diatur',
-                      style: TextStyle(fontSize: 13, color: textSecondary),
+                      isLogged
+                          ? (_selectedTime != null
+                              ? _selectedTime!.format(context)
+                              : 'Belum diatur')
+                          : 'Tambah ke log dulu',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isDark ? const Color(0xFF444444) : Colors.grey.shade400,
+                      ),
                     ),
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, size: 20, color: textSecondary),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: isLogged
+                    ? textSecondary
+                    : (isDark ? const Color(0xFF444444) : Colors.grey.shade300),
+              ),
             ],
           ),
         ),
       ),
 
-      if (_selectedTime != null) ...[
+      // Info badge jika belum di-log
+      if (!isLogged) ...[
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF2F2F7),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE5E5EA),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline_rounded, size: 15,
+                  color: isDark ? const Color(0xFF555555) : Colors.grey.shade400),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Tekan "Tambah" di pojok kanan atas, lalu atur pengingat.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? const Color(0xFF555555) : Colors.grey.shade500,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+
+      // Badge pengingat aktif — hanya tampil jika sudah di-log dan ada waktu
+      if (isLogged && _selectedTime != null) ...[
         const SizedBox(height: 12),
         Container(
           margin: const EdgeInsets.symmetric(horizontal: 0),

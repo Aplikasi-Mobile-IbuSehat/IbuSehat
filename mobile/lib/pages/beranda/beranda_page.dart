@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:mobile/pages/beranda/share_achievement_page.dart';
 import 'package:mobile/pages/beranda/streak_detail_page.dart';
 import 'package:mobile/pages/beranda/welcome_dialog.dart';
-import 'package:mobile/theme/app_theme.dart';
+import 'package:mobile/providers/sleep_provider.dart';
+import 'package:mobile/providers/progress_provider.dart';
+import 'package:mobile/services/streak_service.dart';
+import 'package:mobile/models/streak_models.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:mobile/widgets/app_header_actions.dart';
 
@@ -23,23 +28,40 @@ const _kWeeklyPillHeight = 102.0;
 enum _DayStatus { empty, check, progress, fire }
 
 class BerandaPage extends StatefulWidget {
-  const BerandaPage({super.key, this.onTabSelected});
+  const BerandaPage({
+    super.key,
+    this.onTabSelected,
+    this.scrollController,
+    this.refreshToken = 0,
+  });
 
   final void Function(int)? onTabSelected;
+  final ScrollController? scrollController;
+  final int refreshToken;
 
   @override
   State<BerandaPage> createState() => _BerandaPageState();
 }
 
-class _BerandaPageState extends State<BerandaPage> {
+class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
   static bool _hasShownWelcomeDialog = false;
-  final ScrollController _scrollController = ScrollController();
+  late final ScrollController _scrollController;
   bool _isScrolled = false;
+  
+  // Streak data
+  StreakData? _streakData;
+  bool _isLoadingStreak = false;
 
   @override
   void initState() {
     super.initState();
+    _scrollController = widget.scrollController ?? ScrollController();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addObserver(this);
+    
+    _fetchStreakData();
+    _fetchSleepData();
+    _fetchProgressData();
 
     if (!_hasShownWelcomeDialog) {
       _hasShownWelcomeDialog = true;
@@ -53,12 +75,81 @@ class _BerandaPageState extends State<BerandaPage> {
       });
     }
   }
+  
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      print('=== BERANDA: page focused, refreshing...');
+      _fetchStreakData();
+      _fetchSleepData();
+      _fetchProgressData();
+    }
+  }
 
   @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
+  void didUpdateWidget(BerandaPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.refreshToken != oldWidget.refreshToken) {
+      _refreshAll();
+    }
+  }
+
+  void _refreshAll() {
+    _fetchStreakData();
+    _fetchSleepData();
+    _fetchProgressData();
+  }
+  
+  Future<void> _fetchProgressData() async {
+    print('=== BERANDA: fetching progress data...');
+    try {
+      final progressProvider = context.read<ProgressProvider>();
+      await progressProvider.fetchSummary();
+      print('=== BERANDA: progress data fetched');
+    } catch (e) {
+      debugPrint('Error fetching progress data: $e');
+    }
+  }
+  
+  Future<void> _fetchSleepData() async {
+    print('=== BERANDA: fetching sleep data...');
+    try {
+      final sleepProvider = context.read<SleepProvider>();
+      await sleepProvider.fetchWeeklySummary();
+      print('=== BERANDA: sleep data fetched');
+    } catch (e) {
+      debugPrint('Error fetching sleep data: $e');
+    }
+  }
+  
+  Future<void> _fetchStreakData() async {
+    if (_isLoadingStreak) return;
+    
+    print('=== BERANDA: fetching streak data...');
+    
+    setState(() {
+      _isLoadingStreak = true;
+    });
+    
+    try {
+      final data = await StreakService().getStreakData();
+      if (mounted) {
+        setState(() {
+          _streakData = data;
+          _isLoadingStreak = false;
+        });
+        print('=== BERANDA: streakActive=${_streakData?.streakActive}');
+        print('=== BERANDA: calendar days=${_streakData?.calendar.length}');
+      }
+    } catch (e) {
+      debugPrint('Error fetching streak data: $e');
+      if (mounted) {
+        setState(() {
+          _isLoadingStreak = false;
+        });
+      }
+    }
   }
 
   void _onScroll() {
@@ -67,6 +158,22 @@ class _BerandaPageState extends State<BerandaPage> {
       setState(() {
         _isScrolled = isScrolled;
       });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    WidgetsBinding.instance.removeObserver(this);
+    if (widget.scrollController == null) {
+      _scrollController.dispose();
+    }
+    super.dispose();
+  }
+
+  void resetScrollToTop() {
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
     }
   }
 
@@ -89,103 +196,78 @@ class _BerandaPageState extends State<BerandaPage> {
     final bottomInset = _bottomContentInset(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final titleColor = isDark ? darkTextPrimary : lightTextPrimary;
-    final textPrimary = titleColor;
-    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
-    final surface = isDark ? darkSurface : lightSurface;
-    final border = isDark ? darkBorder : lightBorder;
 
     return Scaffold(
-      body: AppBackground(
-        child: CustomScrollView(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          slivers: [
-            SliverAppBar(
-              pinned: true,
-              expandedHeight: 95.0,
-              backgroundColor: _isScrolled
-                  ? (isDark ? darkBackground : lightBackground)
-                  : Colors.transparent,
-              surfaceTintColor: Colors.transparent,
-              elevation: _isScrolled ? 1 : 0,
-              scrolledUnderElevation: 0,
-              automaticallyImplyLeading: false,
-              actions: [
-                AppHeaderActions(titleColor: titleColor),
-              ],
-              flexibleSpace: FlexibleSpaceBar(
-                titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
-                centerTitle: false,
+      body: CustomScrollView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        slivers: [
+              SliverAppBar(
+                pinned: true,
+                backgroundColor: isDark ? darkBackground : lightBackground,
+                surfaceTintColor: Colors.transparent,
+                elevation: _isScrolled ? 1 : 0,
+                scrolledUnderElevation: 0,
+                automaticallyImplyLeading: false,
+                toolbarHeight: 65.0,
+                titleSpacing: 20,
                 title: Text(
                   'IbuSehat',
                   style: TextStyle(
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w800,
                     color: titleColor,
-                    fontSize: 22,
-                    letterSpacing: -0.5,
+                    fontSize: 26,
+                    letterSpacing: -1.0,
+                  ),
+                ),
+                actions: [
+                  AppHeaderActions(titleColor: titleColor),
+                ],
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildWeeklyActivityCard(context),
+                      const SizedBox(height: 24),
+                      _buildProgressTodaySection(context),
+                      const SizedBox(height: 16), // Memberikan sedikit ruang bawah, hilangkan bottomInset yang terlalu besar
+                    ],
                   ),
                 ),
               ),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-              sliver: SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildWeeklyActivityCard(
-                      context,
-                      isDark: isDark,
-                      textPrimary: textPrimary,
-                      textSecondary: textSecondary,
-                      surface: surface,
-                      border: border,
-                    ),
-                    const SizedBox(height: 24),
-                    _buildProgressTodaySection(
-                      context,
-                      textPrimary: textPrimary,
-                      textSecondary: textSecondary,
-                      surface: surface,
-                      border: border,
-                      isDark: isDark,
-                    ),
-                    SizedBox(height: bottomInset),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+            ],
+          ),
+      );
   }
+          
 
-  Widget _buildWeeklyActivityCard(
-    BuildContext context, {
-    required bool isDark,
-    required Color textPrimary,
-    required Color textSecondary,
-    required Color surface,
-    required Color border,
-  }) {
+
+  Widget _buildWeeklyActivityCard(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? darkSurface : lightSurface;
+    final border = isDark ? darkBorder : lightBorder;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+
     const dayLabels = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
-    const dayStatuses = [
-      _DayStatus.check,
-      _DayStatus.progress,
-      _DayStatus.empty,
-      _DayStatus.check,
-      _DayStatus.fire,
-      _DayStatus.check,
-      _DayStatus.empty,
-    ];
-    final activeCount = dayStatuses.where((status) => status != _DayStatus.empty).length;
-    final currentStreak = activeCount;
-
+    
+    final currentStreak = _streakData?.streakActive ?? 0;
     final now = DateTime.now();
     final startOfWeek = now.subtract(Duration(days: now.weekday % 7));
+    
+    // Get last 7 days from calendar
+    final last7Days = _streakData?.calendar
+        .where((day) {
+          final date = DateTime.parse(day.date);
+          return date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
+                 date.isBefore(now.add(const Duration(days: 1)));
+        })
+        .toList() ?? [];
 
     return Container(
       width: double.infinity,
@@ -346,7 +428,7 @@ class _BerandaPageState extends State<BerandaPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Konsisten selama $currentStreak hari berturut turut',
+                        'Konsisten selama ${_streakData?.streakActive ?? 0} hari berturut-turut',
                         maxLines: 2,
                         style: TextStyle(
                           fontSize: 14,
@@ -377,11 +459,14 @@ class _BerandaPageState extends State<BerandaPage> {
                             context,
                             MaterialPageRoute(
                               builder: (_) => StreakDetailPage(
-                                currentStreak: currentStreak,
-                                longestStreak: currentStreak,
+                                currentStreak: _streakData?.streakActive ?? 0,
+                                longestStreak: _streakData?.streakLongest ?? 0,
                               ),
                             ),
-                          );
+                          ).then((_) {
+                            // Refresh streak data when returning from detail page
+                            _fetchStreakData();
+                          });
                         },
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
@@ -429,13 +514,43 @@ class _BerandaPageState extends State<BerandaPage> {
                 final isToday = day.day == now.day &&
                     day.month == now.month &&
                     day.year == now.year;
+                
+                // Find matching calendar day
+                CalendarDay? calendarDay;
+                if (last7Days.isNotEmpty) {
+                  try {
+                    calendarDay = last7Days.firstWhere(
+                      (cd) {
+                        final cdDate = DateTime.parse(cd.date);
+                        return cdDate.year == day.year &&
+                               cdDate.month == day.month &&
+                               cdDate.day == day.day;
+                      },
+                    );
+                  } catch (e) {
+                    // No matching day found
+                  }
+                }
+                
+                // Determine status from calendar day
+                _DayStatus status = _DayStatus.empty;
+                if (calendarDay != null) {
+                  // Show green checkmark for all completed days (including today)
+                  if (calendarDay.status == 'completed') {
+                    status = _DayStatus.check;
+                  } else if (calendarDay.status == 'today' && isToday) {
+                    // Only show progress if today and NOT completed yet
+                    status = _DayStatus.progress;
+                  }
+                }
+                
                 return Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 2),
                     child: _WeekDayPill(
                       label: dayLabels[index],
                       date: '${day.day}/${day.month}',
-                      status: dayStatuses[index],
+                      status: status,
                       isToday: isToday,
                       surface: surface,
                       border: border,
@@ -452,21 +567,51 @@ class _BerandaPageState extends State<BerandaPage> {
     );
   }
 
-  Widget _buildProgressTodaySection(
-    BuildContext context, {
-    required Color textPrimary,
-    required Color textSecondary,
-    required Color surface,
-    required Color border,
-    required bool isDark,
-  }) {
+  Widget _buildProgressTodaySection(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? darkSurface : lightSurface;
+    final border = isDark ? darkBorder : lightBorder;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+
+    // Get sleep data from provider
+    final sleepProvider = context.watch<SleepProvider>();
+    final sleepTotalHours = sleepProvider.weeklyTotalHours;
+    final sleepPercent = sleepProvider.weeklyProgressPercent;
+    final sleepProgress = sleepPercent / 100.0;
+
+    // Get progress data from provider
+    final progressProvider = context.watch<ProgressProvider>();
+    final progressData = progressProvider.summary;
+
+    // Olahraga dari API
+    final int olahragaMenit = progressData?.weekly.workout.today ?? 0;
+    final int olahragaPercent = progressData?.weekly.workout.percent ?? 0;
+    final double olahragaProgress = olahragaPercent / 100.0;
+    final int olahragaTargetMinutes = progressData?.weekly.workout.targetMinutes ?? 75;
+    final String olahragaTargetText = 'Target mingguan $olahragaTargetMinutes menit';
+
+    // Air putih dari API
+    final int airPutihMl = progressData?.weekly.water.today ?? 0;
+    final int airPutihPercent = progressData?.weekly.water.percent ?? 0;
+    final double airPutihProgress = airPutihPercent / 100.0;
+    final int airPutihTargetMl = progressData?.weekly.water.targetMl ?? 14000;
+    final String airPutihTargetText = 'Target mingguan ${NumberFormat('#,###', 'id').format(airPutihTargetMl ~/ 1000)} liter';
+
+    // Nutrisi dari API
+    final int nutrisiKkal = progressData?.weekly.nutrition.today ?? 0;
+    final int nutrisiPercent = progressData?.weekly.nutrition.percent ?? 0;
+    final double nutrisiProgress = nutrisiPercent / 100.0;
+    final int nutrisiTargetKkal = progressData?.weekly.nutrition.targetKkal ?? 14469;
+    final String nutrisiTargetText = 'Target Mingguan ${NumberFormat('#,###', 'id').format(nutrisiTargetKkal)} kkal';
+    
     final items = <Widget>[
       _buildProgressCard(
         title: 'Olahraga',
-        value: '32 menit',
-        target: 'Target 50 menit',
-        percent: 64,
-        progress: 0.64,
+        value: '$olahragaMenit menit',
+        target: olahragaTargetText,
+        percent: olahragaPercent,
+        progress: olahragaProgress,
         icon: Icons.directions_run_rounded,
         iconColor: _kPrimary,
         iconBg: isDark ? _kPrimary.withValues(alpha: 0.15) : _kVeryLightPurple,
@@ -479,10 +624,10 @@ class _BerandaPageState extends State<BerandaPage> {
       ),
       _buildProgressCard(
         title: 'Air Putih',
-        value: '6 gelas',
-        target: 'Target 8 gelas',
-        percent: 75,
-        progress: 0.75,
+        value: '$airPutihMl ML',
+        target: airPutihTargetText,
+        percent: airPutihPercent,
+        progress: airPutihProgress,
         icon: Icons.water_drop_rounded,
         iconColor: _kBlue,
         iconBg: isDark ? _kBlue.withValues(alpha: 0.15) : const Color(0xFFDBEAFE),
@@ -495,10 +640,10 @@ class _BerandaPageState extends State<BerandaPage> {
       ),
       _buildProgressCard(
         title: 'Nutrisi',
-        value: '1200 kkal',
-        target: 'Target 1800 kkal',
-        percent: 67,
-        progress: 0.67,
+        value: '$nutrisiKkal kkal',
+        target: nutrisiTargetText,
+        percent: nutrisiPercent,
+        progress: nutrisiProgress,
         icon: Icons.restaurant_rounded,
         iconColor: _kSuccess,
         iconBg: isDark ? _kSuccess.withValues(alpha: 0.15) : const Color(0xFFDCFCE7),
@@ -510,12 +655,12 @@ class _BerandaPageState extends State<BerandaPage> {
         isDark: isDark,
       ),
       _buildProgressCard(
-        title: 'Skincare',
-        value: '1x',
-        target: 'Target 2x',
-        percent: 50,
-        progress: 0.5,
-        icon: Icons.spa_rounded,
+        title: 'Jam Tidur',
+        value: '${sleepTotalHours.toStringAsFixed(1)} jam',
+        target: 'Target Mingguan 49 jam',
+        percent: sleepPercent,
+        progress: sleepProgress,
+        icon: Icons.bedtime,
         iconColor: _kPink,
         iconBg: isDark ? _kPink.withValues(alpha: 0.15) : const Color(0xFFFCE7F3),
         barColor: _kPink,
@@ -534,7 +679,7 @@ class _BerandaPageState extends State<BerandaPage> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Progress Hari Ini',
+              'Progress Minggu Ini',
               style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w800,
@@ -556,6 +701,7 @@ class _BerandaPageState extends State<BerandaPage> {
         ),
         const SizedBox(height: 12),
         GridView.count(
+          padding: EdgeInsets.zero,
           crossAxisCount: 2,
           mainAxisSpacing: 8,
           crossAxisSpacing: 12,
@@ -820,19 +966,18 @@ class _WeekDayPill extends StatelessWidget {
           width: 24,
           height: 24,
           decoration: const BoxDecoration(
-            color: Color(0xFFDCFCE7),
+            color: _kSuccess,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.check_rounded, size: 14, color: _kSuccess),
+          child: const Icon(Icons.check_rounded, size: 14, color: Colors.white),
         );
       case _DayStatus.progress:
         return Container(
           width: 24,
           height: 24,
           decoration: BoxDecoration(
-            color: _kVeryLightPurple,
             shape: BoxShape.circle,
-            border: Border.all(color: _kPrimary.withValues(alpha: 0.25)),
+            border: Border.all(color: _kPrimary, width: 2),
           ),
           child: const Icon(
             Icons.directions_run_rounded,

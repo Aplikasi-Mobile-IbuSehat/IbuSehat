@@ -8,6 +8,7 @@ import 'package:mobile/pages/diet/supplement_detail_page.dart';
 import 'package:mobile/pages/diet/add_supplement_page.dart';
 import 'package:mobile/services/api_cache_manager.dart';
 import 'package:mobile/services/auth_service.dart';
+import 'package:mobile/services/fcm_service.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
@@ -466,7 +467,6 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
             ),
             child: Row(
               children: [
-                // Gambar suplemen skeleton
                 Container(
                   width: 44,
                   height: 44,
@@ -501,7 +501,6 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Checkbox skeleton
                 Container(
                   width: 32,
                   height: 32,
@@ -521,124 +520,173 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
   void _showTimePickerSheet(int index) {
     final supplement = _supplements[index];
     TimeOfDay selectedTime = supplement.reminderTime ?? TimeOfDay.now();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final border = isDark ? darkBorder : const Color(0xFFEEEEEE);
+    const kPrimary = Color(0xFF7C3AED);
 
-    showGeneralDialog(
+    showModalBottomSheet<void>(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Dismiss',
-      barrierColor: Colors.black.withValues(alpha: 0.5),
-      transitionDuration: const Duration(milliseconds: 400),
-      pageBuilder: (context, anim1, anim2) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            final hourController = FixedExtentScrollController(initialItem: selectedTime.hour);
-            final minuteController = FixedExtentScrollController(initialItem: selectedTime.minute);
+      backgroundColor: surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        int tempHour = selectedTime.hour;
+        int tempMinute = selectedTime.minute;
+        final hourController = FixedExtentScrollController(initialItem: tempHour);
+        final minuteController = FixedExtentScrollController(initialItem: tempMinute);
 
-            return Align(
-              alignment: Alignment.bottomCenter,
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  margin: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? darkSurface
-                        : Colors.white,
-                    borderRadius: BorderRadius.circular(32),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Handle bar
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: isDark ? darkBorder : Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        'Atur Pengingat',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? darkTextPrimary
-                              : const Color(0xFF1F1235),
+                  // Header row
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          child: Text(
+                            'Batal',
+                            style: TextStyle(
+                              color: isDark ? darkTextSecondary : Colors.grey.shade500,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15,
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        height: 140,
-                        child: Row(
+                        Text(
+                          'Atur Pengingat',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: textPrimary,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () async {
+                            Navigator.pop(ctx);
+                            await FcmNotificationService.instance.checkAndPromptPermission(context);
+                            _updateSupplementAt(
+                              index,
+                              supplement.copyWith(
+                                reminderTime: TimeOfDay(hour: tempHour, minute: tempMinute),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Simpan',
+                            style: TextStyle(
+                              color: Color(0xFF7C3AED),
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(height: 1, color: border),
+                  const SizedBox(height: 8),
+                  // Wheel picker with highlight strip
+                  SizedBox(
+                    height: 180,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Positioned(
+                          left: 40,
+                          right: 40,
+                          child: Container(
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: kPrimary.withValues(alpha: isDark ? 0.18 : 0.08),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                          ),
+                        ),
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             SizedBox(
-                              width: 80,
+                              width: 90,
                               child: ListWheelScrollView.useDelegate(
                                 controller: hourController,
-                                itemExtent: 45,
-                                perspective: 0.005,
-                                diameterRatio: 1.2,
+                                itemExtent: 48,
+                                perspective: 0.004,
+                                diameterRatio: 1.4,
                                 physics: const FixedExtentScrollPhysics(),
-                                onSelectedItemChanged: (value) {
-                                  setModalState(() {
-                                    selectedTime = TimeOfDay(hour: value, minute: selectedTime.minute);
-                                  });
-                                },
+                                onSelectedItemChanged: (v) => setModalState(() => tempHour = v),
                                 childDelegate: ListWheelChildBuilderDelegate(
                                   childCount: 24,
-                                  builder: (context, value) {
-                                    final isSelected = selectedTime.hour == value;
+                                  builder: (ctx, i) {
+                                    final isSelected = tempHour == i;
                                     return Center(
                                       child: AnimatedDefaultTextStyle(
-                                        duration: const Duration(milliseconds: 200),
+                                        duration: const Duration(milliseconds: 180),
                                         style: TextStyle(
-                                          fontSize: isSelected ? 28 : 20,
-                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                                          color: isSelected ? const Color(0xFF7C3AED) : Colors.grey.shade400,
+                                          fontSize: isSelected ? 30 : 22,
+                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w400,
+                                          color: isSelected
+                                              ? kPrimary
+                                              : (isDark ? darkTextSecondary : Colors.grey.shade400),
                                         ),
-                                        child: Text(value.toString().padLeft(2, '0')),
+                                        child: Text(i.toString().padLeft(2, '0')),
                                       ),
                                     );
                                   },
                                 ),
                               ),
                             ),
-                            const Text(
+                            Text(
                               ':',
                               style: TextStyle(
-                                fontSize: 24,
+                                fontSize: 28,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFF1F1235),
+                                color: textPrimary,
                               ),
                             ),
                             SizedBox(
-                              width: 80,
+                              width: 90,
                               child: ListWheelScrollView.useDelegate(
                                 controller: minuteController,
-                                itemExtent: 45,
-                                perspective: 0.005,
-                                diameterRatio: 1.2,
+                                itemExtent: 48,
+                                perspective: 0.004,
+                                diameterRatio: 1.4,
                                 physics: const FixedExtentScrollPhysics(),
-                                onSelectedItemChanged: (value) {
-                                  setModalState(() {
-                                    selectedTime = TimeOfDay(hour: selectedTime.hour, minute: value);
-                                  });
-                                },
+                                onSelectedItemChanged: (v) => setModalState(() => tempMinute = v),
                                 childDelegate: ListWheelChildBuilderDelegate(
                                   childCount: 60,
-                                  builder: (context, value) {
-                                    final isSelected = selectedTime.minute == value;
+                                  builder: (ctx, i) {
+                                    final isSelected = tempMinute == i;
                                     return Center(
                                       child: AnimatedDefaultTextStyle(
-                                        duration: const Duration(milliseconds: 200),
+                                        duration: const Duration(milliseconds: 180),
                                         style: TextStyle(
-                                          fontSize: isSelected ? 28 : 20,
-                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                                          color: isSelected ? const Color(0xFF7C3AED) : Colors.grey.shade400,
+                                          fontSize: isSelected ? 30 : 22,
+                                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w400,
+                                          color: isSelected
+                                              ? kPrimary
+                                              : (isDark ? darkTextSecondary : Colors.grey.shade400),
                                         ),
-                                        child: Text(value.toString().padLeft(2, '0')),
+                                        child: Text(i.toString().padLeft(2, '0')),
                                       ),
                                     );
                                   },
@@ -647,96 +695,14 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
                             ),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                ),
-                                child: const Text(
-                                  'Batal',
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 16,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Container(
-                                height: 54,
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerRight,
-                                  ),
-                                  borderRadius: BorderRadius.circular(16),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 6),
-                                    ),
-                                  ],
-                                ),
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    _updateSupplementAt(
-                                      index,
-                                      supplement.copyWith(reminderTime: selectedTime),
-                                    );
-                                    Navigator.pop(context);
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.transparent,
-                                    foregroundColor: Colors.white,
-                                    shadowColor: Colors.transparent,
-                                    padding: const EdgeInsets.symmetric(vertical: 0),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: const Text(
-                                    'Simpan',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 20),
+                ],
               ),
             );
           },
-        );
-      },
-      transitionBuilder: (context, anim1, anim2, child) {
-        return SlideTransition(
-          position: Tween<Offset>(
-            begin: const Offset(0, 1),
-            end: Offset.zero,
-          ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic)),
-          child: FadeTransition(opacity: anim1, child: child),
         );
       },
     );
@@ -804,7 +770,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
                       final result = await Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => SupplementDetailPage(supplement: _supplements[index],),
+                          builder: (context) => SupplementDetailPage(supplement: _supplements[index]),
                         ),
                       );
                       if (result != null && result is Supplement) {

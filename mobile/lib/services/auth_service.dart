@@ -11,8 +11,6 @@ import 'package:mobile/services/api_cache_manager.dart';
 import 'package:mobile/services/fcm_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Hasil login — eksplisit, tidak pakai sentinel string kosong yang rawan
-/// salah baca ('' = cancel itu bug menunggu waktu).
 sealed class AuthResult {
   const AuthResult();
 }
@@ -49,6 +47,7 @@ class AuthUser {
     if (json['is_premium'] != true) return false;
 
     final until = json['premium_until'];
+
     if (until == null) return true;
 
     try {
@@ -63,6 +62,7 @@ class AuthUser {
 
     final name = json['name'] as String?;
     final email = json['email'] as String?;
+
     if (name == null || email == null) return null;
 
     return AuthUser(
@@ -127,12 +127,18 @@ class AuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   static Future<void>? _googleInitFuture;
 
-  Future<void> _ensureGoogleInitialized() {
-    return _googleInitFuture ??= _googleSignIn.initialize(
+  Future<void> _ensureGoogleInitialized() async {
+    if (_googleInitFuture != null) {
+      return _googleInitFuture;
+    }
+
+    _googleInitFuture = _googleSignIn.initialize(
       serverClientId: ApiConfig.googleServerClientId.isEmpty
           ? null
           : ApiConfig.googleServerClientId,
     );
+
+    return _googleInitFuture;
   }
 
   // ================= TOKEN =================
@@ -142,6 +148,18 @@ class AuthService {
   Future<String?> get token async {
     if (_cachedToken != null) return _cachedToken;
     _cachedToken = await _storage.read(key: _tokenKey);
+    if (_cachedToken != null && _cachedToken!.isNotEmpty) {
+      return _cachedToken;
+    }
+
+    // Migrasi token lama dari SharedPreferences (versi sebelum secure storage).
+    final prefs = await SharedPreferences.getInstance();
+    final legacyToken = prefs.getString(_tokenKey);
+    if (legacyToken != null && legacyToken.isNotEmpty) {
+      await _saveToken(legacyToken);
+      await prefs.remove(_tokenKey);
+    }
+
     return _cachedToken;
   }
 
@@ -175,11 +193,17 @@ class AuthService {
   }
 
   Future<AuthUser?> get currentUser async {
-    if (_cachedUser != null) return _cachedUser;
+    if (_cachedUser != null) {
+      return _cachedUser;
+    }
 
     final prefs = await SharedPreferences.getInstance();
+
     final raw = prefs.getString(_userJsonKey);
-    if (raw == null || raw.isEmpty) return null;
+
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
 
     try {
       final parsed = AuthUser.fromJson(jsonDecode(raw) as Map<String, dynamic>);
@@ -247,22 +271,33 @@ class AuthService {
 
   Future<void> _doSyncUserFromApi() async {
     final t = await token;
-    if (t == null || t.isEmpty) return;
+
+    if (t == null || t.isEmpty) {
+      return;
+    }
 
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.apiBaseUrl}/user'),
-        headers: {
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $t',
-        },
-      ).timeout(_timeout);
+      final response = await http
+          .get(
+            Uri.parse('${ApiConfig.apiBaseUrl}/user'),
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $t',
+            },
+          )
+          .timeout(_timeout);
 
       if (await _handleAuthExpiry(response.statusCode)) return;
-      if (response.statusCode != 200) return;
+
+      if (response.statusCode != 200) {
+        return;
+      }
 
       final decoded = jsonDecode(response.body);
-      if (decoded is! Map<String, dynamic>) return;
+
+      if (decoded is! Map<String, dynamic>) {
+        return;
+      }
 
       await _saveUser(
         AuthUser(
@@ -293,6 +328,7 @@ class AuthService {
 
   Future<Map<String, String>> jsonHeadersWithAuth() async {
     final t = await token;
+
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -314,6 +350,7 @@ class AuthService {
     }
 
     final GoogleSignInAccount account;
+
     try {
       account = await _googleSignIn.authenticate();
     } on GoogleSignInException catch (e) {
@@ -331,7 +368,9 @@ class AuthService {
     }
 
     // ================= KIRIM KE BACKEND =================
+
     http.Response response;
+
     try {
       response = await http
           .post(
@@ -352,6 +391,7 @@ class AuthService {
     }
 
     Map<String, dynamic> body;
+
     try {
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic>) {
@@ -390,9 +430,11 @@ class AuthService {
   // ================= LOGOUT =================
 
   Future<void> signOut() async {
+    // clear cache aplikasi
     ApiCacheManager.instance.clearAll();
 
     final t = await token;
+
     if (t != null && t.isNotEmpty) {
       try {
         await http.post(

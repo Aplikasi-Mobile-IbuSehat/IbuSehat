@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:mobile/models/activity_model.dart';
 import 'package:mobile/services/activity_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/screens/activity_history_screen.dart';
 
 class LangkahCard extends StatefulWidget {
@@ -34,11 +34,9 @@ class _LangkahCardState extends State<LangkahCard> {
     });
 
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final loggedIn = await AuthService.instance.isLoggedIn;
 
-      final token = prefs.getString('token');
-
-      if (token == null || token.isEmpty) {
+      if (!loggedIn) {
         if (!mounted) return;
         setState(() {
           _data = null;
@@ -66,13 +64,6 @@ class _LangkahCardState extends State<LangkahCard> {
     }
   }
 
-  String _formatSteps(int n) {
-    if (n >= 1000) {
-      return '${(n / 1000).toStringAsFixed(1)}k langkah';
-    }
-    return '$n langkah';
-  }
-
   String _mainStepsLine() {
     if (_loading) {
       return '...';
@@ -88,10 +79,17 @@ class _LangkahCardState extends State<LangkahCard> {
     }
 
     final steps = _data!.todayStepsEstimate;
-    if (steps == 0) {
-      return '0 langkah hari ini';
+    if (steps >= 1000) {
+      return '${(steps / 1000).toStringAsFixed(1)}k';
     }
-    return _formatSteps(steps);
+    return '$steps';
+  }
+
+  String get _stepsSuffix {
+    if (_loading || _missingToken || _error != null || _data == null) {
+      return '';
+    }
+    return 'langkah hari ini';
   }
 
   @override
@@ -140,15 +138,34 @@ class _LangkahCardState extends State<LangkahCard> {
 
             const SizedBox(height: 8),
 
-            Text(
-              _mainStepsLine(),
-
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w800,
-                color: textPrimary,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _mainStepsLine(),
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: textPrimary,
+                  letterSpacing: -0.3,
+                  height: 1.1,
+                ),
               ),
             ),
+            if (_stepsSuffix.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                _stepsSuffix,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: textSecondary,
+                ),
+              ),
+            ],
 
             const SizedBox(height: 16),
             Divider(color: border, height: 1),

@@ -46,6 +46,9 @@ dependencies:
   # Webview dependencies
   webview_flutter: ^4.8.0
   webview_flutter_android: ^3.16.0
+  confetti: ^0.7.0
+  firebase_messaging: ^16.2.0
+  app_settings: ^5.1.1
 
   # Workout & tracking dependencies
   flutter_local_notifications: ^19.0.0
@@ -56,9 +59,6 @@ dependencies:
   firebase_auth: ^6.4.0
   google_sign_in: ^7.2.0
   cached_network_image: ^3.4.1
-  firebase_messaging: ^16.2.0
-
-  app_settings: ^5.1.1
 
   # Loading screens
   path_drawing: ^1.0.1
@@ -101,7 +101,6 @@ flutter:
     # videos
     - assets/videos/
     - assets/videos/exercises/
-    - assets/videos/dumble/
 
     # skincare
     - assets/images/skincare/bekas_luka_sesar.webp
@@ -113,3 +112,5 @@ flutter:
     - assets/images/skincare/stretch_marks_sesar.webp
     - assets/images/skincare/hero_section_normal.webp
     - assets/images/skincare/hero_section_sesar.webp
+ 
+

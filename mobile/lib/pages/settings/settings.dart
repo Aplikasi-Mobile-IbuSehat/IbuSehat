@@ -12,6 +12,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:mobile/theme/app_theme.dart';
 import 'package:app_settings/app_settings.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -20,15 +21,39 @@ class SettingsPage extends StatefulWidget {
   State<SettingsPage> createState() => _SettingsPageState();
 }
 
-class _SettingsPageState extends State<SettingsPage> {
-  bool _isNotificationEnabled = true;
+class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver {
+  bool _isNotificationEnabled = false;
   AuthUser? _user;
   bool _profileLoading = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadUser();
+    _checkNotificationPermission();
+  }
+
+  Future<void> _checkNotificationPermission() async {
+    final status = await Permission.notification.status;
+    if (mounted) {
+      setState(() {
+        _isNotificationEnabled = status.isGranted;
+      });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkNotificationPermission();
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _loadUser() async {
@@ -240,93 +265,101 @@ class _SettingsPageState extends State<SettingsPage> {
     final borderColor = isDark ? darkBorder : lightBorder;
     return Scaffold(
       extendBodyBehindAppBar: true,
-      body: AppBackground(
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            _buildAppBar(),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 20),
-                    _buildProfileHeader(),
-                    if (!_profileLoading && !_isPremium) ...[
-                      const SizedBox(height: 32),
-                      _buildPremiumCard(context),
-                    ],
-                    const SizedBox(height: 40),
-                    _buildSectionTitle('Lainnya'),
-                    const SizedBox(height: 16),
-                    _buildMenuTile(
-                      icon: Icons.face_retouching_natural_rounded,
-                      title: 'Skincare',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SkincarePage(),
-                        ),
-                      ),
-                    ),
-                    _buildMenuTile(
-                      icon: Icons.calculate_outlined,
-                      title: 'Kalkulator Ideal',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const BMICalculatorPage(),
-                        ),
-                      ),
-                    ),
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          _buildAppBar(),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 20),
+                  _buildProfileHeader(),
+                  if (!_profileLoading && !_isPremium) ...[
                     const SizedBox(height: 32),
-                    _buildSectionTitle('Pengaturan Akun'),
-                    const SizedBox(height: 16),
-                    _buildMenuTile(
-                      icon: Icons.person_outline_rounded,
-                      title: 'Data Kesehatan',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const EditHealthDataPage(),
-                        ),
-                      ),
-                    ),
-                    _buildMenuTile(
-                      icon: Icons.language_rounded,
-                      title: 'Bahasa',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LanguageSettingsPage(),
-                        ),
-                      ),
-                    ),
-                    _buildToggleTile(
-                      icon: Icons.notifications_none_rounded,
-                      title: 'Notifikasi',
-                      value: _isNotificationEnabled,
-                      onChanged: (val) async {
-                        // Buka pengaturan notifikasi sistem — tidak bisa toggle paksa dari app
-                        await AppSettings.openAppSettings(type: AppSettingsType.notification);
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    _buildThemeSelector(
-                      textPrimary: textPrimary,
-                      textSecondary: textSecondary,
-                      borderColor: borderColor,
-                    ),
-                    const SizedBox(height: 48),
-                    _buildLogoutButton(),
-                    const SizedBox(height: 120),
+                    _buildPremiumCard(context),
                   ],
-                ),
+                  const SizedBox(height: 40),
+                  _buildSectionTitle('Lainnya'),
+                  const SizedBox(height: 16),
+                  _buildMenuTile(
+                    icon: Icons.face_retouching_natural_rounded,
+                    title: 'Skincare',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SkincarePage(),
+                      ),
+                    ),
+                  ),
+                  _buildMenuTile(
+                    icon: Icons.calculate_outlined,
+                    title: 'Kalkulator Ideal',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BMICalculatorPage(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  _buildSectionTitle('Pengaturan Akun'),
+                  const SizedBox(height: 16),
+                  _buildMenuTile(
+                    icon: Icons.person_outline_rounded,
+                    title: 'Data Kesehatan',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const EditHealthDataPage(),
+                      ),
+                    ),
+                  ),
+                  _buildMenuTile(
+                    icon: Icons.language_rounded,
+                    title: 'Bahasa',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LanguageSettingsPage(),
+                      ),
+                    ),
+                  ),
+                  _buildToggleTile(
+                    icon: Icons.notifications_none_rounded,
+                    title: 'Notifikasi',
+                    value: _isNotificationEnabled,
+                    onChanged: (val) async {
+                      if (val && !_isNotificationEnabled) {
+                        // Minta izin
+                        final result = await Permission.notification.request();
+                        if (result.isGranted) {
+                          setState(() => _isNotificationEnabled = true);
+                        } else if (result.isPermanentlyDenied) {
+                          await AppSettings.openAppSettings(type: AppSettingsType.notification);
+                        }
+                      } else if (!val && _isNotificationEnabled) {
+                        // Buka pengaturan karena kita tidak bisa revoke secara programatis
+                        await AppSettings.openAppSettings(type: AppSettingsType.notification);
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _buildThemeSelector(
+                    textPrimary: textPrimary,
+                    textSecondary: textSecondary,
+                    borderColor: borderColor,
+                  ),
+                  const SizedBox(height: 48),
+                  _buildLogoutButton(),
+                  const SizedBox(height: 120),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

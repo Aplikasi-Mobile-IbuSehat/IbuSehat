@@ -9,6 +9,8 @@ import 'package:mobile/pages/diet/food_detail_page.dart';
 import 'package:mobile/services/api_cache_manager.dart';
 import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/theme/app_colors.dart';
+import 'package:provider/provider.dart';
+import 'package:mobile/providers/progress_provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class DietFoodLogSection extends StatefulWidget {
@@ -143,6 +145,7 @@ class DietFoodLogSectionState extends State<DietFoodLogSection> {
           _foodLog.add(Food.fromLogJson(data));
         });
         _notifyTotalKcal();
+        context.read<ProgressProvider>().fetchSummary(forceRefresh: true);
       }
     } catch (_) {}
   }
@@ -463,6 +466,7 @@ class DietFoodLogSectionState extends State<DietFoodLogSection> {
                             _foodLog[index] = Food.fromLogJson(data);
                           });
                           _notifyTotalKcal();
+                          context.read<ProgressProvider>().fetchSummary(forceRefresh: true);
                         }
                       } catch (_) {}
                     },
@@ -486,6 +490,7 @@ class DietFoodLogSectionState extends State<DietFoodLogSection> {
                             _foodLog.removeAt(index);
                           });
                           _notifyTotalKcal();
+                          context.read<ProgressProvider>().fetchSummary(forceRefresh: true);
                         }
                       } catch (_) {}
                     },

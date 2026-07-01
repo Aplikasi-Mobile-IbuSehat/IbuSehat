@@ -201,18 +201,3 @@ class AppTheme {
 }
 
 final AppThemeController appThemeController = AppThemeController();
-
-class AppBackground extends StatelessWidget {
-  final Widget? child;
-
-  const AppBackground({super.key, this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return ColoredBox(
-      color: theme.scaffoldBackgroundColor,
-      child: child ?? const SizedBox.shrink(),
-    );
-  }
-}

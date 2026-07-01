@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/theme/app_colors.dart';
-import 'package:mobile/theme/app_theme.dart';
 import 'package:intl/intl.dart';
 
 class EditHealthDataPage extends StatefulWidget {
@@ -69,7 +68,6 @@ class _EditHealthDataPageState extends State<EditHealthDataPage> {
     final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
@@ -89,9 +87,8 @@ class _EditHealthDataPageState extends State<EditHealthDataPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: AppBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
+      body: SafeArea(
+        child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: Form(
               key: _formKey,
@@ -148,7 +145,6 @@ class _EditHealthDataPageState extends State<EditHealthDataPage> {
             ),
           ),
         ),
-      ),
     );
   }
 

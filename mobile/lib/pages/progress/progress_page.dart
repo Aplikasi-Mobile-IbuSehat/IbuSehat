@@ -4,10 +4,11 @@ import 'package:mobile/pages/progress/widgets/score_tidur_card.dart';
 import 'package:mobile/pages/progress/widgets/berat_card.dart';
 import 'package:mobile/pages/progress/widgets/waktu_latihan_card.dart';
 import 'package:mobile/pages/progress/widgets/kalori_makanan_card.dart';
-import 'package:mobile/theme/app_theme.dart';
+import 'package:mobile/pages/progress/widgets/air_putih_card.dart';
+import 'package:provider/provider.dart';
+import 'package:mobile/providers/progress_provider.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:mobile/widgets/app_header_actions.dart';
-
 
 class ProgressPage extends StatefulWidget {
   const ProgressPage({super.key, this.refreshToken = 0});
@@ -26,6 +27,11 @@ class _ProgressPageState extends State<ProgressPage> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ProgressProvider>().fetchSummary();
+      }
+    });
   }
 
   @override
@@ -56,71 +62,74 @@ class _ProgressPageState extends State<ProgressPage> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final titleColor = isDark ? darkTextPrimary : lightTextPrimary;
+
     return Scaffold(
-      body: AppBackground(
-        child: CustomScrollView(
-          controller: _scrollController,
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            SliverAppBar(
-              pinned: true,
-              expandedHeight: 95.0,
-              backgroundColor: _isScrolled
-                  ? (isDark ? darkBackground : lightBackground)
-                  : Colors.transparent,
-              surfaceTintColor: Colors.transparent,
-              elevation: _isScrolled ? 1 : 0,
-              scrolledUnderElevation: 0,
-              automaticallyImplyLeading: false,
-              actions: [
-                AppHeaderActions(titleColor: titleColor),
-              ],
-              flexibleSpace: FlexibleSpaceBar(
-                titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
-                centerTitle: false,
-                title: Text(
-                  'Progress',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w700,
-                    color: titleColor,
-                    fontSize: 22,
-                    letterSpacing: -0.5,
+      body: CustomScrollView(
+        controller: _scrollController,
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
+        ),
+        slivers: [
+              SliverAppBar(
+                pinned: true,
+                expandedHeight: 95.0,
+                backgroundColor: _isScrolled
+                    ? (isDark ? darkBackground : lightBackground)
+                    : Colors.transparent,
+                surfaceTintColor: Colors.transparent,
+                elevation: _isScrolled ? 1 : 0,
+                scrolledUnderElevation: 0,
+                automaticallyImplyLeading: false,
+                actions: [
+                  AppHeaderActions(titleColor: titleColor),
+                ],
+                flexibleSpace: FlexibleSpaceBar(
+                  titlePadding: const EdgeInsets.only(left: 20, bottom: 16),
+                  centerTitle: false,
+                  title: Text(
+                    'Progress',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: titleColor,
+                      fontSize: 22,
+                      letterSpacing: -0.5,
+                    ),
                   ),
                 ),
               ),
-            ),
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        const Expanded(
-                          child: LangkahCard(),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: ScoreTidurCard(
-                            key: ValueKey(widget.refreshToken),
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                  child: Column(
+                    children: [
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: LangkahCard(),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    const BeratCard(),
-                    const SizedBox(height: 16),
-                    const WaktuLatihanCard(),
-                    const SizedBox(height: 16),
-                    const KaloriMakananCard(),
-                    const SizedBox(height: 16),
-                  ],
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ScoreTidurCard(
+                              key: ValueKey(widget.refreshToken),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const BeratCard(),
+                      const SizedBox(height: 16),
+                      const WaktuLatihanCard(),
+                      const SizedBox(height: 16),
+                      const KaloriMakananCard(),
+                      const SizedBox(height: 16),
+                      const AirPutihCard(),
+                      const SizedBox(height: 16),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
+            ],
+          ),
     );
   }
 }

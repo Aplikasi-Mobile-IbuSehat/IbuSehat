@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:mobile/pages/diet/food_log_section.dart';
 import 'package:mobile/pages/diet/supplement_list_section.dart';
 import 'package:mobile/pages/diet/water_intake_section.dart';
-import 'package:mobile/theme/app_theme.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:mobile/widgets/app_header_actions.dart';
 import 'package:mobile/widgets/modern_sliver_refresh.dart';
@@ -63,8 +62,7 @@ class _DietPageState extends State<DietPage> with AutomaticKeepAliveClientMixin 
     final titleColor = isDark ? darkTextPrimary : lightTextPrimary;
 
     return Scaffold(
-      body: AppBackground(
-        child: CustomScrollView(
+      body: CustomScrollView(
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(
             parent: BouncingScrollPhysics(),
@@ -130,7 +128,6 @@ class _DietPageState extends State<DietPage> with AutomaticKeepAliveClientMixin 
             ),
           ],
         ),
-      ),
     );
   }
 

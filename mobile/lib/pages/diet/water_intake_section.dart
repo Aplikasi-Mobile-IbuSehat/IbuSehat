@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:mobile/models/water_intake.dart';
+import 'package:mobile/models/water_intake_model.dart';
 import 'package:mobile/pages/diet/water_intake_page.dart';
+import 'package:mobile/providers/progress_provider.dart';
 import 'package:mobile/services/water_intake_service.dart';
 import 'package:mobile/theme/app_colors.dart';
+import 'package:provider/provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class DietWaterIntakeSection extends StatefulWidget {
@@ -33,7 +35,8 @@ class DietWaterIntakeSectionState extends State<DietWaterIntakeSection> {
     super.dispose();
   }
 
-  Future<void> refresh({bool forceRefresh = false}) => _fetchData(forceRefresh: forceRefresh);
+  Future<void> refresh({bool forceRefresh = false}) =>
+      _fetchData(forceRefresh: forceRefresh);
 
   void _scheduleAutoRetry() {
     if (_retryScheduled || !mounted) return;
@@ -104,7 +107,6 @@ class DietWaterIntakeSectionState extends State<DietWaterIntakeSection> {
     );
   }
 
-  /// Skeleton loading — same shimmer style as DietFoodLogSection
   Widget _buildSkeleton({
     required bool isDark,
     required Color cardColor,
@@ -133,7 +135,6 @@ class DietWaterIntakeSectionState extends State<DietWaterIntakeSection> {
         ),
         child: Row(
           children: [
-            // Icon placeholder
             Container(
               width: 56,
               height: 56,
@@ -143,7 +144,6 @@ class DietWaterIntakeSectionState extends State<DietWaterIntakeSection> {
               ),
             ),
             const SizedBox(width: 16),
-            // Text + progress bar placeholder
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -182,7 +182,6 @@ class DietWaterIntakeSectionState extends State<DietWaterIntakeSection> {
               ),
             ),
             const SizedBox(width: 12),
-            // Chevron placeholder
             Container(
               width: 40,
               height: 40,
@@ -230,6 +229,7 @@ class DietWaterIntakeSectionState extends State<DietWaterIntakeSection> {
 
     return GestureDetector(
       onTap: () async {
+        final progressProvider = context.read<ProgressProvider>();
         await Navigator.push(
           context,
           MaterialPageRoute(
@@ -240,7 +240,7 @@ class DietWaterIntakeSectionState extends State<DietWaterIntakeSection> {
                 if (mounted) {
                   setState(() {
                     _data = _data!.copyWith(
-                      waterIntake: currentIntake + amount,
+                      waterIntake: _data!.waterIntake + amount,
                     );
                   });
                 }
@@ -248,7 +248,10 @@ class DietWaterIntakeSectionState extends State<DietWaterIntakeSection> {
             ),
           ),
         );
-        _fetchData(forceRefresh: true);
+
+        await _fetchData();
+        if (mounted) progressProvider.fetchSummary(forceRefresh: true);
+        
       },
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -256,6 +259,13 @@ class DietWaterIntakeSectionState extends State<DietWaterIntakeSection> {
           color: surfaceColor,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.12),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [

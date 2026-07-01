@@ -13,6 +13,7 @@ import 'package:mobile/pages/catat_tidur_page.dart';
 import 'package:mobile/pages/riwayat_tidur_page.dart';
 import 'package:mobile/pages/sleep/sleep_dashboard_page.dart';
 import 'package:mobile/providers/sleep_provider.dart';
+import 'package:mobile/providers/progress_provider.dart';
 import 'package:mobile/screens/tracking_screen.dart';
 import 'package:mobile/services/tracking_notifications.dart';
 
@@ -21,6 +22,11 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Firebase.initializeApp();
+  await FcmNotificationService.instance.init();
+
+  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
 
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.dumpErrorToConsole(details);
@@ -58,8 +64,12 @@ Future<void> main() async {
   }
 
   runApp(
-    ChangeNotifierProvider(
-      create: (_) => SleepProvider(),
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => SleepProvider()),
+        ChangeNotifierProvider(create: (_) => ProgressProvider()),
+        ChangeNotifierProvider.value(value: appThemeController),
+      ],
       child: const MyApp(),
     ),
   );

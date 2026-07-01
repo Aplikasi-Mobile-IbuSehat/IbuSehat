@@ -273,8 +273,8 @@ class _ProgramDetailPageState extends State<ProgramDetailPage> {
                                 ),
                                 onFavoriteToggle: () =>
                                     _toggleFavorite(exercise.id),
-                                onDetail: () {
-                                  Navigator.push(
+                                onDetail: () async {
+                                  final result = await Navigator.push(
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) =>
@@ -283,6 +283,11 @@ class _ProgramDetailPageState extends State<ProgramDetailPage> {
                                       ),
                                     ),
                                   );
+                                  // Refresh data if workout was completed
+                                  if (result == true && mounted) {
+                                    // Optionally refresh the program details
+                                    setState(() {});
+                                  }
                                 },
                               );
                             },

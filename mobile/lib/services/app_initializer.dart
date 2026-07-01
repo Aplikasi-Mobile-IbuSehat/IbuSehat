@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/config/api_config.dart';
@@ -50,8 +49,6 @@ class AppInitializer {
       return InitialRoute.login;
     }
 
-    // ✅ FIX 1: Sync dulu dari backend SEBELUM cek onboarding,
-    // supaya isOnboardingDone selalu pakai data terbaru dari server.
     try {
       await AuthService.instance.syncUserFromApi().timeout(const Duration(seconds: 5));
     } catch (_) {

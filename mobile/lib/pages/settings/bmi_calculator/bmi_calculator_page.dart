@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/theme/app_colors.dart';
-import 'package:mobile/theme/app_theme.dart';
 import 'dart:math' as math;
 
 class BMICalculatorPage extends StatefulWidget {
@@ -111,7 +110,6 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
     final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
@@ -131,26 +129,24 @@ class _BMICalculatorPageState extends State<BMICalculatorPage> {
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: AppBackground(
-        child: SafeArea(
-          child: SingleChildScrollView(
-            physics: const BouncingScrollPhysics(),
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildInputSection(isDark),
-                const SizedBox(height: 32),
-                _buildBMIResultCard(),
-                const SizedBox(height: 16),
-                _buildBodyFatCard(isDark),
-                const SizedBox(height: 16),
-                _buildWHtRSection(isDark),
-                const SizedBox(height: 32),
-                _buildBMITable(isDark),
-                const SizedBox(height: 100),
-              ],
-            ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildInputSection(isDark),
+              const SizedBox(height: 32),
+              _buildBMIResultCard(),
+              const SizedBox(height: 16),
+              _buildBodyFatCard(isDark),
+              const SizedBox(height: 16),
+              _buildWHtRSection(isDark),
+              const SizedBox(height: 32),
+              _buildBMITable(isDark),
+              const SizedBox(height: 100),
+            ],
           ),
         ),
       ),

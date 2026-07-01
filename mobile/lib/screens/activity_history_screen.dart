@@ -1,19 +1,18 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:mobile/models/activity_model.dart';
 import 'package:mobile/screens/activity_detail_screen.dart';
 import 'package:mobile/services/activity_service.dart';
+import 'package:mobile/theme/app_colors.dart';
 
-// ─── Colors ────────────────────────────────────────────────────────────────
-const _kBgColor = Color(0xFFF5F5FF);
-const _kCardBg = Color(0xFFFFFFFF);
+// ─── Brand colors ──────────────────────────────────────────────────────────
 const _kPrimary = Color(0xFF7C3AED);
-const _kChipBg = Color(0xFFEDE9FE);
+const _kChipBgLight = Color(0xFFEDE9FE);
+const _kChipBgDark = Color(0xFF2A1F45);
 const _kAmber = Color(0xFFF59E0B);
 const _kOrange = Color(0xFFF97316);
-const _kGrey = Color(0xFF9CA3AF);
-const _kDark = Color(0xFF1F1235);
 
 // ─── Month helper ──────────────────────────────────────────────────────────
 const _monthNames = [
@@ -147,8 +146,16 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   // ═══════════════════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? darkBackground : lightBackground;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final border = isDark ? darkBorder : lightBorder;
+    final chipBg = isDark ? _kChipBgDark : _kChipBgLight;
+
     return Scaffold(
-      backgroundColor: _kBgColor,
+      backgroundColor: bgColor,
       body: SafeArea(
         child: RefreshIndicator(
           color: _kPrimary,
@@ -156,20 +163,31 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              // ── Header ──
-              SliverToBoxAdapter(child: _buildHeader()),
-              // ── Month tabs ──
-              SliverToBoxAdapter(child: _buildMonthTabs()),
+              SliverToBoxAdapter(
+                child: _buildHeader(textPrimary, textSecondary),
+              ),
+              SliverToBoxAdapter(
+                child: _buildMonthTabs(
+                  surface: surface,
+                  border: border,
+                  textSecondary: textSecondary,
+                ),
+              ),
               const SliverToBoxAdapter(child: SizedBox(height: 16)),
-              // ── Body ──
               if (_loading)
-                _buildLoadingSliver()
+                _buildLoadingSliver(surface, chipBg)
               else if (_errorMessage != null)
-                _buildErrorSliver()
+                _buildErrorSliver(textSecondary)
               else if (_filtered.isEmpty)
-                _buildEmptySliver()
+                _buildEmptySliver(textSecondary)
               else
-                _buildListSliver(),
+                _buildListSliver(
+                  surface: surface,
+                  chipBg: chipBg,
+                  textPrimary: textPrimary,
+                  textSecondary: textSecondary,
+                  border: border,
+                ),
               const SliverToBoxAdapter(child: SizedBox(height: 24)),
             ],
           ),
@@ -178,10 +196,9 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     );
   }
 
-  // ── Header ─────────────────────────────────────────────────────────────
-  Widget _buildHeader() {
+  Widget _buildHeader(Color textPrimary, Color textSecondary) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 4),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -189,21 +206,34 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
             children: [
               GestureDetector(
                 onTap: () => Navigator.pop(context),
-                child: const Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: _kDark),
+                child: Icon(
+                  Icons.arrow_back_ios_new_rounded,
+                  size: 20,
+                  color: textPrimary,
+                ),
               ),
               const SizedBox(width: 12),
-              const Text(
-                'Riwayat Aktivitas',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: _kDark),
+              Expanded(
+                child: Text(
+                  'Riwayat Aktivitas',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: textPrimary,
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
           Padding(
             padding: const EdgeInsets.only(left: 32),
             child: Text(
               _subtitleRange,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: _kGrey),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: textSecondary,
+              ),
             ),
           ),
         ],
@@ -211,8 +241,11 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     );
   }
 
-  // ── Month tabs ─────────────────────────────────────────────────────────
-  Widget _buildMonthTabs() {
+  Widget _buildMonthTabs({
+    required Color surface,
+    required Color border,
+    required Color textSecondary,
+  }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
       child: Row(
@@ -231,16 +264,16 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                         decoration: BoxDecoration(
-                          color: active ? _kPrimary : _kCardBg,
+                          color: active ? _kPrimary : surface,
                           borderRadius: BorderRadius.circular(24),
-                          border: active ? null : Border.all(color: const Color(0xFFE5E7EB)),
+                          border: active ? null : Border.all(color: border),
                         ),
                         child: Text(
                           _tabs[i].shortLabel,
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
-                            color: active ? Colors.white : _kGrey,
+                            color: active ? Colors.white : textSecondary,
                           ),
                         ),
                       ),
@@ -255,8 +288,9 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
             child: Text(
               'Semua >',
               style: TextStyle(
-                fontSize: 13, fontWeight: FontWeight.w600,
-                color: _showAll ? _kPrimary : _kGrey,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: _showAll ? _kPrimary : textSecondary,
               ),
             ),
           ),
@@ -266,31 +300,30 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
   }
 
   // ── Loading ────────────────────────────────────────────────────────────
-  SliverToBoxAdapter _buildLoadingSliver() {
+  SliverToBoxAdapter _buildLoadingSliver(Color surface, Color chipBg) {
     return SliverToBoxAdapter(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
           children: List.generate(3, (_) => Padding(
             padding: const EdgeInsets.only(bottom: 12),
-            child: _ShimmerCard(),
+            child: _ShimmerCard(surface: surface, chipBg: chipBg),
           )),
         ),
       ),
     );
   }
 
-  // ── Error ──────────────────────────────────────────────────────────────
-  SliverFillRemaining _buildErrorSliver() {
+  SliverFillRemaining _buildErrorSliver(Color textSecondary) {
     return SliverFillRemaining(
       hasScrollBody: false,
       child: Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.wifi_off_rounded, size: 56, color: _kGrey.withValues(alpha: 0.5)),
+          Icon(Icons.wifi_off_rounded, size: 56, color: textSecondary.withValues(alpha: 0.5)),
           const SizedBox(height: 16),
           Text(
             _errorMessage!,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _kGrey),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textSecondary),
           ),
           const SizedBox(height: 12),
           ElevatedButton(
@@ -308,25 +341,29 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
     );
   }
 
-  // ── Empty ──────────────────────────────────────────────────────────────
-  SliverFillRemaining _buildEmptySliver() {
+  SliverFillRemaining _buildEmptySliver(Color textSecondary) {
     return SliverFillRemaining(
       hasScrollBody: false,
       child: Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Icon(Icons.directions_run_rounded, size: 64, color: _kPrimary.withValues(alpha: 0.25)),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             'Belum ada aktivitas',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _kGrey),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textSecondary),
           ),
         ]),
       ),
     );
   }
 
-  // ── Activity list ──────────────────────────────────────────────────────
-  SliverPadding _buildListSliver() {
+  SliverPadding _buildListSliver({
+    required Color surface,
+    required Color chipBg,
+    required Color textPrimary,
+    required Color textSecondary,
+    required Color border,
+  }) {
     final items = _filtered;
     return SliverPadding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -341,6 +378,11 @@ class _ActivityHistoryScreenState extends State<ActivityHistoryScreen> {
               fmtDuration: _fmtDuration,
               fmtDate: _fmtDate,
               onDetailTap: () => _showDetails(items[i]),
+              surface: surface,
+              chipBg: chipBg,
+              textPrimary: textPrimary,
+              textSecondary: textSecondary,
+              border: border,
             ),
           ),
           childCount: items.length,
@@ -361,6 +403,11 @@ class _ActivityCard extends StatelessWidget {
     required this.fmtDuration,
     required this.fmtDate,
     required this.onDetailTap,
+    required this.surface,
+    required this.chipBg,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.border,
   });
 
   final ActivityModel activity;
@@ -369,16 +416,22 @@ class _ActivityCard extends StatelessWidget {
   final String Function(int) fmtDuration;
   final String Function(DateTime) fmtDate;
   final VoidCallback onDetailTap;
+  final Color surface;
+  final Color chipBg;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color border;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: _kCardBg,
+        color: surface,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: border),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF7C3AED).withValues(alpha: 0.06),
+            color: _kPrimary.withValues(alpha: 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -406,8 +459,8 @@ class _ActivityCard extends StatelessWidget {
                         // Purple circle icon
                         Container(
                           width: 40, height: 40,
-                          decoration: const BoxDecoration(
-                            color: _kChipBg,
+                          decoration: BoxDecoration(
+                            color: chipBg,
                             shape: BoxShape.circle,
                           ),
                           child: Icon(typeIcon, color: _kPrimary, size: 22),
@@ -419,12 +472,12 @@ class _ActivityCard extends StatelessWidget {
                             Text(
                               activity.title,
                               maxLines: 1, overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: _kDark),
+                              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: textPrimary),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               fmtDate(activity.startedAt),
-                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: _kGrey),
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: textSecondary),
                             ),
                           ],
                         )),
@@ -437,12 +490,16 @@ class _ActivityCard extends StatelessWidget {
                         icon: Icons.location_on_outlined,
                         iconColor: _kPrimary,
                         text: '${fmtKm(activity.distanceKm)} km',
+                        chipBg: chipBg,
+                        textPrimary: textPrimary,
                       ),
                       const SizedBox(width: 8),
                       _StatChipInline(
                         icon: Icons.bolt,
                         iconColor: _kAmber,
                         text: activity.pace?.isNotEmpty == true ? '${activity.pace} /km' : '- /km',
+                        chipBg: chipBg,
+                        textPrimary: textPrimary,
                       ),
                     ]),
                     const SizedBox(height: 8),
@@ -451,12 +508,16 @@ class _ActivityCard extends StatelessWidget {
                         icon: Icons.access_time_rounded,
                         iconColor: _kPrimary,
                         text: fmtDuration(activity.durationSeconds),
+                        chipBg: chipBg,
+                        textPrimary: textPrimary,
                       ),
                       const SizedBox(width: 8),
                       _StatChipInline(
                         icon: Icons.local_fire_department_rounded,
                         iconColor: _kOrange,
                         text: '${activity.calories} kal',
+                        chipBg: chipBg,
+                        textPrimary: textPrimary,
                       ),
                     ]),
                   ],
@@ -470,19 +531,19 @@ class _ActivityCard extends StatelessWidget {
           // Bottom: "Lihat detail rute"
           Container(
             decoration: BoxDecoration(
-              border: Border(top: BorderSide(color: Colors.grey.withValues(alpha: 0.12))),
+              border: Border(top: BorderSide(color: border)),
             ),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(children: const [
-                Icon(Icons.north_east_rounded, size: 14, color: _kGrey),
-                SizedBox(width: 6),
+              child: Row(children: [
+                Icon(Icons.north_east_rounded, size: 14, color: textSecondary),
+                const SizedBox(width: 6),
                 Text(
                   'Lihat detail rute',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: _kGrey),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: textSecondary),
                 ),
-                Spacer(),
-                Icon(Icons.chevron_right_rounded, size: 18, color: _kGrey),
+                const Spacer(),
+                Icon(Icons.chevron_right_rounded, size: 18, color: textSecondary),
               ]),
             ),
           ),
@@ -500,10 +561,14 @@ class _StatChipInline extends StatelessWidget {
     required this.icon,
     required this.iconColor,
     required this.text,
+    required this.chipBg,
+    required this.textPrimary,
   });
   final IconData icon;
   final Color iconColor;
   final String text;
+  final Color chipBg;
+  final Color textPrimary;
 
   @override
   Widget build(BuildContext context) {
@@ -511,7 +576,7 @@ class _StatChipInline extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: _kChipBg,
+          color: chipBg,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -521,7 +586,7 @@ class _StatChipInline extends StatelessWidget {
             child: Text(
               text,
               maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _kDark),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textPrimary),
             ),
           ),
         ]),
@@ -530,26 +595,116 @@ class _StatChipInline extends StatelessWidget {
   }
 }
 
-// ── Route preview thumbnail ──────────────────────────────────────────────
-class _RoutePreview extends StatelessWidget {
+// ── Route preview thumbnail dengan FlutterMap ────────────────────────────
+class _RoutePreview extends StatefulWidget {
   const _RoutePreview({required this.coordinates});
   final List<ActivityCoordinate> coordinates;
 
   @override
+  State<_RoutePreview> createState() => _RoutePreviewState();
+}
+
+class _RoutePreviewState extends State<_RoutePreview> {
+  final MapController _mapController = MapController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fitMapBounds();
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  void _fitMapBounds() {
+    if (widget.coordinates.length < 2) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        final points = widget.coordinates
+            .map((c) => LatLng(c.lat, c.lng))
+            .where((p) => p.latitude != 0.0 || p.longitude != 0.0)
+            .toList();
+
+        if (points.length < 2) return;
+
+        final bounds = LatLngBounds.fromPoints(points);
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.all(8),
+          ),
+        );
+      } catch (e) {
+        debugPrint('_RoutePreview._fitMapBounds: $e');
+      }
+    });
+  }
+
+  LatLng get _mapCenter {
+    if (widget.coordinates.isEmpty) return const LatLng(-6.2, 106.8);
+    if (widget.coordinates.length == 1) {
+      return LatLng(widget.coordinates.first.lat, widget.coordinates.first.lng);
+    }
+    double lat = 0, lng = 0;
+    for (final c in widget.coordinates) {
+      lat += c.lat;
+      lng += c.lng;
+    }
+    return LatLng(lat / widget.coordinates.length, lng / widget.coordinates.length);
+  }
+
+  List<LatLng> get _routePoints {
+    return widget.coordinates
+        .map((c) => LatLng(c.lat, c.lng))
+        .where((p) => p.latitude != 0.0 || p.longitude != 0.0)
+        .toList();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
-      width: 80, height: 80,
+      width: 80,
+      height: 80,
       decoration: BoxDecoration(
-        color: _kChipBg,
+        color: Theme.of(context).brightness == Brightness.dark
+            ? _kChipBgDark
+            : _kChipBgLight,
         borderRadius: BorderRadius.circular(14),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(14),
-        child: coordinates.length >= 2
-            ? CustomPaint(
-                painter: _RoutePainter(
-                  coordinates.map((c) => Offset(c.lng, c.lat)).toList(),
+        child: widget.coordinates.length >= 2
+            ? FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  initialCenter: _mapCenter,
+                  initialZoom: 14,
+                  interactionOptions: const InteractionOptions(
+                    flags: InteractiveFlag.none,
+                  ),
                 ),
+                children: [
+                  TileLayer(
+                    urlTemplate:
+                        'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+                    subdomains: const ['a', 'b', 'c', 'd'],
+                    userAgentPackageName: 'com.ibusehat.app',
+                  ),
+                  PolylineLayer(
+                    polylines: [
+                      Polyline(
+                        points: _routePoints,
+                        strokeWidth: 3,
+                        color: _kPrimary,
+                      ),
+                    ],
+                  ),
+                ],
               )
             : const Center(
                 child: Icon(Icons.map_rounded, color: _kPrimary, size: 28),
@@ -559,63 +714,22 @@ class _RoutePreview extends StatelessWidget {
   }
 }
 
-class _RoutePainter extends CustomPainter {
-  _RoutePainter(this.points);
-  final List<Offset> points;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (points.length < 2) return;
-
-    double minX = points.first.dx, maxX = minX;
-    double minY = points.first.dy, maxY = minY;
-    for (final p in points) {
-      minX = min(minX, p.dx); maxX = max(maxX, p.dx);
-      minY = min(minY, p.dy); maxY = max(maxY, p.dy);
-    }
-
-    final rangeX = maxX - minX == 0 ? 0.001 : maxX - minX;
-    final rangeY = maxY - minY == 0 ? 0.001 : maxY - minY;
-    const pad = 12.0;
-    final w = size.width - pad * 2;
-    final h = size.height - pad * 2;
-
-    Offset map(Offset p) => Offset(
-      pad + (p.dx - minX) / rangeX * w,
-      pad + (1.0 - (p.dy - minY) / rangeY) * h,
-    );
-
-    final path = Path()..moveTo(map(points.first).dx, map(points.first).dy);
-    for (int i = 1; i < points.length; i++) {
-      final m = map(points[i]);
-      path.lineTo(m.dx, m.dy);
-    }
-
-    final paint = Paint()
-      ..color = _kPrimary
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(path, paint);
-
-    // Red dot at end
-    final last = map(points.last);
-    canvas.drawCircle(last, 4, Paint()..color = Colors.red);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
+// ─── CustomPainter sudah tidak digunakan lagi ────────────────────────────
+// Dihapus: _RoutePainter class
 
 // ── Shimmer loading card ─────────────────────────────────────────────────
 class _ShimmerCard extends StatelessWidget {
+  const _ShimmerCard({required this.surface, required this.chipBg});
+
+  final Color surface;
+  final Color chipBg;
+
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: _kCardBg,
+        color: surface,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
@@ -655,7 +769,7 @@ class _ShimmerCard extends StatelessWidget {
     return Container(
       width: w, height: h,
       decoration: BoxDecoration(
-        color: _kChipBg.withValues(alpha: 0.5),
+        color: chipBg.withValues(alpha: 0.5),
         borderRadius: isCircle ? null : BorderRadius.circular(radius),
         shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
       ),

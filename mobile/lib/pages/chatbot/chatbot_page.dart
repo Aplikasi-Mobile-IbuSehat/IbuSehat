@@ -668,3 +668,4 @@ class Message {
     required this.timestamp,
   });
 }
+

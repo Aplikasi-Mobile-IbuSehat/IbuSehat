@@ -13,9 +13,6 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    private const GOAL_INTAKE = 2500;
-    private const MAX_INTAKE_PER_UPDATE = 5000;
-
     private const GOOGLE_VALID_ISSUERS = [
         'accounts.google.com',
         'https://accounts.google.com',
@@ -86,64 +83,6 @@ class AuthController extends Controller
     }
 
     // -------------------------------------------------------------------------
-    // Water Intake endpoints
-    // -------------------------------------------------------------------------
-
-    public function getWaterIntake(Request $request): JsonResponse
-    {
-        $user = $request->user();
-
-        $wasReset = $this->resetWaterIntakeIfNewDay($user);
-
-        if ($wasReset) {
-            $user->save();
-        }
-
-        return response()->json([
-            'water_intake' => $user->water_intake,
-            'goal_intake'  => self::GOAL_INTAKE,
-        ]);
-    }
-
-    public function updateWaterIntake(Request $request): JsonResponse
-    {
-        $request->validate([
-            'amount' => 'required|integer|min:1|max:' . self::MAX_INTAKE_PER_UPDATE,
-        ]);
-
-        $user = $request->user();
-
-        $this->resetWaterIntakeIfNewDay($user);
-        $user->water_intake += $request->integer('amount');
-        $user->save();
-
-        return response()->json([
-            'message'      => 'Water intake updated',
-            'water_intake' => $user->water_intake,
-            'goal_intake'  => self::GOAL_INTAKE,
-        ]);
-    }
-
-    public function reduceWaterIntake(Request $request): JsonResponse
-    {
-        $request->validate([
-            'amount' => 'required|integer|min:1|max:' . self::MAX_INTAKE_PER_UPDATE,
-        ]);
-
-        $user = $request->user();
-
-        $this->resetWaterIntakeIfNewDay($user);
-        $user->water_intake = max(0, $user->water_intake - $request->integer('amount'));
-        $user->save();
-
-        return response()->json([
-            'message'      => 'Water intake reduced',
-            'water_intake' => $user->water_intake,
-            'goal_intake'  => self::GOAL_INTAKE,
-        ]);
-    }
-
-    // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
 
@@ -178,30 +117,9 @@ class AuthController extends Controller
             $user->email_verified_at = now();
         }
 
-        $this->resetWaterIntakeIfNewDay($user);
-
         $user->save();
 
         return $user;
-    }
-
-    private function resetWaterIntakeIfNewDay(User $user): bool
-    {
-        $tz    = config('app.timezone', 'UTC');
-        $today = now()->timezone($tz)->toDateString();
-
-        $lastDate = $user->water_intake_date
-            ? $user->water_intake_date->timezone($tz)->toDateString()
-            : null;
-
-        if ($lastDate === $today) {
-            return false;
-        }
-
-        $user->water_intake      = 0;
-        $user->water_intake_date = now();
-
-        return true;
     }
 
     private function verifyGoogleToken(string $idToken): ?array
@@ -284,8 +202,6 @@ class AuthController extends Controller
             'is_onboarding_done' => (bool) $user->is_onboarding_done,
             'is_premium'         => $user->hasActivePremium(),
             'premium_until'      => $user->premium_until?->toIso8601String(),
-            'water_intake'       => $user->water_intake,
-            'goal_intake'        => self::GOAL_INTAKE,
         ];
     }
 }

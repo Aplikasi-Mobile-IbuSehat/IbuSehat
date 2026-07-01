@@ -9,6 +9,9 @@ import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart' hide Path;
 import 'package:mobile/models/activity_model.dart';
+import 'package:mobile/pages/payments/premium_page.dart';
+import 'package:mobile/services/auth_service.dart';
+import 'package:mobile/theme/app_colors.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:screenshot/screenshot.dart';
@@ -19,10 +22,7 @@ const _kPrimary    = Color(0xFF7C3AED);
 const _kBlue       = Color(0xFF3B82F6);
 const _kAmber      = Color(0xFFF59E0B);
 const _kOrange     = Color(0xFFF97316);
-const _kGrey       = Color(0xFF9CA3AF);
-const _kDark       = Color(0xFF1F1235);
 const _kChipBg     = Color(0xFFEDE9FE);
-const _kCardShadow = Color(0x14000000);
 const _kShareDarkTileUrl =
     'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 const _kShareCardWidth = 400.0;
@@ -41,11 +41,35 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   final MapController _mapController = MapController();
   final ScreenshotController _screenshotController = ScreenshotController();
   bool _shareBusy = false;
+  LatLng? _lastKnownPosition;
+
+  @override
+  void initState() {
+    super.initState();
+    _prepareFallbackLocation();
+  }
 
   @override
   void dispose() {
     _mapController.dispose();
     super.dispose();
+  }
+
+  // ── Prepare fallback location for activities without coordinates ───────────
+  Future<void> _prepareFallbackLocation() async {
+    if (_pts.isEmpty) {
+      try {
+        final pos = await Geolocator.getLastKnownPosition();
+        if (pos != null && mounted) {
+          setState(() {
+            _lastKnownPosition = LatLng(pos.latitude, pos.longitude);
+          });
+        }
+      } catch (e) {
+        debugPrint('ActivityDetailScreen._prepareFallbackLocation: $e');
+        // Silently fail, will use default Batam coordinates
+      }
+    }
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────
@@ -180,6 +204,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
       child: _ActivityShareCard(
         activity: _a,
         points: _pts,
+        lastKnownPosition: _lastKnownPosition,
         fmtDate: _fmtDate,
         fmtDuration: _fmtDuration,
         fmtKm: _fmtKm,
@@ -190,9 +215,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   Future<Uint8List?> _captureShareImage() async {
     setState(() => _shareBusy = true);
     try {
+      // Wait for map tiles to fully load before capturing
       final image = await _screenshotController.captureFromWidget(
         _buildShareCard(),
-        delay: const Duration(milliseconds: 600),
+        delay: const Duration(milliseconds: 800),
         pixelRatio: 3.0,
         context: context,
       );
@@ -339,11 +365,30 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     }
   }
 
+  // ── Premium gate for share ──────────────────────────────────────────────
+  void _handleShareWithPremiumCheck() {
+    final isPremium = AuthService.instance.isPremiumSync;
+    if (!isPremium) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PremiumPage()),
+      );
+      return;
+    }
+    _showShareSheet();
+  }
+
   void _showShareSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sheetBg = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final border = isDark ? darkBorder : lightBorder;
+
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF111827),
+      backgroundColor: sheetBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -360,17 +405,17 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                   width: 40,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: textSecondary.withValues(alpha: 0.35),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Bagikan Aktivitas',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
+                    color: textPrimary,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -405,10 +450,11 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                       ),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: _kDark,
+                      backgroundColor: isDark ? darkBackground : lightBackground,
+                      foregroundColor: textPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(color: border),
                       ),
                       elevation: 0,
                     ),
@@ -446,10 +492,10 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => Navigator.pop(sheetCtx),
-                  child: const Text(
+                  child: Text(
                     'Tutup',
                     style: TextStyle(
-                      color: Colors.white60,
+                      color: textSecondary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -469,9 +515,14 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
     final center = _mapCenter ?? const LatLng(-6.2, 106.8);
     final splits = _calculateKmSplits();
     final hasRouteData = _pts.length >= 2;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final border = isDark ? darkBorder : lightBorder;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: surface,
       body: Stack(
         children: [
           // ── Full screen scroll ──────────────────────────────────────────
@@ -564,39 +615,22 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                             child: Row(
                               children: [
                                 // Back button
-                                GestureDetector(
-                                  onTap: () => Navigator.pop(context),
-                                  child: Container(
-                                    width: 36, height: 36,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white.withValues(alpha: 0.85),
-                                      shape: BoxShape.circle,
-                                      boxShadow: const [
-                                        BoxShadow(
-                                            color: _kCardShadow,
-                                            blurRadius: 6),
-                                      ],
-                                    ),
-                                    child: const Icon(
-                                        Icons.arrow_back_ios_new_rounded,
-                                        size: 16,
-                                        color: _kDark),
+                                IconButton(
+                                  onPressed: () => Navigator.pop(context),
+                                  icon: Icon(
+                                    Icons.arrow_back_ios_new_rounded,
+                                    color: textPrimary,
+                                    size: 20,
                                   ),
                                 ),
-                                const Expanded(
+                                Expanded(
                                   child: Text(
                                     'Detail Aktivitas',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
-                                      color: Colors.white,
-                                      shadows: [
-                                        Shadow(
-                                          color: Colors.black54,
-                                          blurRadius: 6,
-                                        ),
-                                      ],
+                                      color: textPrimary,
                                     ),
                                   ),
                                 ),
@@ -614,9 +648,9 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
               // ── WHITE CONTENT ─────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  decoration: BoxDecoration(
+                    color: surface,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                   ),
                   transform: Matrix4.translationValues(0, -20, 0),
                   child: Padding(
@@ -624,23 +658,22 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // ── Activity title header ──────────────────────────
                         Text(
                           _a.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w800,
-                            color: _kDark,
+                            color: textPrimary,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Row(children: [
                           Text(
                             '${_fmtDate(_a.startedAt)} · GPS Terverifikasi',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
-                              color: _kGrey,
+                              color: textSecondary,
                             ),
                           ),
                         ]),
@@ -693,36 +726,29 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                           ),
                         ]),
 
-                        // ── KM Splits ─────────────────────────────────────
                         const SizedBox(height: 28),
-                        Row(children: const [
-                          Icon(Icons.timer, size: 18, color: _kPrimary),
-                          SizedBox(width: 8),
+                        Row(children: [
+                          const Icon(Icons.timer, size: 18, color: _kPrimary),
+                          const SizedBox(width: 8),
                           Text(
                             'Waktu per KM',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: _kDark,
+                              color: textPrimary,
                             ),
                           ),
                         ]),
                         const SizedBox(height: 12),
                         Container(
                           decoration: BoxDecoration(
-                            color: Colors.white,
+                            color: isDark ? darkBackground : lightBackground,
                             borderRadius: BorderRadius.circular(16),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: _kCardShadow,
-                                blurRadius: 12,
-                                offset: Offset(0, 2),
-                              ),
-                            ],
+                            border: Border.all(color: border),
                           ),
                           child: !hasRouteData || splits.isEmpty
-                              ? const Padding(
-                                  padding: EdgeInsets.symmetric(
+                              ? Padding(
+                                  padding: const EdgeInsets.symmetric(
                                     horizontal: 16,
                                     vertical: 20,
                                   ),
@@ -731,7 +757,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w500,
-                                      color: _kGrey,
+                                      color: textSecondary,
                                     ),
                                   ),
                                 )
@@ -742,12 +768,12 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                                       children: [
                                         _KmSplitRow(split: s),
                                         if (i < splits.length - 1)
-                                          const Divider(
+                                          Divider(
                                             height: 1,
                                             thickness: 1,
                                             indent: 56,
                                             endIndent: 16,
-                                            color: Color(0xFFF3F4F6),
+                                            color: border,
                                           ),
                                       ],
                                     );
@@ -766,31 +792,16 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
           Positioned(
             bottom: 0, left: 0, right: 0,
             child: Container(
-              color: Colors.white,
+              color: surface,
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
               child: SafeArea(
                 top: false,
                 child: SizedBox(
                   width: double.infinity,
                   height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: _shareBusy ? null : _showShareSheet,
-                    icon: const Icon(Icons.share_rounded, size: 18),
-                    label: const Text(
-                      'Bagikan Aktivitas',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: _kPrimary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      elevation: 0,
-                    ),
+                  child: _ShareActivityButton(
+                    busy: _shareBusy,
+                    onTap: _handleShareWithPremiumCheck,
                   ),
                 ),
               ),
@@ -811,16 +822,16 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: const Column(
+                    child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircularProgressIndicator(color: _kPrimary),
-                        SizedBox(height: 14),
+                        const CircularProgressIndicator(color: _kPrimary),
+                        const SizedBox(height: 14),
                         Text(
                           'Menyiapkan gambar...',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: _kDark,
+                            color: lightTextPrimary,
                           ),
                         ),
                       ],
@@ -836,25 +847,174 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Share Activity Button — premium-gated
+// ═══════════════════════════════════════════════════════════════════════════
+class _ShareActivityButton extends StatelessWidget {
+  const _ShareActivityButton({
+    required this.busy,
+    required this.onTap,
+  });
+
+  final bool busy;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPremium = AuthService.instance.isPremiumSync;
+
+    if (isPremium) {
+      // ── Premium user: tombol share biasa ────────────────────────────────
+      return ElevatedButton.icon(
+        onPressed: busy ? null : onTap,
+        icon: const Icon(Icons.share_rounded, size: 18),
+        label: const Text(
+          'Bagikan Aktivitas',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _kPrimary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+          elevation: 0,
+        ),
+      );
+    }
+
+    // ── Non-premium: tombol terkunci dengan badge Premium ──────────────────
+    return GestureDetector(
+      onTap: busy ? null : onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: const [
+                Icon(Icons.lock_rounded, color: Colors.white, size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'Bagikan Aktivitas',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            // Badge "Premium" di pojok kanan
+            Positioned(
+              right: 14,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.5),
+                    width: 1,
+                  ),
+                ),
+                child: const Text(
+                  'Premium',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Share card (400×600 portrait)
 // ═══════════════════════════════════════════════════════════════════════════
-class _ActivityShareCard extends StatelessWidget {
+// Share card (400×600 portrait) dengan proper FlutterMap
+// ═══════════════════════════════════════════════════════════════════════════
+class _ActivityShareCard extends StatefulWidget {
   const _ActivityShareCard({
     required this.activity,
     required this.points,
     required this.fmtDate,
     required this.fmtDuration,
     required this.fmtKm,
+    this.lastKnownPosition,
   });
 
   final ActivityModel activity;
   final List<LatLng> points;
+  final LatLng? lastKnownPosition;
   final String Function(DateTime) fmtDate;
   final String Function(int) fmtDuration;
   final String Function(double) fmtKm;
 
+  @override
+  State<_ActivityShareCard> createState() => _ActivityShareCardState();
+}
+
+class _ActivityShareCardState extends State<_ActivityShareCard> {
+  final MapController _mapController = MapController();
+
+  @override
+  void initState() {
+    super.initState();
+    _fitMapBounds();
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  void _fitMapBounds() {
+    if (widget.points.length < 2) {
+      return;
+    }
+
+    // Wait for widget to be built before fitting
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        final bounds = LatLngBounds.fromPoints(widget.points);
+        _mapController.fitCamera(
+          CameraFit.bounds(
+            bounds: bounds,
+            padding: const EdgeInsets.all(40),
+          ),
+        );
+      } catch (e) {
+        debugPrint('_ActivityShareCard._fitMapBounds: $e');
+      }
+    });
+  }
+
   IconData get _typeIcon {
-    switch (activity.type) {
+    switch (widget.activity.type) {
       case 'walking':
         return Icons.directions_walk_rounded;
       case 'cycling':
@@ -865,194 +1025,225 @@ class _ActivityShareCard extends StatelessWidget {
   }
 
   LatLng get _mapCenter {
-    if (points.isEmpty) return const LatLng(-6.2, 106.8);
-    if (points.length == 1) return points.first;
-    double lat = 0, lng = 0;
-    for (final p in points) {
-      lat += p.latitude;
-      lng += p.longitude;
+    // Fallback chain: coordinates → lastKnownPosition → Batam default
+    if (widget.points.isNotEmpty) {
+      if (widget.points.length == 1) return widget.points.first;
+      // Calculate center from all points
+      double lat = 0, lng = 0;
+      for (final p in widget.points) {
+        lat += p.latitude;
+        lng += p.longitude;
+      }
+      return LatLng(lat / widget.points.length, lng / widget.points.length);
+    } else if (widget.lastKnownPosition != null) {
+      return widget.lastKnownPosition!;
+    } else {
+      // Default fallback: Batam, Indonesia
+      return const LatLng(1.1301, 104.0529);
     }
-    return LatLng(lat / points.length, lng / points.length);
   }
 
-  double _fitZoom() {
-    if (points.length < 2) return 14;
-    double minLat = points.first.latitude, maxLat = minLat;
-    double minLng = points.first.longitude, maxLng = minLng;
-    for (final p in points) {
-      if (p.latitude < minLat) minLat = p.latitude;
-      if (p.latitude > maxLat) maxLat = p.latitude;
-      if (p.longitude < minLng) minLng = p.longitude;
-      if (p.longitude > maxLng) maxLng = p.longitude;
+  double get _initialZoom {
+    // Use closer zoom when there's no route (just showing location)
+    return widget.points.length >= 2 ? 14.0 : 15.0;
+  }
+
+  Color get _routeColor {
+    switch (widget.activity.type) {
+      case 'walking':
+        return _kOrange;
+      case 'cycling':
+        return _kBlue;
+      default:
+        return _kBlue;
     }
-    final span = (maxLat - minLat) > (maxLng - minLng)
-        ? (maxLat - minLat)
-        : (maxLng - minLng);
-    if (span < 0.002) return 16;
-    if (span < 0.005) return 15;
-    if (span < 0.01) return 14;
-    if (span < 0.03) return 13;
-    return 12;
   }
 
   @override
   Widget build(BuildContext context) {
-    final pace = activity.pace?.isNotEmpty == true ? activity.pace! : '-';
+    final pace = widget.activity.pace?.isNotEmpty == true 
+        ? widget.activity.pace! 
+        : '-';
 
     return Container(
       width: _kShareCardWidth,
       height: _kShareCardHeight,
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Color(0xFF2A1A4E),
-            Color(0xFF120A22),
-            Color(0xFF07040F),
-          ],
-          stops: [0.0, 0.55, 1.0],
-        ),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: Stack(
+        fit: StackFit.expand,
         children: [
-          SizedBox(
-            height: 260,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(0),
+          // 1. Full-size map as background
+          FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: _mapCenter,
+              initialZoom: _initialZoom,
+              interactionOptions: const InteractionOptions(
+                flags: InteractiveFlag.none,
               ),
-              child: points.length >= 2
-                  ? FlutterMap(
-                      options: MapOptions(
-                        initialCenter: _mapCenter,
-                        initialZoom: _fitZoom(),
-                        interactionOptions: const InteractionOptions(
-                          flags: InteractiveFlag.none,
-                        ),
-                      ),
-                      children: [
-                        TileLayer(
-                          urlTemplate: _kShareDarkTileUrl,
-                          subdomains: const ['a', 'b', 'c', 'd'],
-                          userAgentPackageName: 'com.ibusehat.app',
-                        ),
-                        PolylineLayer(
-                          polylines: [
-                            Polyline(
-                              points: points,
-                              strokeWidth: 5,
-                              color: _kBlue,
-                            ),
-                          ],
-                        ),
-                      ],
-                    )
-                  : Container(
-                      color: const Color(0xFF1F1235),
-                      child: const Center(
-                        child: Icon(
-                          Icons.map_outlined,
-                          color: Colors.white24,
-                          size: 48,
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: _kShareDarkTileUrl,
+                subdomains: const ['a', 'b', 'c', 'd'],
+                userAgentPackageName: 'com.ibusehat.app',
+              ),
+              // Show polyline if there are 2+ points
+              if (widget.points.length >= 2)
+                PolylineLayer(
+                  polylines: [
+                    Polyline(
+                      points: widget.points,
+                      strokeWidth: 5,
+                      color: _routeColor,
+                    ),
+                  ],
+                ),
+              // Show marker if there's exactly 1 point
+              if (widget.points.length == 1)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: widget.points.first,
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        decoration: BoxDecoration(
+                          color: _routeColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white,
+                            width: 2,
+                          ),
                         ),
                       ),
                     ),
+                  ],
+                ),
+            ],
+          ),
+          
+          // 2. Gradient overlay at bottom for text readability
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              height: 320,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0x00000000), // fully transparent
+                    Color(0x00000000), // fully transparent
+                    Color(0x66000000), // ~40% black
+                    Color(0xAA000000), // ~67% black
+                  ],
+                  stops: [0.0, 0.3, 0.7, 1.0],
+                ),
+              ),
             ),
           ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: _kPrimary.withValues(alpha: 0.25),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          _typeIcon,
-                          color: Colors.white,
-                          size: 24,
-                        ),
+          
+          // 3. Text content overlaid on top of gradient
+          Positioned(
+            left: 24,
+            right: 24,
+            bottom: 24,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Row: icon + app name
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const Spacer(),
-                      const Text(
-                        'IbuSehat',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
+                      child: Icon(
+                        _typeIcon,
+                        color: Colors.white,
+                        size: 24,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    activity.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      height: 1.15,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    fmtDate(activity.startedAt),
-                    style: const TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                    const Text(
+                      'IbuSehat',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  widget.activity.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
+                    height: 1.15,
                   ),
-                  const Spacer(),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _ShareStatCell(
-                          value: '${fmtKm(activity.distanceKm)} km',
-                          label: 'Jarak',
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _ShareStatCell(
-                          value: '$pace /km',
-                          label: 'Pace',
-                        ),
-                      ),
-                    ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.fmtDate(widget.activity.startedAt),
+                  style: const TextStyle(
+                    color: Color(0xFF9CA3AF),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _ShareStatCell(
-                          value: fmtDuration(activity.durationSeconds),
-                          label: 'Waktu',
-                        ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ShareStatCell(
+                        value: '${widget.fmtKm(widget.activity.distanceKm)} km',
+                        label: 'Jarak',
                       ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _ShareStatCell(
-                          value: '${activity.calories} kal',
-                          label: 'Kalori',
-                        ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _ShareStatCell(
+                        value: '$pace /km',
+                        label: 'Pace',
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _ShareStatCell(
+                        value: widget.fmtDuration(widget.activity.durationSeconds),
+                        label: 'Waktu',
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _ShareStatCell(
+                        value: '${widget.activity.calories} kal',
+                        label: 'Kalori',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
@@ -1117,18 +1308,18 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final border = isDark ? darkBorder : lightBorder;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surface,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(
-            color: _kCardShadow,
-            blurRadius: 12,
-            offset: Offset(0, 2),
-          ),
-        ],
+        border: Border.all(color: border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1140,10 +1331,10 @@ class _StatCard extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.w800,
-                  color: _kDark,
+                  color: textPrimary,
                   height: 1,
                 ),
               ),
@@ -1155,7 +1346,7 @@ class _StatCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: _kGrey.withValues(alpha: 0.9),
+                    color: textSecondary.withValues(alpha: 0.9),
                   ),
                 ),
               ),
@@ -1164,10 +1355,10 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w500,
-              color: _kGrey,
+              color: textSecondary,
             ),
           ),
         ],
@@ -1196,10 +1387,13 @@ class _KmSplitRow extends StatelessWidget {
   const _KmSplitRow({required this.split});
   final _KmSplit split;
 
-  static const _splitTimeColor = Color(0xFF1F2937);
-
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final chipBg = isDark ? const Color(0xFF2A1F45) : _kChipBg;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
@@ -1207,8 +1401,8 @@ class _KmSplitRow extends StatelessWidget {
           Container(
             width: 28,
             height: 28,
-            decoration: const BoxDecoration(
-              color: _kChipBg,
+            decoration: BoxDecoration(
+              color: chipBg,
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -1227,10 +1421,10 @@ class _KmSplitRow extends StatelessWidget {
             width: 52,
             child: Text(
               split.distanceLabel,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: _splitTimeColor,
+                color: textPrimary,
               ),
             ),
           ),
@@ -1238,10 +1432,10 @@ class _KmSplitRow extends StatelessWidget {
             child: Text(
               split.pacePerKm,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
-                color: _kGrey,
+                color: textSecondary,
               ),
             ),
           ),
@@ -1250,10 +1444,10 @@ class _KmSplitRow extends StatelessWidget {
             child: Text(
               split.splitTime,
               textAlign: TextAlign.right,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: _splitTimeColor,
+                color: textPrimary,
               ),
             ),
           ),

@@ -1,7 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-/// A simple in-memory cache manager to prevent redundant API fetches 
-/// and allow pages to reload instantly.
 class ApiCacheManager {
   ApiCacheManager._();
 
@@ -9,7 +7,6 @@ class ApiCacheManager {
 
   final Map<String, dynamic> _cache = {};
 
-  /// Retrieves data from cache if it exists, or fetches from Network and caches it.
   Future<dynamic> getOrFetch(
     String key,
     Future<dynamic> Function() fetchCallback, {
@@ -31,16 +28,20 @@ class ApiCacheManager {
     }
   }
 
+  /// Langsung set cache tanpa fetch — dipakai setelah add/reduce
+  /// supaya request berikutnya tidak perlu hit API lagi.
+  void set(String key, dynamic value) {
+    _cache[key] = value;
+    debugPrint('ApiCacheManager: Cache SET for $key');
+  }
+
   void invalidate(String key) {
     _cache.remove(key);
+    debugPrint('ApiCacheManager: Cache INVALIDATED for $key');
   }
 
   void clearAll() {
     _cache.clear();
-  }
-
-  void set(String key, dynamic value) {
-    _cache[key] = value;
-    debugPrint('ApiCacheManager: Cache SET for $key');
+    debugPrint('ApiCacheManager: All cache cleared');
   }
 }
