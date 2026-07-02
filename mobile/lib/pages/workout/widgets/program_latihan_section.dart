@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/models/workout_program_model.dart';
+import 'package:mobile/pages/payments/premium_page.dart';
 import 'package:mobile/pages/workout/widgets/workout_program_card.dart';
+import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/services/workout_program_service.dart';
 import 'package:mobile/theme/app_colors.dart';
 
@@ -13,6 +15,8 @@ class ProgramLatihanSection extends StatefulWidget {
 
 class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
   late Future<List<WorkoutProgramModel>> _futurePrograms;
+  late bool _isPremium;
+  late bool _statusLoaded;
 
   void _loadPrograms() {
     setState(() {
@@ -24,6 +28,34 @@ class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
   void initState() {
     super.initState();
     _futurePrograms = WorkoutProgramService.fetchPrograms();
+    final cached = AuthService.instance.cachedUserSync;
+    _statusLoaded = cached != null;
+    _isPremium = cached?.isPremium ?? false;
+
+    if (!_statusLoaded) {
+      _loadFromCache();
+    }
+    _syncPremiumInBackground();
+  }
+
+  Future<void> _loadFromCache() async {
+    final user = await AuthService.instance.currentUser;
+    if (!mounted) return;
+    setState(() {
+      _isPremium = user?.isPremium ?? false;
+      _statusLoaded = true;
+    });
+  }
+
+  Future<void> _syncPremiumInBackground() async {
+    if (!await AuthService.instance.isLoggedIn) return;
+    await AuthService.instance.syncUserFromApi();
+    final user = await AuthService.instance.currentUser;
+    if (!mounted) return;
+    setState(() {
+      _isPremium = user?.isPremium ?? false;
+      _statusLoaded = true;
+    });
   }
 
   @override
@@ -47,39 +79,44 @@ class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
           ),
         ),
         const SizedBox(height: 10),
-        FutureBuilder<List<WorkoutProgramModel>>(
-          future: _futurePrograms,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return _buildLoadingState(isDark);
-            }
+        if (!_statusLoaded)
+          _buildLoadingState(isDark)
+        else if (!_isPremium)
+          _buildPremiumLockState(isDark, surface, border, textSecondary)
+        else
+          FutureBuilder<List<WorkoutProgramModel>>(
+            future: _futurePrograms,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return _buildLoadingState(isDark);
+              }
 
-            if (snapshot.hasError) {
-              debugPrint('ProgramLatihanSection: error=${snapshot.error}');
-              return _buildErrorState(snapshot.error, isDark, surface, border, textSecondary);
-            }
+              if (snapshot.hasError) {
+                debugPrint('ProgramLatihanSection: error=${snapshot.error}');
+                return _buildErrorState(snapshot.error, isDark, surface, border, textSecondary);
+              }
 
-            final programs = snapshot.data ?? [];
-            if (programs.isEmpty) {
-              return Text(
-                'Belum ada program',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: textSecondary,
-                ),
+              final programs = snapshot.data ?? [];
+              if (programs.isEmpty) {
+                return Text(
+                  'Belum ada program',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: textSecondary,
+                  ),
+                );
+              }
+
+              return ListView.builder(
+                itemCount: programs.length,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemBuilder: (context, index) =>
+                    WorkoutProgramCard(program: programs[index]),
               );
-            }
-
-            return ListView.builder(
-              itemCount: programs.length,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemBuilder: (context, index) =>
-                  WorkoutProgramCard(program: programs[index]),
-            );
-          },
-        ),
+            },
+          ),
       ],
     );
   }
@@ -193,6 +230,96 @@ class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildPremiumLockState(
+    bool isDark,
+    Color surface,
+    Color border,
+    Color textSecondary,
+  ) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: border),
+      ),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF4C1D95).withOpacity(0.3) : const Color(0xFFF3E8FF),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.lock_outline_rounded,
+              color: Color(0xFF8B5CF6),
+              size: 32,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Fitur Premium',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: isDark ? darkTextPrimary : lightTextPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Tingkatkan ke Premium untuk mengakses\nsemua program latihan eksklusif.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: textSecondary,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PremiumPage()),
+                );
+                if (mounted) {
+                  final user = AuthService.instance.cachedUserSync;
+                  if (user != null) {
+                    setState(() {
+                      _isPremium = user.isPremium;
+                      _statusLoaded = true;
+                    });
+                  }
+                  _syncPremiumInBackground();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF8B5CF6),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 0,
+              ),
+              child: const Text(
+                'Upgrade Sekarang',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

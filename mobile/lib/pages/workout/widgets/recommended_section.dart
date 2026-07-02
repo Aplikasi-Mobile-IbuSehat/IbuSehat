@@ -356,7 +356,7 @@ class RecommendedSection extends StatelessWidget {
           title: 'Peregangan Malam',
           time: '5 mnt',
           level: 'Pemula',
-          imageUrl: 'https://pbs.twimg.com/media/FC1RfxgWUAMr_qY.jpg',
+          imageUrl: 'https://images.unsplash.com/photo-1606487704494-4e2fa9969cb5?q=80&w=1335&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
         ),
     ];
 

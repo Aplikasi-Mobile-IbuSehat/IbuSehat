@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/pages/catat_tidur_page.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 class SleepFab extends StatelessWidget {
   const SleepFab({super.key});
@@ -12,11 +13,7 @@ class SleepFab extends StatelessWidget {
       child: Container(
         decoration: const BoxDecoration(
           shape: BoxShape.circle,
-          gradient: LinearGradient(
-            colors: [Color(0xFF6C4DFF), Color(0xFF8B5CF6)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
+          gradient: buttonGradient,
           boxShadow: [
             BoxShadow(
               color: Color(0x406C4DFF),

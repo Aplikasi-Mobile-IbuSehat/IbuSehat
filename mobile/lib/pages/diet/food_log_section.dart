@@ -249,7 +249,7 @@ class DietFoodLogSectionState extends State<DietFoodLogSection> {
                     height: 48,
                     decoration: BoxDecoration(
                       color: _getFoodColor(food),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                     child: Icon(
                       _getFoodIcon(food),

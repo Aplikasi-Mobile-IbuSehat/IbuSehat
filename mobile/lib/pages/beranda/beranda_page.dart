@@ -274,14 +274,17 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
       decoration: BoxDecoration(
         gradient: isDark
-            ? null
+            ? const LinearGradient(
+                colors: [Color(0xFF2E1A47), Color(0xFF150B24)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              )
             : const LinearGradient(
                 colors: [_kVeryLightPurple, _kGradientPurpleEnd],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
-        color: isDark ? surface : null,
-        border: isDark ? Border.all(color: border) : null,
+        border: isDark ? Border.all(color: border.withValues(alpha: 0.3)) : null,
         borderRadius: BorderRadius.circular(_kCardRadius),
       ),
       child: Column(
@@ -304,7 +307,7 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Material(
-                    color: surface,
+                    color: isDark ? Colors.white.withValues(alpha: 0.1) : lightSurface,
                     shape: const CircleBorder(),
                     child: InkWell(
                       onTap: () => _showStreakInfoDialog(
@@ -326,7 +329,7 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
                   ),
                   const SizedBox(width: 6),
                   Material(
-                    color: surface,
+                    color: isDark ? Colors.white.withValues(alpha: 0.1) : lightSurface,
                     borderRadius: BorderRadius.circular(20),
                     child: InkWell(
                       onTap: () {
@@ -376,11 +379,7 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
             constraints: const BoxConstraints(minHeight: 148),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [_kPrimary, _kPrimaryLight],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-              ),
+              gradient: cardGradient,
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
@@ -552,8 +551,8 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
                       date: '${day.day}/${day.month}',
                       status: status,
                       isToday: isToday,
-                      surface: surface,
-                      border: border,
+                      surface: isDark ? Colors.white.withValues(alpha: 0.05) : lightSurface,
+                      border: isDark ? Colors.white.withValues(alpha: 0.1) : lightBorder,
                       textPrimary: textPrimary,
                       textSecondary: textSecondary,
                     ),
