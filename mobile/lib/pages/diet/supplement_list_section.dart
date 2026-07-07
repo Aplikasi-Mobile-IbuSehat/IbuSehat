@@ -11,6 +11,7 @@ import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/services/fcm_service.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:mobile/widgets/custom_toast.dart';
 
 class DietSupplementListSection extends StatefulWidget {
   const DietSupplementListSection({
@@ -215,9 +216,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
 
   Future<void> _handleAddSupplement() async {
     if (_supplements.length >= widget.maxItems) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Maksimal ${widget.maxItems} suplemen. Hapus salah satu dulu.')),
-      );
+      CustomToast.show(context, 'Maksimal ${widget.maxItems} suplemen. Hapus salah satu dulu.', isError: true);
       return;
     }
     final result = await Navigator.push(
@@ -236,9 +235,7 @@ class DietSupplementListSectionState extends State<DietSupplementListSection> {
         if (!mounted) return;
         final insertedAfterRefresh = _supplements.length > beforeCount;
         if (!insertedAfterRefresh) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Gagal menambahkan suplemen. Coba lagi.')),
-          );
+          CustomToast.show(context, 'Gagal menambahkan suplemen. Coba lagi.', isError: true);
         }
       }
     }

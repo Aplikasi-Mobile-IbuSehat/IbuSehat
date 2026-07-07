@@ -18,10 +18,16 @@ const String _kDarkTileUrl =
     'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
 
 /// Minimum horizontal GPS movement to record a new point (meters).
-const double _kMinMoveMeters = 5;
+const double _kMinMoveMeters = 8;
 
 /// Ignore fixes worse than this accuracy (meters).
-const double _kMaxAccuracyMeters = 20;
+const double _kMaxAccuracyMeters = 12;
+
+/// Kecepatan GPS di bawah ini dianggap diam (m/s).
+const double _kMinSpeedMps = 0.3;
+
+/// Kecepatan maksimum masuk akal (m/s), untuk menolak lompatan GPS.
+const double _kMaxPlausibleSpeedMps = 12.0;
 
 class TrackingScreen extends StatefulWidget {
   const TrackingScreen({super.key});
@@ -35,6 +41,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
 
   final List<LatLng> _route = [];
   LatLng? _lastLatLng;
+  DateTime? _lastFixTime; 
 
   bool _hasLocationPermission = false;
   /// True after first accurate fresh fix ([_initLocationFast] step 2).
@@ -341,6 +348,8 @@ class _TrackingScreenState extends State<TrackingScreen> {
     final lng = position.longitude;
     if (!lat.isFinite || !lng.isFinite) return;
 
+    final now = DateTime.now();
+
     if (_lastLatLng != null) {
       final meters = Geolocator.distanceBetween(
         _lastLatLng!.latitude,
@@ -348,7 +357,21 @@ class _TrackingScreenState extends State<TrackingScreen> {
         lat,
         lng,
       );
-      if (meters < _kMinMoveMeters) return;
+
+      final dynamicThreshold = _kMinMoveMeters + position.accuracy;
+      if (meters < dynamicThreshold) return;
+
+      if (position.speed >= 0 && position.speed < _kMinSpeedMps) {
+        return;
+      }
+
+      if (_lastFixTime != null) {
+        final dtSeconds = now.difference(_lastFixTime!).inMilliseconds / 1000.0;
+        if (dtSeconds > 0) {
+          final impliedSpeed = meters / dtSeconds;
+          if (impliedSpeed > _kMaxPlausibleSpeedMps) return;
+        }
+      }
     }
 
     final point = LatLng(lat, lng);
@@ -365,6 +388,7 @@ class _TrackingScreenState extends State<TrackingScreen> {
       _route.add(point);
       _lastLatLng = point;
     });
+    _lastFixTime = now;
     _safeMoveMap(point);
   }
 

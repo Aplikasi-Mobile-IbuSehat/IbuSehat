@@ -3,6 +3,7 @@ import 'package:mobile/theme/app_colors.dart';
 import 'package:mobile/pages/payments/midtrans_screen.dart';
 import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/services/api_service.dart';
+import 'package:mobile/widgets/custom_toast.dart';
 
 class PremiumPage extends StatefulWidget {
   const PremiumPage({super.key});
@@ -60,12 +61,7 @@ class _PremiumPageState extends State<PremiumPage> {
 
     if (token == null || token.isEmpty) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sesi habis, silakan login ulang'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      CustomToast.show(context, 'Sesi habis, silakan login ulang', isError: true);
       return;
     }
 
@@ -100,39 +96,19 @@ class _PremiumPageState extends State<PremiumPage> {
         case 'success':
           await AuthService.instance.syncUserFromApi();
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Pembayaran berhasil! Terima kasih telah berlangganan.'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          CustomToast.show(context, 'Pembayaran berhasil! Terima kasih telah berlangganan.');
           Navigator.pop(context);
           break;
         case 'pending':
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Pembayaran sedang diproses'),
-              backgroundColor: Colors.orange,
-            ),
-          );
+          CustomToast.show(context, 'Pembayaran sedang diproses');
           break;
         case 'error':
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Pembayaran gagal, coba lagi'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          CustomToast.show(context, 'Pembayaran gagal, coba lagi', isError: true);
           break;
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceFirst('Exception: ', '')),
-          backgroundColor: Colors.red,
-        ),
-      );
+      CustomToast.show(context, e.toString().replaceFirst('Exception: ', ''), isError: true);
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }

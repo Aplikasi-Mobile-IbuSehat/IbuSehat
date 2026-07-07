@@ -1,7 +1,10 @@
 import 'dart:io';
+import 'dart:ui' as ui;
+import 'dart:math' as math;
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
@@ -14,7 +17,6 @@ import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 
 // ─── Colors ────────────────────────────────────────────────────────────────
@@ -39,7 +41,7 @@ class ActivityDetailScreen extends StatefulWidget {
 
 class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   final MapController _mapController = MapController();
-  final ScreenshotController _screenshotController = ScreenshotController();
+  final GlobalKey _shareCardBoundaryKey = GlobalKey();
   bool _shareBusy = false;
   LatLng? _lastKnownPosition;
 
@@ -215,14 +217,15 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   Future<Uint8List?> _captureShareImage() async {
     setState(() => _shareBusy = true);
     try {
-      // Wait for map tiles to fully load before capturing
-      final image = await _screenshotController.captureFromWidget(
-        _buildShareCard(),
-        delay: const Duration(milliseconds: 800),
-        pixelRatio: 3.0,
-        context: context,
-      );
-      return image;
+      await Future.delayed(const Duration(milliseconds: 1000));
+
+      final boundary = _shareCardBoundaryKey.currentContext
+          ?.findRenderObject() as RenderRepaintBoundary?;
+      if (boundary == null) return null;
+
+      final image = await boundary.toImage(pixelRatio: 3.0);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      return byteData?.buffer.asUint8List();
     } catch (e, st) {
       debugPrint('ActivityDetailScreen._captureShareImage: $e\n$st');
       return null;
@@ -840,6 +843,19 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
                 ),
               ),
             ),
+            
+          Positioned(
+            left: -9999, // taruh jauh di luar layar, tetap ter-render
+            top: 0,
+            child: RepaintBoundary(
+              key: _shareCardBoundaryKey,
+              child: Material(
+                // Material diperlukan agar tidak ada error "No Material widget found"
+                type: MaterialType.transparency,
+                child: _buildShareCard(),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -980,37 +996,9 @@ class _ActivityShareCardState extends State<_ActivityShareCard> {
   final MapController _mapController = MapController();
 
   @override
-  void initState() {
-    super.initState();
-    _fitMapBounds();
-  }
-
-  @override
   void dispose() {
     _mapController.dispose();
     super.dispose();
-  }
-
-  void _fitMapBounds() {
-    if (widget.points.length < 2) {
-      return;
-    }
-
-    // Wait for widget to be built before fitting
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      try {
-        final bounds = LatLngBounds.fromPoints(widget.points);
-        _mapController.fitCamera(
-          CameraFit.bounds(
-            bounds: bounds,
-            padding: const EdgeInsets.all(40),
-          ),
-        );
-      } catch (e) {
-        debugPrint('_ActivityShareCard._fitMapBounds: $e');
-      }
-    });
   }
 
   IconData get _typeIcon {
@@ -1025,27 +1013,28 @@ class _ActivityShareCardState extends State<_ActivityShareCard> {
   }
 
   LatLng get _mapCenter {
-    // Fallback chain: coordinates → lastKnownPosition → Batam default
     if (widget.points.isNotEmpty) {
       if (widget.points.length == 1) return widget.points.first;
-      // Calculate center from all points
-      double lat = 0, lng = 0;
-      for (final p in widget.points) {
-        lat += p.latitude;
-        lng += p.longitude;
-      }
-      return LatLng(lat / widget.points.length, lng / widget.points.length);
+      final bounds = LatLngBounds.fromPoints(widget.points);
+      return bounds.center;
     } else if (widget.lastKnownPosition != null) {
       return widget.lastKnownPosition!;
     } else {
-      // Default fallback: Batam, Indonesia
       return const LatLng(1.1301, 104.0529);
     }
   }
 
+  /// Dihitung langsung (sinkron), TIDAK pakai fitCamera async.
+  /// Ini mencegah "loncatan" kamera yang memicu fetch tile ulang
+  /// setelah widget pertama kali dirender (penyebab peta blank saat share).
   double get _initialZoom {
-    // Use closer zoom when there's no route (just showing location)
-    return widget.points.length >= 2 ? 14.0 : 15.0;
+    if (widget.points.length < 2) return 15.0;
+    final bounds = LatLngBounds.fromPoints(widget.points);
+    return _zoomToFitBounds(
+      bounds,
+      const Size(_kShareCardWidth, _kShareCardHeight),
+      padding: 60,
+    );
   }
 
   Color get _routeColor {
@@ -1061,21 +1050,20 @@ class _ActivityShareCardState extends State<_ActivityShareCard> {
 
   @override
   Widget build(BuildContext context) {
-    final pace = widget.activity.pace?.isNotEmpty == true 
-        ? widget.activity.pace! 
+    final pace = widget.activity.pace?.isNotEmpty == true
+        ? widget.activity.pace!
         : '-';
 
     return Container(
       width: _kShareCardWidth,
       height: _kShareCardHeight,
       clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+      decoration: const BoxDecoration(
+        borderRadius: BorderRadius.all(Radius.circular(20)),
       ),
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // 1. Full-size map as background
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -1091,7 +1079,6 @@ class _ActivityShareCardState extends State<_ActivityShareCard> {
                 subdomains: const ['a', 'b', 'c', 'd'],
                 userAgentPackageName: 'com.ibusehat.app',
               ),
-              // Show polyline if there are 2+ points
               if (widget.points.length >= 2)
                 PolylineLayer(
                   polylines: [
@@ -1102,7 +1089,6 @@ class _ActivityShareCardState extends State<_ActivityShareCard> {
                     ),
                   ],
                 ),
-              // Show marker if there's exactly 1 point
               if (widget.points.length == 1)
                 MarkerLayer(
                   markers: [
@@ -1114,10 +1100,7 @@ class _ActivityShareCardState extends State<_ActivityShareCard> {
                         decoration: BoxDecoration(
                           color: _routeColor,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: Colors.white,
-                            width: 2,
-                          ),
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
                       ),
                     ),
@@ -1365,6 +1348,42 @@ class _StatCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Menghitung zoom level yang pas untuk menampilkan [bounds] di dalam
+/// area seukuran [size], dengan [padding] piksel di tiap sisi.
+/// Algoritma standar "zoom to fit bounds" (dipakai banyak aplikasi peta).
+double _zoomToFitBounds(LatLngBounds bounds, Size size, {double padding = 40}) {
+  const worldDim = 256.0;
+  const maxZoom = 18.0;
+
+  double latRad(double lat) {
+    final sinVal = math.sin(lat * math.pi / 180);
+    final radX2 = math.log((1 + sinVal) / (1 - sinVal)) / 2;
+    return math.max(math.min(radX2, math.pi), -math.pi) / 2;
+  }
+
+  double zoomForFraction(double pixelDim, double fraction) {
+    if (fraction <= 0) return maxZoom;
+    return math.log(pixelDim / worldDim / fraction) / math.ln2;
+  }
+
+  final ne = bounds.northEast;
+  final sw = bounds.southWest;
+
+  final latFraction = (latRad(ne.latitude) - latRad(sw.latitude)) / math.pi;
+
+  final lngDiff = ne.longitude - sw.longitude;
+  final lngFraction = (lngDiff < 0 ? lngDiff + 360 : lngDiff) / 360;
+
+  final availableWidth = size.width - padding * 2;
+  final availableHeight = size.height - padding * 2;
+
+  final latZoom = zoomForFraction(availableHeight, latFraction);
+  final lngZoom = zoomForFraction(availableWidth, lngFraction);
+
+  final zoom = math.min(latZoom, lngZoom);
+  return zoom.clamp(1.0, maxZoom);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

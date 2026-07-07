@@ -41,21 +41,21 @@ class AppThemeController extends ChangeNotifier {
         : (_preference == AppThemePreference.system
             ? AppThemePreference.light
             : _preference);
-    await _persist();
     notifyListeners();
+    _persist();
   }
 
   Future<void> setManualDark(bool isDark) async {
     _preference = isDark ? AppThemePreference.dark : AppThemePreference.light;
-    await _persist();
     notifyListeners();
+    _persist();
   }
 
   Future<void> setPreference(AppThemePreference preference) async {
     if (_preference == preference) return;
     _preference = preference;
-    await _persist();
     notifyListeners();
+    _persist();
   }
 
   Future<void> _persist() async {
@@ -67,7 +67,10 @@ class AppThemeController extends ChangeNotifier {
 class AppTheme {
   const AppTheme._();
 
-  static ThemeData get light {
+  static final ThemeData light = _buildLight();
+  static final ThemeData dark = _buildDark();
+
+  static ThemeData _buildLight() {
     final base = ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
@@ -133,7 +136,7 @@ class AppTheme {
     );
   }
 
-  static ThemeData get dark {
+  static ThemeData _buildDark() {
     final base = ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,

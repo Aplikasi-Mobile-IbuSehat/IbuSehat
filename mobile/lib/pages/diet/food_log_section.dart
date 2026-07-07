@@ -12,6 +12,7 @@ import 'package:mobile/theme/app_colors.dart';
 import 'package:provider/provider.dart';
 import 'package:mobile/providers/progress_provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
+import 'package:mobile/widgets/custom_toast.dart';
 
 class DietFoodLogSection extends StatefulWidget {
   const DietFoodLogSection({
@@ -109,11 +110,7 @@ class DietFoodLogSectionState extends State<DietFoodLogSection> {
 
   Future<void> _handleAddFood() async {
     if (_foodLog.length >= widget.maxItems) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Maksimal ${widget.maxItems} makanan per hari. Hapus salah satu dulu.'),
-        ),
-      );
+      CustomToast.show(context, 'Maksimal ${widget.maxItems} makanan per hari. Hapus salah satu dulu.', isError: true);
       return;
     }
 

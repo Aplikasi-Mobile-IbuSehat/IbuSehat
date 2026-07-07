@@ -26,18 +26,19 @@ class SleepProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      debugPrint('=== SleepProvider: fetching weekly summary...');
+      debugPrint('=== SleepProvider: Fetch dimulai...');
       final summary = await _sleepService.fetchWeeklySummary();
       _weeklySummary = summary;
       _errorMessage = null;
-      debugPrint('=== SleepProvider: fetched successfully, hasData=${summary.hasData}');
+      debugPrint('=== SleepProvider: Fetch berhasil, hasData=${summary.hasData}');
+      debugPrint('=== SleepProvider: totalHours=${summary.totalHours}');
       debugPrint('=== SleepProvider: averageDuration=${summary.averageDuration}');
     } on SleepServiceException catch (e) {
       _errorMessage = e.message;
-      debugPrint('=== SleepProvider: SleepServiceException: ${e.message}');
+      debugPrint('=== SleepProvider: Error fetch gagal (SleepServiceException): ${e.message}');
     } catch (e, st) {
       _errorMessage = 'Gagal memuat data tidur';
-      debugPrint('=== SleepProvider: Error: $e\n$st');
+      debugPrint('=== SleepProvider: Error fetch gagal: $e\n$st');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -81,7 +82,6 @@ class SleepProvider with ChangeNotifier {
     final totalHours = _weeklySummary?.totalHours;
     
     if (totalHours != null && totalHours > 0) {
-      debugPrint('=== SleepProvider: using total_hours from backend=$totalHours');
       return totalHours;
     }
     
@@ -95,7 +95,6 @@ class SleepProvider with ChangeNotifier {
       }
     }
     
-    debugPrint('=== SleepProvider: using fallback calculation from chart=$totalFromChart');
     return totalFromChart;
   }
 

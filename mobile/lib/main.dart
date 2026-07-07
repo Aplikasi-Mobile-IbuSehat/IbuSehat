@@ -23,11 +23,6 @@ final GlobalKey<NavigatorState> appNavigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp();
-  await FcmNotificationService.instance.init();
-
-  await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-
   FlutterError.onError = (FlutterErrorDetails details) {
     FlutterError.dumpErrorToConsole(details);
     debugPrint('FlutterError.onError: ${details.exception}');
@@ -41,8 +36,6 @@ Future<void> main() async {
   };
 
   // Hanya init yang BENAR-BENAR wajib sebelum runApp.
-  // Firebase.initializeApp() dipindahkan ke sini saja (jangan duplikat
-  // di AppInitializer).
   try {
     await Firebase.initializeApp();
   } catch (e) {
@@ -78,54 +71,31 @@ Future<void> main() async {
   // setelah app tampil, supaya tidak ada kemungkinan menggantung dan
   // menyebabkan layar putih.
   unawaited(FcmNotificationService.instance.init());
+
+  // Handle notification tap that launched the app
+  WidgetsBinding.instance.addPostFrameCallback((_) async {
+    final details = await TrackingNotifications.getLaunchDetails();
+    if (details?.didNotificationLaunchApp != true) return;
+    if (details!.notificationResponse?.payload != TrackingNotifications.payloadOpenTracking) return;
+    appNavigatorKey.currentState?.pushNamed<void>('/tracking');
+  });
 }
 
-class MyApp extends StatefulWidget {
+class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
-  State<MyApp> createState() => _MyAppState();
-}
-
-class _MyAppState extends State<MyApp> {
-  @override
-  void initState() {
-    super.initState();
-    appThemeController.addListener(_onThemeChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _openTrackingIfLaunchedFromNotification();
-    });
-  }
-
-  @override
-  void dispose() {
-    appThemeController.removeListener(_onThemeChanged);
-    super.dispose();
-  }
-
-  void _onThemeChanged() {
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _openTrackingIfLaunchedFromNotification() async {
-    final details = await TrackingNotifications.getLaunchDetails();
-    if (details?.didNotificationLaunchApp != true) return;
-    if (details!.notificationResponse?.payload !=
-        TrackingNotifications.payloadOpenTracking) {
-      return;
-    }
-    if (!mounted) return;
-    appNavigatorKey.currentState?.pushNamed<void>('/tracking');
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // Rebuild MaterialApp hanya ketika AppThemeController memberitahu adanya perubahan tema.
+    final themeMode = context.watch<AppThemeController>().themeMode;
+
     return MaterialApp(
       navigatorKey: appNavigatorKey,
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: appThemeController.themeMode,
+      themeMode: themeMode,
+      themeAnimationDuration: Duration.zero,
       home: const SplashScreen(),
       routes: {
         '/tracking': (_) => const TrackingScreen(),

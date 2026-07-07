@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/widgets/custom_toast.dart';
 
 class EditHealthDataPage extends StatefulWidget {
   const EditHealthDataPage({super.key});
@@ -271,12 +272,7 @@ class _EditHealthDataPageState extends State<EditHealthDataPage> {
       onTap: () {
         if (_formKey.currentState!.validate()) {
           Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Data kesehatan berhasil diperbarui'),
-              backgroundColor: Color(0xFF8B5CF6),
-            ),
-          );
+          CustomToast.show(context, 'Data kesehatan berhasil diperbarui');
         }
       },
       child: Container(

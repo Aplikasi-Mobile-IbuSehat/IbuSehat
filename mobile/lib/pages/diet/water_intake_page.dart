@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mobile/services/water_intake_service.dart';
 import 'package:mobile/models/water_intake_model.dart';
 import 'package:mobile/theme/app_colors.dart';
+import 'package:mobile/widgets/custom_toast.dart';
 
 class WaterIntakePage extends StatefulWidget {
   final int currentIntake;
@@ -136,13 +137,7 @@ class _WaterIntakePageState extends State<WaterIntakePage> {
         // Revert perubahan di parent
         widget.onAddWater(-_pendingDelta);
         setState(() => _pendingDelta = 0);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menyimpan: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        CustomToast.show(context, 'Gagal menyimpan: ${e.toString()}', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

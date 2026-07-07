@@ -711,7 +711,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
     return GestureDetector(
       onTap: () async {
         await appThemeController.setPreference(pref);
-        if (mounted) setState(() {});
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),

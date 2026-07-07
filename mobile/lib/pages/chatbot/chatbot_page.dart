@@ -4,6 +4,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:mobile/pages/payments/premium_page.dart';
 import 'package:mobile/widgets/app_header_actions.dart';
+import 'package:mobile/widgets/custom_toast.dart';
 import '../../services/api_service.dart';
 
 class ChatbotPage extends StatefulWidget {
@@ -192,14 +193,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
   }
 
   void _showSnackBar(String message, {required bool isError}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red.shade400 : const Color(0xFF8B5CF6),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
-    );
+    CustomToast.show(context, message, isError: isError);
   }
 
   void _scrollToBottom() {
