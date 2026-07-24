@@ -25,3 +25,5 @@ plugins {
 }
 
 include(":app")
+include(":benchmark")
+include(":microbenchmark")

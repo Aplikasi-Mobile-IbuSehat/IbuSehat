@@ -15,8 +15,8 @@ class ProgramLatihanSection extends StatefulWidget {
 
 class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
   late Future<List<WorkoutProgramModel>> _futurePrograms;
-  late bool _isPremium;
-  late bool _statusLoaded;
+  bool _isPremium = false;
+  bool _statusLoaded = false;
 
   void _loadPrograms() {
     setState(() {
@@ -28,34 +28,45 @@ class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
   void initState() {
     super.initState();
     _futurePrograms = WorkoutProgramService.fetchPrograms();
-    final cached = AuthService.instance.cachedUserSync;
-    _statusLoaded = cached != null;
-    _isPremium = cached?.isPremium ?? false;
 
-    if (!_statusLoaded) {
-      _loadFromCache();
-    }
+    // Baca nilai awal dari cache.
+    final cached = AuthService.instance.cachedUserSync;
+    _isPremium = cached?.isPremium ?? false;
+    _statusLoaded = cached != null;
+
+    // Dengarkan perubahan user (mis. setelah pembayaran premium).
+    AuthService.instance.userNotifier.addListener(_onUserChanged);
+
+    // Sync ke API di background untuk memastikan status premium fresh.
     _syncPremiumInBackground();
   }
 
-  Future<void> _loadFromCache() async {
-    final user = await AuthService.instance.currentUser;
+  void _onUserChanged() {
     if (!mounted) return;
+    final user = AuthService.instance.userNotifier.value;
+    final newPremium = user?.isPremium ?? false;
     setState(() {
-      _isPremium = user?.isPremium ?? false;
+      _isPremium = newPremium;
       _statusLoaded = true;
     });
   }
 
   Future<void> _syncPremiumInBackground() async {
-    if (!await AuthService.instance.isLoggedIn) return;
+    if (!await AuthService.instance.isLoggedIn) {
+      if (mounted) setState(() => _statusLoaded = true);
+      return;
+    }
     await AuthService.instance.syncUserFromApi();
-    final user = await AuthService.instance.currentUser;
+    // _onUserChanged dipanggil otomatis oleh listener di atas.
     if (!mounted) return;
-    setState(() {
-      _isPremium = user?.isPremium ?? false;
-      _statusLoaded = true;
-    });
+    // Pastikan statusLoaded juga true jika listener belum dipanggil.
+    if (!_statusLoaded) setState(() => _statusLoaded = true);
+  }
+
+  @override
+  void dispose() {
+    AuthService.instance.userNotifier.removeListener(_onUserChanged);
+    super.dispose();
   }
 
   @override
@@ -289,16 +300,9 @@ class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
                   context,
                   MaterialPageRoute(builder: (context) => const PremiumPage()),
                 );
-                if (mounted) {
-                  final user = AuthService.instance.cachedUserSync;
-                  if (user != null) {
-                    setState(() {
-                      _isPremium = user.isPremium;
-                      _statusLoaded = true;
-                    });
-                  }
-                  _syncPremiumInBackground();
-                }
+                // Setelah kembali dari PremiumPage, sync ulang status premium.
+                // userNotifier listener akan memperbarui _isPremium otomatis.
+                if (mounted) _syncPremiumInBackground();
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF8B5CF6),

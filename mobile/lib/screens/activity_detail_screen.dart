@@ -45,14 +45,36 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
   bool _shareBusy = false;
   LatLng? _lastKnownPosition;
 
+  // Reaktif terhadap perubahan premium status tanpa perlu logout/login.
+  bool _isPremium = false;
+
   @override
   void initState() {
     super.initState();
+    _isPremium = AuthService.instance.isPremiumSync;
+    AuthService.instance.userNotifier.addListener(_onUserChanged);
     _prepareFallbackLocation();
+    // Sync ke API di background agar status premium selalu fresh.
+    _syncPremiumInBackground();
+  }
+
+  void _onUserChanged() {
+    if (!mounted) return;
+    final newPremium = AuthService.instance.isPremiumSync;
+    if (_isPremium != newPremium) {
+      setState(() => _isPremium = newPremium);
+    }
+  }
+
+  Future<void> _syncPremiumInBackground() async {
+    if (!await AuthService.instance.isLoggedIn) return;
+    await AuthService.instance.syncUserFromApi();
+    _onUserChanged();
   }
 
   @override
   void dispose() {
+    AuthService.instance.userNotifier.removeListener(_onUserChanged);
     _mapController.dispose();
     super.dispose();
   }
@@ -370,12 +392,15 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 
   // ── Premium gate for share ──────────────────────────────────────────────
   void _handleShareWithPremiumCheck() {
-    final isPremium = AuthService.instance.isPremiumSync;
-    if (!isPremium) {
+    // Pakai _isPremium yang sudah reaktif (diperbarui via userNotifier).
+    if (!_isPremium) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const PremiumPage()),
-      );
+      ).then((_) {
+        // Setelah kembali dari PremiumPage, sync ulang status premium.
+        if (mounted) _syncPremiumInBackground();
+      });
       return;
     }
     _showShareSheet();
@@ -863,7 +888,7 @@ class _ActivityDetailScreenState extends State<ActivityDetailScreen> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Share Activity Button — premium-gated
+// Share Activity Button — premium-gated, reaktif terhadap userNotifier
 // ═══════════════════════════════════════════════════════════════════════════
 class _ShareActivityButton extends StatelessWidget {
   const _ShareActivityButton({
@@ -876,92 +901,99 @@ class _ShareActivityButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPremium = AuthService.instance.isPremiumSync;
+    // ValueListenableBuilder memastikan tombol ini rebuild otomatis
+    // saat userNotifier berubah (mis. setelah pembayaran premium).
+    return ValueListenableBuilder<AuthUser?>(
+      valueListenable: AuthService.instance.userNotifier,
+      builder: (context, user, _) {
+        final isPremium = user?.isPremium ?? AuthService.instance.isPremiumSync;
 
-    if (isPremium) {
-      // ── Premium user: tombol share biasa ────────────────────────────────
-      return ElevatedButton.icon(
-        onPressed: busy ? null : onTap,
-        icon: const Icon(Icons.share_rounded, size: 18),
-        label: const Text(
-          'Bagikan Aktivitas',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: _kPrimary,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 0,
-        ),
-      );
-    }
-
-    // ── Non-premium: tombol terkunci dengan badge Premium ──────────────────
-    return GestureDetector(
-      onTap: busy ? null : onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
+        if (isPremium) {
+          // ── Premium user: tombol share biasa ──────────────────────────
+          return ElevatedButton.icon(
+            onPressed: busy ? null : onTap,
+            icon: const Icon(Icons.share_rounded, size: 18),
+            label: const Text(
+              'Bagikan Aktivitas',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
             ),
-          ],
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.lock_rounded, color: Colors.white, size: 18),
-                SizedBox(width: 8),
-                Text(
-                  'Bagikan Aktivitas',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kPrimary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              elevation: 0,
+            ),
+          );
+        }
+
+        // ── Non-premium: tombol terkunci dengan badge Premium ────────────
+        return GestureDetector(
+          onTap: busy ? null : onTap,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(Icons.lock_rounded, color: Colors.white, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'Bagikan Aktivitas',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                // Badge "Premium" di pojok kanan
+                Positioned(
+                  right: 14,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.25),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.5),
+                        width: 1,
+                      ),
+                    ),
+                    child: const Text(
+                      'Premium',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-            // Badge "Premium" di pojok kanan
-            Positioned(
-              right: 14,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.5),
-                    width: 1,
-                  ),
-                ),
-                child: const Text(
-                  'Premium',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

@@ -99,10 +99,15 @@ void _log(String message) {
   }
 }
 
-class AuthService {
+class AuthService extends ChangeNotifier {
   AuthService._();
 
   static final AuthService instance = AuthService._();
+
+  /// Notifier yang dipancarkan setiap kali data user berubah.
+  /// Widget bisa pakai [ValueListenableBuilder] atau [ListenableBuilder]
+  /// untuk rebuild otomatis tanpa perlu polling manual.
+  final ValueNotifier<AuthUser?> userNotifier = ValueNotifier<AuthUser?>(null);
 
   static const _storage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
@@ -178,6 +183,10 @@ class AuthService {
   Future<void> _saveUser(AuthUser? user) async {
     _cachedUser = user;
 
+    // Beritahu semua listener (widget) bahwa user telah berubah.
+    userNotifier.value = user;
+    notifyListeners();
+
     final prefs = await SharedPreferences.getInstance();
 
     if (user == null) {
@@ -208,6 +217,8 @@ class AuthService {
     try {
       final parsed = AuthUser.fromJson(jsonDecode(raw) as Map<String, dynamic>);
       _cachedUser = parsed;
+      // Sync ke notifier agar widget yang listen mendapat nilai awal yang benar.
+      userNotifier.value = parsed;
       return parsed;
     } catch (_) {
       return null;

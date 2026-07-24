@@ -5,99 +5,65 @@ import 'package:mobile/pages/payments/premium_page.dart';
 import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/theme/app_colors.dart';
 
-/// Ikon premium saja — tetap di pojok kanan, di luar efek scroll header.
-class AppHeaderPremiumIcon extends StatefulWidget {
-  const AppHeaderPremiumIcon({super.key});
-
-  @override
-  State<AppHeaderPremiumIcon> createState() => _AppHeaderPremiumIconState();
-}
-
-class _AppHeaderPremiumIconState extends State<AppHeaderPremiumIcon> {
-  late bool _isPremium;
-  late bool _statusLoaded;
-
-  @override
-  void initState() {
-    super.initState();
-    final cached = AuthService.instance.cachedUserSync;
-    _statusLoaded = cached != null;
-    _isPremium = cached?.isPremium ?? false;
-
-    if (!_statusLoaded) {
-      _loadFromCache();
-    }
-    _syncPremiumInBackground();
-  }
-
-  Future<void> _loadFromCache() async {
-    final user = await AuthService.instance.currentUser;
-    if (!mounted) return;
-    setState(() {
-      _isPremium = user?.isPremium ?? false;
-      _statusLoaded = true;
-    });
-  }
-
-  Future<void> _syncPremiumInBackground() async {
-    if (!await AuthService.instance.isLoggedIn) return;
-    await AuthService.instance.syncUserFromApi();
-    final user = await AuthService.instance.currentUser;
-    if (!mounted) return;
-    setState(() {
-      _isPremium = user?.isPremium ?? false;
-      _statusLoaded = true;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_statusLoaded || _isPremium) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: GestureDetector(
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const PremiumPage()),
-          );
-          if (mounted) {
-            final user = AuthService.instance.cachedUserSync;
-            if (user != null) {
-              setState(() {
-                _isPremium = user.isPremium;
-                _statusLoaded = true;
-              });
-            }
-            _syncPremiumInBackground();
-          }
-        },
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: ShaderMask(
-            shaderCallback: (Rect bounds) {
-              return buttonGradient.createShader(bounds);
-            },
-            child: SvgPicture.asset(
-              'assets/icons/sparkles_premium.svg',
-              width: 24,
-              height: 24,
-              colorFilter: const ColorFilter.mode(
-                Colors.white,
-                BlendMode.srcIn,
-              ),
+// ---------------------------------------------------------------------------
+// Helper internal: ikon sparkles yang bisa di-tap untuk membuka PremiumPage.
+// Tidak perlu State sendiri — cukup GestureDetector di dalam ValueListenableBuilder.
+// ---------------------------------------------------------------------------
+Widget _buildSparklesIcon(BuildContext context) {
+  return Padding(
+    padding: const EdgeInsets.only(right: 8.0),
+    child: GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PremiumPage()),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: ShaderMask(
+          shaderCallback: (Rect bounds) => buttonGradient.createShader(bounds),
+          child: SvgPicture.asset(
+            'assets/icons/sparkles_premium.svg',
+            width: 24,
+            height: 24,
+            colorFilter: const ColorFilter.mode(
+              Colors.white,
+              BlendMode.srcIn,
             ),
           ),
         ),
       ),
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// AppHeaderPremiumIcon
+// Ditampilkan di pojok kanan header; hilang otomatis ketika user jadi premium.
+// ---------------------------------------------------------------------------
+class AppHeaderPremiumIcon extends StatelessWidget {
+  const AppHeaderPremiumIcon({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<AuthUser?>(
+      valueListenable: AuthService.instance.userNotifier,
+      builder: (context, user, _) {
+        // Sembunyikan jika sudah premium atau data belum dimuat.
+        final isPremium = user?.isPremium ?? AuthService.instance.isPremiumSync;
+        if (isPremium) return const SizedBox.shrink();
+
+        return _buildSparklesIcon(context);
+      },
     );
   }
 }
 
-/// Tombol premium + chatbot di header halaman utama.
-/// Chatbot hanya untuk premium; non-premium diarahkan ke [PremiumPage].
-class AppHeaderActions extends StatefulWidget {
+// ---------------------------------------------------------------------------
+// AppHeaderActions
+// Tombol premium + chatbot di header halaman utama.
+// Chatbot hanya untuk premium; non-premium diarahkan ke PremiumPage.
+// ---------------------------------------------------------------------------
+class AppHeaderActions extends StatelessWidget {
   const AppHeaderActions({
     super.key,
     required this.titleColor,
@@ -107,49 +73,8 @@ class AppHeaderActions extends StatefulWidget {
   final Color titleColor;
   final bool showChatbot;
 
-  @override
-  State<AppHeaderActions> createState() => _AppHeaderActionsState();
-}
-
-class _AppHeaderActionsState extends State<AppHeaderActions> {
-  late bool _isPremium;
-  late bool _statusLoaded;
-
-  @override
-  void initState() {
-    super.initState();
-    final cached = AuthService.instance.cachedUserSync;
-    _statusLoaded = cached != null;
-    _isPremium = cached?.isPremium ?? false;
-
-    if (!_statusLoaded) {
-      _loadFromCache();
-    }
-    _syncPremiumInBackground();
-  }
-
-  Future<void> _loadFromCache() async {
-    final user = await AuthService.instance.currentUser;
-    if (!mounted) return;
-    setState(() {
-      _isPremium = user?.isPremium ?? false;
-      _statusLoaded = true;
-    });
-  }
-
-  Future<void> _syncPremiumInBackground() async {
-    if (!await AuthService.instance.isLoggedIn) return;
-    await AuthService.instance.syncUserFromApi();
-    final user = await AuthService.instance.currentUser;
-    if (!mounted) return;
-    setState(() {
-      _isPremium = user?.isPremium ?? false;
-      _statusLoaded = true;
-    });
-  }
-
-  void _openChatbot() {
-    final route = _isPremium
+  void _openChatbot(BuildContext context, bool isPremium) {
+    final route = isPremium
         ? MaterialPageRoute(builder: (_) => const ChatbotPage())
         : MaterialPageRoute(builder: (_) => const PremiumPage());
     Navigator.of(context).push(route);
@@ -157,37 +82,46 @@ class _AppHeaderActionsState extends State<AppHeaderActions> {
 
   @override
   Widget build(BuildContext context) {
-    final showPremiumIcon = _statusLoaded && !_isPremium;
+    return ValueListenableBuilder<AuthUser?>(
+      valueListenable: AuthService.instance.userNotifier,
+      builder: (context, user, _) {
+        final isPremium = user?.isPremium ?? AuthService.instance.isPremiumSync;
+        final showPremiumIcon = !isPremium;
 
-    return Padding(
-      padding: const EdgeInsets.only(right: 8.0),
-      child: Row(
-        children: [
-          if (showPremiumIcon) ...[
-            const AppHeaderPremiumIcon(),
-            if (widget.showChatbot) const SizedBox(width: 8),
-          ],
-          if (widget.showChatbot)
-            IconButton(
-              icon: SvgPicture.asset(
-                'assets/icons/message_circle.svg',
-                colorFilter: ColorFilter.mode(
-                  widget.titleColor,
-                  BlendMode.srcIn,
+        return Padding(
+          padding: const EdgeInsets.only(right: 8.0),
+          child: Row(
+            children: [
+              if (showPremiumIcon) ...[
+                _buildSparklesIcon(context),
+                if (showChatbot) const SizedBox(width: 8),
+              ],
+              if (showChatbot)
+                IconButton(
+                  icon: SvgPicture.asset(
+                    'assets/icons/message_circle.svg',
+                    colorFilter: ColorFilter.mode(
+                      titleColor,
+                      BlendMode.srcIn,
+                    ),
+                    width: 24,
+                    height: 24,
+                  ),
+                  onPressed: () => _openChatbot(context, isPremium),
                 ),
-                width: 24,
-                height: 24,
-              ),
-              onPressed: _openChatbot,
-            ),
-        ],
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
-/// Ikon sparkles inline (mis. di judul AppBar chatbot).
-/// Disembunyikan jika user sudah premium.
+// ---------------------------------------------------------------------------
+// PremiumSparklesInlineIcon
+// Ikon sparkles inline (mis. di judul AppBar chatbot).
+// Disembunyikan jika user sudah premium.
+// ---------------------------------------------------------------------------
 class PremiumSparklesInlineIcon extends StatelessWidget {
   const PremiumSparklesInlineIcon({
     super.key,
@@ -200,19 +134,25 @@ class PremiumSparklesInlineIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (AuthService.instance.isPremiumSync) return const SizedBox.shrink();
+    return ValueListenableBuilder<AuthUser?>(
+      valueListenable: AuthService.instance.userNotifier,
+      builder: (context, user, _) {
+        final isPremium = user?.isPremium ?? AuthService.instance.isPremiumSync;
+        if (isPremium) return const SizedBox.shrink();
 
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SvgPicture.asset(
-          'assets/icons/sparkles_premium.svg',
-          width: size,
-          height: size,
-          colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
-        ),
-        const SizedBox(width: 8),
-      ],
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SvgPicture.asset(
+              'assets/icons/sparkles_premium.svg',
+              width: size,
+              height: size,
+              colorFilter: ColorFilter.mode(color, BlendMode.srcIn),
+            ),
+            const SizedBox(width: 8),
+          ],
+        );
+      },
     );
   }
 }

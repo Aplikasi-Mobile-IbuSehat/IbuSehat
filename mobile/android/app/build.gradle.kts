@@ -34,6 +34,16 @@ android {
         release {
             signingConfig = signingConfigs.getByName("debug")
         }
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+            isDebuggable = true
+        }
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 }
 

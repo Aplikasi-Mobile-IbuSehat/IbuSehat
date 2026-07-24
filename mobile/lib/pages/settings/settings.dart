@@ -30,8 +30,20 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Listen perubahan user dari AuthService (misal: setelah pembayaran premium)
+    // sehingga UI langsung rebuild tanpa perlu reload manual.
+    AuthService.instance.userNotifier.addListener(_onUserChanged);
     _loadUser();
     _checkNotificationPermission();
+  }
+
+  void _onUserChanged() {
+    final updatedUser = AuthService.instance.userNotifier.value;
+    if (!mounted || updatedUser == null) return;
+    setState(() {
+      _user = updatedUser;
+      _profileLoading = false;
+    });
   }
 
   Future<void> _checkNotificationPermission() async {
@@ -52,6 +64,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
 
   @override
   void dispose() {
+    AuthService.instance.userNotifier.removeListener(_onUserChanged);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -493,12 +506,11 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
 
   Widget _buildPremiumCard(BuildContext context) {
     return GestureDetector(
-      onTap: () async {
-        await Navigator.push(
+      onTap: () {
+        Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const PremiumPage()),
         );
-        if (mounted) await _loadUser();
       },
       child: Container(
         width: double.infinity,
