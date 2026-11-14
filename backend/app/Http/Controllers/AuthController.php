@@ -66,10 +66,17 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
-        if (!$user->is_onboarding_done) {
-            $user->is_onboarding_done = true;
-            $user->save();
-        }
+        $validated = $request->validate([
+            'height'        => ['sometimes', 'nullable', 'numeric', 'min:50', 'max:300'],
+            'weight'        => ['sometimes', 'nullable', 'numeric', 'min:10', 'max:500'],
+            'target_weight' => ['sometimes', 'nullable', 'numeric', 'min:10', 'max:500'],
+            'age'           => ['sometimes', 'nullable', 'integer', 'min:12', 'max:80'],
+            'delivery_date' => ['sometimes', 'nullable', 'date'],
+        ]);
+
+        $user->fill($validated);
+        $user->is_onboarding_done = true;
+        $user->save();
 
         return response()->json([
             'message'            => 'Onboarding status updated',

@@ -9,6 +9,7 @@ use App\Models\SupplementLog;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
@@ -22,6 +23,31 @@ class GeminiController extends Controller
      * tanpa membuat prompt terlalu panjang/boros token.
      */
     private const HISTORY_WINDOW_PAIRS = 4;
+
+    /**
+     * Batas wajar untuk nilai gizi per entri food_log, dipakai sebagai
+     * sanity-clamp terhadap output Gemini sebelum disimpan ke database
+     * (baik ke food_logs maupun sebagai data master baru di foods).
+     * Angka ini sengaja longgar (mis. porsi besar/kalori tinggi masih wajar
+     * untuk beberapa makanan), tujuannya hanya mencegah nilai yang jelas
+     * tidak masuk akal (mis. hasil halusinasi AI: kcal 99999, protein -50).
+     */
+    private const MAX_WEIGHT_G  = 3000;
+    private const MAX_KCAL      = 3000;
+    private const MAX_MACRO_G   = 500; // untuk protein/carbs/fat per entri
+
+    /**
+     * Kata kunci nama makanan yang HARUS diblokir dari pencatatan walau lolos
+     * threshold nilai gizi (mis. mie ayam/bakso kuah bisa punya kalori & lemak
+     * "normal" karena porsi daging, padahal tinggi sodium/MSG yang tidak
+     * terekam di kolom gizi kita). Pengecekan berbasis substring nama makanan,
+     * case-insensitive. Ini pelengkap isLikelyUnhealthyFood(), bukan pengganti.
+     */
+    private const UNHEALTHY_NAME_KEYWORDS = [
+        'gorengan', 'goreng tepung', 'mie instan', 'mi instan', 'mie ayam',
+        'mi ayam', 'bakso', 'sosis', 'nugget', 'dendeng', 'martabak manis',
+        'donat', 'fast food', 'junk food',
+    ];
 
     /**
      * System instruction yang mengatur perilaku & format output Gemini.
@@ -167,10 +193,18 @@ class GeminiController extends Controller
             'prompt'         => ['required', 'string', 'max:1000'],
             'history'        => ['nullable', 'array', 'max:40'],
             'history.*.role' => ['required_with:history', 'string', Rule::in(['user', 'model'])],
-            'history.*.text' => ['required_with:history', 'string'],
+            // Catatan: history.*.text sengaja dibatasi juga (bukan cuma 'prompt'),
+            // supaya client tidak bisa mengirim history super panjang untuk
+            // memboroskan token/biaya API Gemini di setiap request berikutnya.
+            'history.*.text' => ['required_with:history', 'string', 'max:2000'],
         ]);
 
-        $apiKey = env('GEMINI_API_KEY');
+        // PENTING: jangan panggil env() langsung di sini. Setelah
+        // `php artisan config:cache` dijalankan di production, env() di luar
+        // file config/*.php akan selalu mengembalikan null. Pastikan
+        // config/services.php punya entri:
+        //   'gemini' => ['key' => env('GEMINI_API_KEY')],
+        $apiKey = config('services.gemini.key');
 
         if (!$apiKey) {
             return response()->json([
@@ -207,10 +241,12 @@ class GeminiController extends Controller
             if (!$response->successful()) {
                 Log::error('Gemini API error', ['status' => $response->status(), 'body' => $response->body()]);
 
+                // Jangan teruskan detail body/response Gemini mentah-mentah ke
+                // client (bisa memuat info internal yang tidak perlu terekspos).
+                // Simpan detailnya hanya di log server.
                 return response()->json([
                     'success' => false,
                     'message' => 'Gagal mendapatkan respon dari AI.',
-                    'details' => $response->json(),
                 ], $response->status());
             }
 
@@ -256,7 +292,8 @@ class GeminiController extends Controller
             // kadang tetap mengisi "action" pada giliran yang sama saat user baru
             // menyebut makanan/suplemen (belum benar-benar bilang "ya"/"catat"). Maka di
             // backend kita cek ulang: action hanya diproses jika pesan TERBARU dari user
-            // (bukan reply Gemini) mengandung kata konfirmasi eksplisit.
+            // (bukan reply Gemini) mengandung kata konfirmasi eksplisit DAN tidak ada
+            // negasi (lihat isExplicitConfirmation()).
             if (is_array($action) && !empty($action['type']) && !$this->isExplicitConfirmation($userPrompt)) {
                 Log::info('Action dari Gemini ditolak: tidak ada konfirmasi eksplisit pada giliran ini', [
                     'user_prompt' => $userPrompt,
@@ -270,12 +307,12 @@ class GeminiController extends Controller
             // 4. Jika ada action terkonfirmasi, simpan ke database
             if (is_array($action) && !empty($action['type'])) {
                 // Guard kedua khusus food_log: walau Gemini meloloskan, cek ulang
-                // berdasarkan nilai gizi agar konsisten meski prompt "kebobolan"
-                // untuk kasus makanan ambigu (mis. mie ayam, bakso, dsb).
+                // berdasarkan nilai gizi & nama makanan agar konsisten meski prompt
+                // "kebobolan" untuk kasus makanan ambigu (mis. mie ayam, bakso, dsb).
                 if ($action['type'] === 'food_log' && $this->isLikelyUnhealthyFood($action['food_log'] ?? [])) {
                     $namaMakanan = (string) ($action['food_log']['nama_makanan'] ?? 'makanan ini');
 
-                    Log::info('Food log ditolak oleh guard gizi backend', [
+                    Log::info('Food log ditolak oleh guard gizi/kata kunci backend', [
                         'nama_makanan' => $namaMakanan,
                         'nutrisi'      => $action['food_log'] ?? [],
                     ]);
@@ -371,15 +408,45 @@ class GeminiController extends Controller
     }
 
     /**
+     * Clamp nilai numerik gizi ke rentang wajar [0, $max], dan bulatkan
+     * ke 2 desimal. Dipakai sebagai sanity-check terakhir sebelum menyimpan
+     * nilai dari Gemini ke database (mencegah nilai negatif atau ekstrem
+     * akibat halusinasi model mencemari data master/log).
+     */
+    private function clampNutritionValue(mixed $value, float $max): float
+    {
+        $num = (float) $value;
+
+        if (!is_finite($num) || $num < 0) {
+            return 0.0;
+        }
+
+        return round(min($num, $max), 2);
+    }
+
+    /**
      * Cek apakah pesan TERBARU dari user (bukan reply Gemini) mengandung kata
      * konfirmasi eksplisit untuk mencatat ke log. Ini adalah guard backend yang
      * TIDAK bergantung pada kepatuhan Gemini terhadap system instruction —
      * walau Gemini mengisi "action", kita tetap menolaknya jika user belum
      * benar-benar bilang "ya"/"catat"/dsb pada giliran ini.
+     *
+     * PENTING: pengecekan negasi dilakukan LEBIH DULU dan bersifat konservatif.
+     * Jika prompt mengandung kata negasi ("jangan", "tidak", dll), pesan
+     * TIDAK dianggap sebagai konfirmasi eksplisit sama sekali — walau kata
+     * seperti "catat" ikut muncul dalam kalimat yang sama (mis. "jangan catat
+     * ya", "tidak usah dicatat"). Lebih baik minta user konfirmasi ulang
+     * daripada salah menyimpan data karena regex kata tunggal.
      */
     private function isExplicitConfirmation(string $prompt): bool
     {
         $normalized = mb_strtolower(trim($prompt));
+
+        $negationPattern = '/\b(jangan|tidak|tdk|nggak|ga|gak|enggak|engga|belum|batal|batalkan|jgn)\b/u';
+
+        if (preg_match($negationPattern, $normalized)) {
+            return false;
+        }
 
         // Kata/frasa konfirmasi eksplisit (boleh ditambah sesuai kebutuhan produk).
         // Gunakan word-boundary agar tidak salah match substring tak terduga.
@@ -411,18 +478,21 @@ class GeminiController extends Controller
     }
 
     /**
-     * Cari URL gambar produk suplemen via Google Custom Search Image API.
-     * Dipanggil HANYA saat data master suplemen baru dibuat (bukan setiap log),
-     * supaya hemat kuota API & gambar konsisten untuk suplemen yang sama.
-     *
-     * Mengembalikan null jika API key/cx belum diset, request gagal, atau
-     * tidak ada hasil — supaya proses penyimpanan log tetap lanjut walau
-     * pencarian gambar gagal (gambar bukan field wajib).
+     * Cari URL gambar produk suplemen via scraping endpoint pencarian gambar
+     * DuckDuckGo (bukan API resmi — DDG tidak menyediakan API gambar publik
+     * gratis). CATATAN KERAPUHAN: pendekatan ini bergantung pada struktur
+     * internal halaman DDG (token "vqd", endpoint i.js) yang bisa berubah
+     * sewaktu-waktu tanpa pemberitahuan dan berpotensi melanggar ToS DDG.
+     * Untuk produksi jangka panjang, sebaiknya diganti dengan API resmi
+     * (mis. Google Custom Search JSON API, Bing Image Search, atau upload
+     * gambar manual oleh admin). Fungsi ini sengaja fail-safe: gambar bukan
+     * field wajib, jadi kegagalan di sini tidak boleh menggagalkan penyimpanan
+     * log.
      */
     private function fetchSupplementImageUrl(string $namaSuplemen): ?string
     {
         try {
-            $query = $namaSuplemen . ' suplemen';
+            $query = $namaSuplemen . 'suplemen';
 
             $init = Http::timeout(10)
                 ->withHeaders(['User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'])
@@ -465,6 +535,13 @@ class GeminiController extends Controller
                 return null;
             }
 
+            // Hanya terima http/https (bukan mis. "javascript:" atau skema aneh lain
+            // yang lolos filter_var tapi tidak aman ditampilkan sebagai <img src>).
+            $scheme = parse_url($imageUrl, PHP_URL_SCHEME);
+            if (!in_array($scheme, ['http', 'https'], true)) {
+                return null;
+            }
+
             return $imageUrl;
 
         } catch (\Exception $e) {
@@ -478,12 +555,18 @@ class GeminiController extends Controller
 
     /**
      * Guard kedua di backend untuk menilai apakah suatu food_log "kemungkinan
-     * tidak sehat" berdasarkan nilai gizi yang diestimasi Gemini, dinormalisasi
-     * per 100g agar adil terhadap porsi (weight) yang berbeda-beda.
+     * tidak sehat", dengan dua lapis pengecekan:
+     *
+     * 1) Berdasarkan nama makanan vs daftar kata kunci (UNHEALTHY_NAME_KEYWORDS)
+     *    — menutup celah makanan seperti mie ayam/bakso yang nilai gizinya bisa
+     *    "normal" (karena ada dagingnya) padahal sebenarnya tinggi sodium/MSG
+     *    yang tidak terekam di kolom gizi kita.
+     * 2) Berdasarkan nilai gizi yang diestimasi Gemini, dinormalisasi per 100g
+     *    agar adil terhadap porsi (weight) yang berbeda-beda.
      *
      * Ini BUKAN pengganti prompt, melainkan pengaman tambahan agar kasus yang
-     * "kebobolan" dari prompt (mis. makanan ambigu seperti mie ayam) tetap
-     * tertangkap tanpa perlu mendaftar nama makanan satu per satu.
+     * "kebobolan" dari prompt tetap tertangkap tanpa perlu mendaftar nama
+     * makanan satu per satu secara lengkap.
      *
      * Threshold per 100g (boleh dikalibrasi ulang sesuai kebutuhan produk):
      * - Kalori > 280 kkal DAN lemak > 15g DAN protein < 10g -> sinyal tinggi
@@ -493,6 +576,16 @@ class GeminiController extends Controller
      */
     private function isLikelyUnhealthyFood(array $foodLog): bool
     {
+        $namaMakanan = mb_strtolower((string) ($foodLog['nama_makanan'] ?? ''));
+
+        if ($namaMakanan !== '') {
+            foreach (self::UNHEALTHY_NAME_KEYWORDS as $keyword) {
+                if (str_contains($namaMakanan, $keyword)) {
+                    return true;
+                }
+            }
+        }
+
         $weight = (float) ($foodLog['weight'] ?? 0);
 
         if ($weight <= 0) {
@@ -536,10 +629,12 @@ class GeminiController extends Controller
         $foodQuery = Food::query();
         $supplementQuery = Supplement::query();
 
+        // Catatan: ambang mb_strlen($w) >= 4 di bawah ini dipakai untuk KEDUA
+        // query (food & supplement), bukan cuma supplement — tujuannya sama:
+        // menghindari kata umum pendek (mis. "plus", "food") terlalu dominan
+        // sebagai kriteria pencarian LIKE.
         $foodQuery->where(function ($q) use ($words) {
             foreach ($words as $w) {
-                // Hanya match kata dengan panjang >= 4 huruf untuk supplement
-                // agar kata umum seperti "force", "plus" tidak terlalu dominan
                 if (mb_strlen($w) >= 4) {
                     $q->orWhere('name', 'like', '%' . $w . '%');
                 }
@@ -612,7 +707,13 @@ class GeminiController extends Controller
             'parts' => [['text' => json_encode(['reply' => 'Siap, saya akan mengikuti instruksi tersebut.', 'action' => null])]],
         ];
 
-        // Riwayat percakapan sebelumnya (sliding window)
+        // Riwayat percakapan sebelumnya (sliding window). Catatan keamanan:
+        // history berasal dari client dan TIDAK dianggap tepercaya sebagai
+        // fakta ("model" turn di sini hanyalah teks konteks percakapan, bukan
+        // sumber kebenaran). Guard di ask() (isExplicitConfirmation,
+        // isLikelyUnhealthyFood, clampNutritionValue) tetap berjalan terlepas
+        // dari apa isi history, sehingga history yang dipalsukan tidak bisa
+        // memaksa data tersimpan ke database tanpa lolos guard tersebut.
         foreach ($history as $h) {
             $role = $h['role'] === 'model' ? 'model' : 'user';
             $contents[] = [
@@ -766,36 +867,43 @@ class GeminiController extends Controller
         if ($type === 'food_log') {
             $data = $action['food_log'] ?? [];
 
-            $namaMakanan = (string) ($data['nama_makanan'] ?? '');
+            $namaMakanan = trim((string) ($data['nama_makanan'] ?? ''));
             $makananId   = $data['makanan_id'] ?? null;
-            $weight      = (float) ($data['weight'] ?? 0);
-            $kcal        = (float) ($data['kcal'] ?? 0);
-            $protein     = (float) ($data['protein'] ?? 0);
-            $carbs       = (float) ($data['carbs'] ?? 0);
-            $fat         = (float) ($data['fat'] ?? 0);
+
+            // Sanity-clamp nilai gizi dari Gemini sebelum disimpan, supaya
+            // nilai negatif/ekstrem (halusinasi model) tidak mencemari
+            // food_logs maupun data master baru di tabel foods.
+            $weight      = $this->clampNutritionValue($data['weight'] ?? 0, self::MAX_WEIGHT_G);
+            $kcal        = $this->clampNutritionValue($data['kcal'] ?? 0, self::MAX_KCAL);
+            $protein     = $this->clampNutritionValue($data['protein'] ?? 0, self::MAX_MACRO_G);
+            $carbs       = $this->clampNutritionValue($data['carbs'] ?? 0, self::MAX_MACRO_G);
+            $fat         = $this->clampNutritionValue($data['fat'] ?? 0, self::MAX_MACRO_G);
             $category    = (string) ($data['category'] ?? '');
 
             if ($namaMakanan === '') {
                 throw new \InvalidArgumentException('nama_makanan kosong pada action food_log');
             }
 
-            // Tambahkan ke food_nutrition sebagai data master baru jika diminta
+            // Tambahkan ke food_nutrition sebagai data master baru jika diminta.
+            // Pakai firstOrCreate (dibungkus transaction) untuk mengurangi
+            // celah race condition dibanding where()->first() + create()
+            // terpisah. Perlindungan penuh idealnya juga didukung UNIQUE
+            // index pada kolom foods.name di level database.
             if ($newMasterData && empty($makananId)) {
-                $existing = Food::where('name', $namaMakanan)->first();
+                $food = DB::transaction(function () use ($namaMakanan, $category, $kcal, $fat, $carbs, $protein) {
+                    return Food::firstOrCreate(
+                        ['name' => $namaMakanan],
+                        [
+                            'category'     => $category ?: 'Lainnya',
+                            'calories'     => $kcal,
+                            'fat'          => $fat,
+                            'carbohydrate' => $carbs,
+                            'protein'      => $protein,
+                        ]
+                    );
+                });
 
-                if ($existing) {
-                    $makananId = $existing->id;
-                } else {
-                    $newFood = Food::create([
-                        'name'         => $namaMakanan,
-                        'category'     => $category ?: 'Lainnya',
-                        'calories'     => $kcal,
-                        'fat'          => $fat,
-                        'carbohydrate' => $carbs,
-                        'protein'      => $protein,
-                    ]);
-                    $makananId = $newFood->id;
-                }
+                $makananId = $food->id;
             }
 
             $log = FoodLog::create([
@@ -819,7 +927,7 @@ class GeminiController extends Controller
         if ($type === 'supplement_log') {
             $data = $action['supplement_log'] ?? [];
 
-            $namaSuplemen = (string) ($data['nama_suplemen'] ?? '');
+            $namaSuplemen = trim((string) ($data['nama_suplemen'] ?? ''));
             $supplementId = $data['supplement_id'] ?? null;
             $komposisi    = $this->nullableString($data['komposisi'] ?? null);
             $kemasan      = $this->nullableString($data['kemasan'] ?? null);
@@ -832,10 +940,19 @@ class GeminiController extends Controller
                 throw new \InvalidArgumentException('nama_suplemen kosong pada action supplement_log');
             }
 
-            // Tambahkan ke supplements sebagai data master baru jika diminta
             $supplementImage = null;
 
-            if ($newMasterData && empty($supplementId)) {
+            if (!empty($supplementId)) {
+                // supplement_id sudah diketahui (mis. dari context_data) ->
+                // ambil gambar yang sudah di-cache di master, jangan cari ulang.
+                $supplementImage = Supplement::find($supplementId)?->image;
+            } else {
+                // supplement_id belum diketahui -> cari/buat master data.
+                // Dibungkus transaction + firstOrCreate untuk mengurangi
+                // race condition dibanding where()->first() + create() manual.
+                // Pencarian gambar (fetchSupplementImageUrl) SENGAJA dilakukan
+                // DI LUAR transaction karena ia melakukan HTTP call eksternal
+                // (jangan menahan koneksi/transaksi DB selama menunggu network).
                 $existing = Supplement::where('name', $namaSuplemen)->first();
 
                 if ($existing) {
@@ -843,45 +960,35 @@ class GeminiController extends Controller
                     $supplementImage = $existing->image;
                 } else {
                     // Cari gambar produk HANYA saat suplemen benar-benar baru,
-                    // supaya tidak boros kuota Google CSE untuk suplemen yang
+                    // supaya tidak boros kuota/scraping untuk suplemen yang
                     // sudah pernah dicatat sebelumnya.
                     $supplementImage = $this->fetchSupplementImageUrl($namaSuplemen);
 
-                    $newSupplement = Supplement::create([
-                        'name'        => $namaSuplemen,
-                        'composition' => $komposisi,
-                        'packaging'   => $kemasan,
-                        'usage_rule'  => $aturanPakai,
-                        'image'       => $supplementImage,
-                    ]);
-                    $supplementId = $newSupplement->id;
-                }
-            } elseif (!empty($supplementId)) {
-                // supplement_id sudah diketahui (mis. dari context_data) ->
-                // ambil gambar yang sudah di-cache di master, jangan cari ulang.
-                $supplementImage = Supplement::find($supplementId)?->image;
-            } else {
-                // new_master_data=false tapi supplement_id juga null ->
-                // cari dulu di DB, kalau tidak ada baru buat master baru.
-                $existing = Supplement::where('name', $namaSuplemen)->first();
-                if ($existing) {
-                    $supplementId    = $existing->id;
-                    $supplementImage = $existing->image;
-                } else {
-                    $supplementImage = $this->fetchSupplementImageUrl($namaSuplemen);
-                    $newSupplement = Supplement::create([
-                        'name'        => $namaSuplemen,
-                        'composition' => $komposisi,
-                        'packaging'   => $kemasan,
-                        'usage_rule'  => $aturanPakai,
-                        'image'       => $supplementImage,
-                    ]);
-                    $supplementId = $newSupplement->id;
+                    $newSupplement = DB::transaction(function () use ($namaSuplemen, $komposisi, $kemasan, $aturanPakai, $supplementImage) {
+                        return Supplement::firstOrCreate(
+                            ['name' => $namaSuplemen],
+                            [
+                                'composition' => $komposisi,
+                                'packaging'   => $kemasan,
+                                'usage_rule'  => $aturanPakai,
+                                'image'       => $supplementImage,
+                            ]
+                        );
+                    });
+
+                    $supplementId    = $newSupplement->id;
+                    $supplementImage = $newSupplement->image;
                 }
             }
 
-            // Validasi format reminder_time "H:i" jika ada
+            // Validasi format reminder_time "H:i" jika ada. Jika tidak valid,
+            // diamkan sebagai null (bukan field kritikal), tapi tetap dicatat
+            // di log supaya kelihatan kalau Gemini sering mengirim format aneh.
             if ($reminderTime !== null && !preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', (string) $reminderTime)) {
+                Log::info('reminder_time dari Gemini tidak valid, diabaikan', [
+                    'nama_suplemen'        => $namaSuplemen,
+                    'reminder_time_mentah' => $reminderTime,
+                ]);
                 $reminderTime = null;
             }
 

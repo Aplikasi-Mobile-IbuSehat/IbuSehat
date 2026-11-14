@@ -3,11 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\SleepLog;
-use App\Models\SleepSession;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Schema;
 
 class SleepController extends Controller
 {
@@ -15,34 +13,18 @@ class SleepController extends Controller
     {
         $user = $request->user();
 
-        if (Schema::hasTable('sleep_logs')) {
-            $latestLog = SleepLog::query()
-                ->where('user_id', $user->id)
-                ->orderByDesc('created_at')
-                ->first();
+        $latestLog = SleepLog::query()
+            ->where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->first();
 
-            if ($latestLog !== null) {
-                return response()->json(
-                    array_merge(['has_data' => true], $this->buildFromLogs($user, $latestLog)),
-                );
-            }
+        if ($latestLog === null) {
+            return response()->json($this->emptyDashboard());
         }
 
-        if (Schema::hasTable('sleep_sessions')) {
-            $latest = SleepSession::query()
-                ->where('user_id', $user->id)
-                ->whereDate('wake_time', Carbon::today())
-                ->orderByDesc('wake_time')
-                ->first();
-
-            if ($latest !== null) {
-                return response()->json(
-                    array_merge(['has_data' => true], $this->buildFromSession($user)),
-                );
-            }
-        }
-
-        return response()->json($this->emptyDashboard());
+        return response()->json(
+            array_merge(['has_data' => true], $this->buildFromLogs($user, $latestLog)),
+        );
     }
 
     private function buildFromLogs($user, SleepLog $latest): array
@@ -125,59 +107,6 @@ class SleepController extends Controller
             'sleep_quality' => '-',
             'weekly_sleep_scores' => [0, 0, 0, 0, 0, 0, 0],
         ];
-    }
-
-    private function buildFromSession($user): array
-    {
-        $today = Carbon::today();
-        $startWeek = $today->copy()->startOfWeek(Carbon::MONDAY);
-
-        $sessions = SleepSession::query()
-            ->where('user_id', $user->id)
-            ->where('wake_time', '>=', $startWeek)
-            ->orderBy('wake_time')
-            ->get();
-
-        $weeklyScores = [];
-        for ($i = 0; $i < 7; $i++) {
-            $day = $startWeek->copy()->addDays($i);
-            $session = $sessions->first(
-                fn (SleepSession $s) => $s->wake_time->isSameDay($day)
-            );
-            $weeklyScores[] = $session?->sleep_score ?? 0;
-        }
-
-        $latest = $sessions->sortByDesc('wake_time')->first();
-        $avgMinutes = (int) round($sessions->avg('duration_minutes') ?: 0);
-        $totalDebt = max(0, (8 * 60 * 7) - $sessions->sum('duration_minutes'));
-
-        return [
-            'sleep_score' => $latest?->sleep_score ?? 82,
-            'sleep_category' => $this->scoreCategory($latest?->sleep_score ?? 82),
-            'sleep_message' => 'Tidurmu lebih baik dari kemarin!',
-            'sleep_duration' => $this->formatDuration($latest?->duration_minutes ?? 460),
-            'sleep_time' => $latest?->sleep_time?->format('H:i') ?? '22:30',
-            'wake_time' => $latest?->wake_time?->format('H:i') ?? '05:50',
-            'average_sleep' => $this->formatDuration($avgMinutes),
-            'sleep_debt' => $this->formatDuration($totalDebt),
-            'sleep_quality' => ($latest?->sleep_score ?? 82) >= 70 ? 'Baik' : 'Cukup',
-            'weekly_sleep_scores' => array_map(
-                fn ($s) => $s > 0 ? $s : 75,
-                $weeklyScores
-            ),
-        ];
-    }
-
-    private function scoreCategory(int $score): string
-    {
-        if ($score >= 80) {
-            return 'Good Sleep';
-        }
-        if ($score >= 60) {
-            return 'Fair Sleep';
-        }
-
-        return 'Poor Sleep';
     }
 
     private function formatDuration(int $minutes): string

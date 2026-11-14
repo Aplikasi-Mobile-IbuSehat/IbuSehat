@@ -98,21 +98,28 @@ class FoodLogController extends Controller
      */
     public function store(Request $request)
     {
+        // Batas min/max di sini sengaja disamakan dengan clamp yang dipakai
+        // GeminiController (MAX_WEIGHT_G / MAX_KCAL / MAX_MACRO_G), supaya
+        // entri manual dari endpoint ini (bukan lewat chatbot) tidak bisa
+        // berisi nilai negatif atau ekstrem yang merusak agregasi
+        // SUM(kcal)/SUM(protein) dsb di index()/summary(). Sebelumnya
+        // endpoint ini TIDAK punya min:0 sama sekali (beda dengan update()),
+        // jadi weight/kcal negatif bisa lolos.
         $validated = $request->validate([
-            'nama_makanan' => 'required|string',
-            'weight'       => 'required|numeric',
-            'kcal'         => 'required|numeric',
-            'protein'      => 'required|numeric',
-            'carbs'        => 'required|numeric',
-            'fat'          => 'required|numeric',
+            'nama_makanan' => 'required|string|max:190',
+            'weight'       => 'required|numeric|min:0|max:3000',
+            'kcal'         => 'required|numeric|min:0|max:3000',
+            'protein'      => 'required|numeric|min:0|max:500',
+            'carbs'        => 'required|numeric|min:0|max:500',
+            'fat'          => 'required|numeric|min:0|max:500',
             'makanan_id'   => 'nullable|integer',
-            'category'     => 'nullable|string',
+            'category'     => 'nullable|string|max:100',
         ]);
 
         $log = new FoodLog();
         $log->user_id      = Auth::id();
         $log->makanan_id   = $validated['makanan_id'] ?? null;
-        $log->nama_makanan = $validated['nama_makanan'];
+        $log->nama_makanan = trim($validated['nama_makanan']);
         $log->weight       = $validated['weight'];
         $log->kcal         = $validated['kcal'];
         $log->protein      = $validated['protein'];
@@ -143,15 +150,22 @@ class FoodLogController extends Controller
             ], 404);
         }
 
+        // Tambahkan batas atas (max) di sini juga, konsisten dengan store() —
+        // sebelumnya update() sudah punya min:0 tapi tidak ada batas atas,
+        // jadi nilai ekstrem (mis. kcal 999999999) masih bisa lolos lewat PUT.
         $validated = $request->validate([
-            'nama_makanan' => 'sometimes|required|string',
-            'weight'       => 'sometimes|required|numeric|min:0',
-            'kcal'         => 'sometimes|required|numeric|min:0',
-            'protein'      => 'sometimes|required|numeric|min:0',
-            'carbs'        => 'sometimes|required|numeric|min:0',
-            'fat'          => 'sometimes|required|numeric|min:0',
-            'category'     => 'sometimes|nullable|string',
+            'nama_makanan' => 'sometimes|required|string|max:190',
+            'weight'       => 'sometimes|required|numeric|min:0|max:3000',
+            'kcal'         => 'sometimes|required|numeric|min:0|max:3000',
+            'protein'      => 'sometimes|required|numeric|min:0|max:500',
+            'carbs'        => 'sometimes|required|numeric|min:0|max:500',
+            'fat'          => 'sometimes|required|numeric|min:0|max:500',
+            'category'     => 'sometimes|nullable|string|max:100',
         ]);
+
+        if (isset($validated['nama_makanan'])) {
+            $validated['nama_makanan'] = trim($validated['nama_makanan']);
+        }
 
         $log->fill($validated);
         if ($request->has('makanan_id')) {

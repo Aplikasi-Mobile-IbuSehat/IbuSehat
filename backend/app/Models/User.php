@@ -26,9 +26,9 @@ class User extends Authenticatable
         'premium_until',
         'height',
         'weight',
-        'waist',
-        'birth_date',
-        'gender',
+        'target_weight',
+        'age',
+        'delivery_date',
     ];
 
     protected $hidden = [
@@ -44,10 +44,11 @@ class User extends Authenticatable
             'is_onboarding_done' => 'boolean',
             'is_premium'         => 'boolean',
             'premium_until'      => 'datetime',
-            'birth_date'         => 'date',
             'height'             => 'float',
             'weight'             => 'float',
-            'waist'              => 'float',
+            'target_weight'      => 'float',
+            'age'                => 'integer',
+            'delivery_date'      => 'date',
         ];
     }
 
@@ -79,11 +80,6 @@ class User extends Authenticatable
     public function activities(): HasMany
     {
         return $this->hasMany(Activity::class);
-    }
-
-    public function sleepSessions(): HasMany
-    {
-        return $this->hasMany(SleepSession::class);
     }
 
     public function sleepLogs(): HasMany

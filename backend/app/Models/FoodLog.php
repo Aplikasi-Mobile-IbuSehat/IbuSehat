@@ -16,6 +16,5 @@ class FoodLog extends Model
         'carbs',
         'fat',
         'category',
-        'jenis'
     ];
 }

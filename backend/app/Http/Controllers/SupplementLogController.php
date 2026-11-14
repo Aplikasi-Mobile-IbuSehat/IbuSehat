@@ -69,7 +69,9 @@ class SupplementLogController extends Controller
             'komposisi' => ['nullable', 'string'],
             'kemasan' => ['nullable', 'string', 'max:190'],
             'aturan_pakai' => ['nullable', 'string'],
-            'gambar' => ['nullable', 'string', 'max:255'],
+            // Ditambahkan validasi 'url': sebelumnya field ini cuma dicek
+            // sebagai string bebas apa pun sampai 255 karakter.
+            'gambar' => ['nullable', 'string', 'max:255', 'url'],
             'source' => ['nullable', 'string', 'max:100'],
             'reminder_time' => ['nullable', 'date_format:H:i'],
             'is_taken' => ['nullable', 'boolean'],
@@ -78,12 +80,20 @@ class SupplementLogController extends Controller
         $log = SupplementLog::create([
             'user_id' => Auth::id(),
             'supplement_id' => $validated['supplement_id'] ?? null,
-            'nama_suplemen' => $validated['nama_suplemen'],
-            'komposisi' => $validated['komposisi'] ?? '',
-            'kemasan' => $validated['kemasan'] ?? '',
-            'aturan_pakai' => $validated['aturan_pakai'] ?? '',
+            'nama_suplemen' => trim($validated['nama_suplemen']),
+            // Field kosong disimpan sebagai null (bukan string kosong ''),
+            // supaya konsisten dengan entri yang dibuat lewat GeminiController
+            // (yang pakai nullableString()). Kalau disimpan sebagai '', kode
+            // lain yang mengecek is_null() untuk "data belum lengkap" tidak
+            // akan mengenali entri dari jalur manual ini.
+            'komposisi' => $validated['komposisi'] ?? null,
+            'kemasan' => $validated['kemasan'] ?? null,
+            'aturan_pakai' => $validated['aturan_pakai'] ?? null,
             'gambar' => $validated['gambar'] ?? null,
-            'source' => $validated['source'] ?? 'Halodoc',
+            // Sebelumnya default ke 'Halodoc' walau user tidak pernah bilang
+            // datanya dari Halodoc — itu atribusi palsu. Default sekarang
+            // netral dan jujur bahwa ini input manual dari pengguna sendiri.
+            'source' => $validated['source'] ?? 'Dicatat manual oleh pengguna',
             'reminder_time' => $validated['reminder_time'] ?? null,
             'is_taken' => $validated['is_taken'] ?? false,
         ]);
@@ -116,11 +126,15 @@ class SupplementLogController extends Controller
             'komposisi' => ['sometimes', 'nullable', 'string'],
             'kemasan' => ['sometimes', 'nullable', 'string', 'max:190'],
             'aturan_pakai' => ['sometimes', 'nullable', 'string'],
-            'gambar' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'gambar' => ['sometimes', 'nullable', 'string', 'max:255', 'url'],
             'source' => ['sometimes', 'nullable', 'string', 'max:100'],
             'reminder_time' => ['sometimes', 'nullable', 'date_format:H:i'],
             'is_taken' => ['sometimes', 'boolean'],
         ]);
+
+        if (isset($validated['nama_suplemen'])) {
+            $validated['nama_suplemen'] = trim($validated['nama_suplemen']);
+        }
 
         $log->fill($validated);
         $log->save();

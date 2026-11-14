@@ -25,10 +25,10 @@ class ProfileController extends Controller
                 'is_onboarding_done' => (bool) $user->is_onboarding_done,
                 'height'             => $user->height,
                 'weight'             => $user->weight,
-                'waist'              => $user->waist,
-                'birth_date'         => $user->birth_date,
-                'gender'             => $user->gender,
-                'is_premium'         => $user->isPremium(),
+                'target_weight'      => $user->target_weight,
+                'age'                => $user->age,
+                'delivery_date'      => $user->delivery_date?->toDateString(),
+                'is_premium'         => $user->hasActivePremium(),
                 'created_at'         => $user->created_at,
             ],
         ]);
@@ -43,13 +43,13 @@ class ProfileController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'name'       => ['sometimes', 'required', 'string', 'max:100'],
-            'height'     => ['sometimes', 'nullable', 'numeric', 'min:50', 'max:300'],
-            'weight'     => ['sometimes', 'nullable', 'numeric', 'min:10', 'max:500'],
-            'waist'      => ['sometimes', 'nullable', 'numeric', 'min:30', 'max:300'],
-            'birth_date' => ['sometimes', 'nullable', 'date', 'before:today'],
-            'gender'     => ['sometimes', 'nullable', 'string', 'in:male,female'],
-            'avatar'     => ['sometimes', 'nullable', 'string', 'max:500'],
+            'name'           => ['sometimes', 'required', 'string', 'max:100'],
+            'height'         => ['sometimes', 'nullable', 'numeric', 'min:50', 'max:300'],
+            'weight'         => ['sometimes', 'nullable', 'numeric', 'min:10', 'max:500'],
+            'target_weight'  => ['sometimes', 'nullable', 'numeric', 'min:10', 'max:500'],
+            'age'            => ['sometimes', 'nullable', 'integer', 'min:12', 'max:80'],
+            'delivery_date'  => ['sometimes', 'nullable', 'date'],
+            'avatar'         => ['sometimes', 'nullable', 'string', 'max:500'],
         ]);
 
         $user->fill($validated)->save();
@@ -65,10 +65,10 @@ class ProfileController extends Controller
                 'is_onboarding_done' => (bool) $user->is_onboarding_done,
                 'height'             => $user->height,
                 'weight'             => $user->weight,
-                'waist'              => $user->waist,
-                'birth_date'         => $user->birth_date,
-                'gender'             => $user->gender,
-                'is_premium'         => $user->isPremium(),
+                'target_weight'      => $user->target_weight,
+                'age'                => $user->age,
+                'delivery_date'      => $user->delivery_date?->toDateString(),
+                'is_premium'         => $user->hasActivePremium(),
             ],
         ]);
     }

@@ -253,7 +253,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<void> syncOnboardingToBackend() async {
+  Future<void> syncOnboardingToBackend({Map<String, dynamic>? healthData}) async {
     final t = await token;
     if (t == null || t.isEmpty) return;
 
@@ -262,6 +262,7 @@ class AuthService extends ChangeNotifier {
           .post(
             Uri.parse('${ApiConfig.apiBaseUrl}/user/onboarding'),
             headers: await jsonHeadersWithAuth(),
+            body: jsonEncode(healthData ?? {}),
           )
           .timeout(_timeout);
       await _handleAuthExpiry(response.statusCode);
@@ -345,6 +346,77 @@ class AuthService extends ChangeNotifier {
       'Accept': 'application/json',
       if (t != null && t.isNotEmpty) 'Authorization': 'Bearer $t',
     };
+  }
+
+  Future<Map<String, dynamic>> fetchProfile() async {
+    final t = await token;
+    if (t == null || t.isEmpty) {
+      throw Exception('Anda belum login. Silakan masuk kembali.');
+    }
+
+    final response = await http
+        .get(
+          Uri.parse('${ApiConfig.apiBaseUrl}/profile'),
+          headers: await jsonHeadersWithAuth(),
+        )
+        .timeout(_timeout);
+
+    if (await _handleAuthExpiry(response.statusCode)) {
+      throw Exception('Sesi habis, silakan login ulang.');
+    }
+
+    if (response.statusCode != 200) {
+      throw Exception('Gagal memuat data kesehatan.');
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic> || decoded['data'] is! Map<String, dynamic>) {
+      throw Exception('Data kesehatan tidak valid.');
+    }
+
+    return decoded['data'] as Map<String, dynamic>;
+  }
+
+  Future<void> updateHealthProfile({
+    required double height,
+    required double weight,
+    required double targetWeight,
+    required int age,
+    required String deliveryDate,
+  }) async {
+    final t = await token;
+    if (t == null || t.isEmpty) {
+      throw Exception('Anda belum login. Silakan masuk kembali.');
+    }
+
+    final response = await http
+        .put(
+          Uri.parse('${ApiConfig.apiBaseUrl}/profile'),
+          headers: await jsonHeadersWithAuth(),
+          body: jsonEncode({
+            'height': height,
+            'weight': weight,
+            'target_weight': targetWeight,
+            'age': age,
+            'delivery_date': deliveryDate,
+          }),
+        )
+        .timeout(_timeout);
+
+    if (await _handleAuthExpiry(response.statusCode)) {
+      throw Exception('Sesi habis, silakan login ulang.');
+    }
+
+    if (response.statusCode != 200) {
+      String message = 'Gagal menyimpan data kesehatan.';
+      try {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic> && decoded['message'] is String) {
+          message = decoded['message'] as String;
+        }
+      } catch (_) {}
+      throw Exception(message);
+    }
   }
 
   // ================= GOOGLE LOGIN =================

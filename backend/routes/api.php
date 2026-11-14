@@ -17,6 +17,7 @@ use App\Http\Controllers\WorkoutProgramController;
 use App\Http\Controllers\StreakController;
 use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\WaterIntakeController;
+use App\Http\Controllers\ProfileController;
 
 // ─────────────────────────────────────────────
 // Sanity-check route
@@ -66,9 +67,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // ── Auth / Session ─────────────────────────
     Route::get('/user', [AuthController::class, 'getUser']);
-    
+
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/user/onboarding', [AuthController::class, 'updateOnboarding']);
+
+    Route::get('/profile', [ProfileController::class, 'show']);
+    Route::put('/profile', [ProfileController::class, 'update']);
 
     // ── Water Intake ───────────────────────────
     Route::get('/user/water-intake', [WaterIntakeController::class, 'index']);
@@ -80,6 +84,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/fcm-token', [FcmTokenController::class, 'store']);
 
     // ── Chatbot AI (Gemini) — Premium Only ─────
+    // Ini SATU-SATUNYA jalur user-facing untuk menambah data master baru ke
+    // foods/supplements. Ditangani lewat GeminiController::handleAction(),
+    // yang punya guard: clamp nilai gizi, blokir makanan tidak sehat, dan
+    // wajib konfirmasi eksplisit dari user sebelum data disimpan.
     Route::middleware(['throttle:chat', 'premium.chat-quota'])->group(function () {
         Route::post('/gemini/chat', [GeminiController::class, 'ask']);
     });
@@ -111,33 +119,53 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/summary', [FoodLogController::class, 'summary']);
         Route::get('/', [FoodLogController::class, 'index']);
         Route::post('/', [FoodLogController::class, 'store']);
-        Route::put('/{id}', [FoodLogController::class, 'update']);
-        Route::patch('/{id}', [FoodLogController::class, 'update']);
-        Route::delete('/{id}', [FoodLogController::class, 'destroy']);
+        Route::put('/{id}', [FoodLogController::class, 'update'])->whereNumber('id');
+        Route::patch('/{id}', [FoodLogController::class, 'update'])->whereNumber('id');
+        Route::delete('/{id}', [FoodLogController::class, 'destroy'])->whereNumber('id');
     });
 
     // ── Diet: Supplement Logs ──────────────────
     Route::prefix('supplement-logs')->group(function () {
         Route::get('/', [SupplementLogController::class, 'index']);
         Route::post('/', [SupplementLogController::class, 'store']);
-        Route::put('/{id}', [SupplementLogController::class, 'update']);
-        Route::patch('/{id}', [SupplementLogController::class, 'update']);
-        Route::delete('/{id}', [SupplementLogController::class, 'destroy']);
+        Route::put('/{id}', [SupplementLogController::class, 'update'])->whereNumber('id');
+        Route::patch('/{id}', [SupplementLogController::class, 'update'])->whereNumber('id');
+        Route::delete('/{id}', [SupplementLogController::class, 'destroy'])->whereNumber('id');
     });
 
-    // ── Admin: Foods CRUD ──────────────────────
-    Route::prefix('foods')->group(function () {
-        Route::post('/', [FoodController::class, 'store']);
-        Route::put('/{id}', [FoodController::class, 'update']);
-        Route::delete('/{id}', [FoodController::class, 'destroy']);
-    });
-
-    // ── Admin: Supplements CRUD ────────────────
-    Route::prefix('supplements')->group(function () {
-        Route::post('/', [SupplementController::class, 'store']);
-        Route::put('/{id}', [SupplementController::class, 'update']);
-        Route::delete('/{id}', [SupplementController::class, 'destroy']);
-    });
+    // NOTE (dihapus dari sini secara sengaja):
+    // Endpoint CRUD manual "Admin: Foods CRUD" dan "Admin: Supplements CRUD"
+    // (POST/PUT/DELETE ke /foods dan /supplements) SUDAH DIHAPUS dari API
+    // user-facing ini. Aplikasi ini tidak punya sistem role admin.
+    //
+    // PENTING dibedakan dari food-logs/supplement-logs di atas: food-logs dan
+    // supplement-logs itu PRIVAT per user (selalu difilter where user_id di
+    // controller) — aman, tidak disentuh perubahan ini.
+    //
+    // Yang dihapus adalah akses tulis ke food_nutrition/supplements, yaitu
+    // tabel KATALOG yang:
+    //   1. Dibaca lewat GET /foods & GET /supplements TANPA login sama sekali
+    //      (lihat grup route publik di atas) — kalau isinya dirusak, semua
+    //      orang (termasuk yang belum pernah pakai app) langsung melihatnya.
+    //   2. Disuntikkan sebagai "context_data" ke Gemini di
+    //      GeminiController::buildContextData() sebagai sumber kebenaran gizi
+    //      yang WAJIB dipercaya AI kalau namanya cocok — kalau isinya salah,
+    //      jawaban chatbot ke SEMUA user lain ikut salah.
+    // Endpoint tanpa guard/validasi apa pun ke tabel ini (berbeda dengan
+    // jalur chatbot yang sudah ada guard) berisiko merusak dua hal itu.
+    //
+    // Jalur resmi untuk MENAMBAH data master baru adalah lewat chatbot AI
+    // (POST /gemini/chat di atas), yang sudah punya guard (clamp nilai gizi,
+    // blokir makanan tidak sehat, wajib konfirmasi eksplisit).
+    //
+    // Kalau suatu saat perlu koreksi/kurasi manual data katalog (mis. admin
+    // internal membetulkan komposisi suplemen), sebaiknya lewat jalur yang
+    // TIDAK memakai token Sanctum user biasa, misalnya:
+    //   - php artisan tinker / seeder khusus, atau
+    //   - panel admin terpisah dengan auth guard sendiri (mis. session-based,
+    //     bukan API token milik user aplikasi mobile), atau
+    //   - endpoint terpisah yang dikunci middleware API-key internal
+    //     (bukan auth:sanctum biasa).
 
     // ── Streak & Workout Tracking ──
     Route::post('/workout/complete', [StreakController::class, 'completeWorkout']);

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:mobile/pages/auth/auth_page.dart';
 import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/pages/settings/edit_health_data_page.dart';
-import 'package:mobile/pages/settings/language_settings_page.dart';
 import 'package:mobile/pages/skincare/skincare_page.dart';
 import 'package:mobile/pages/settings/bmi_calculator/bmi_calculator_page.dart';
 import 'package:mobile/pages/payments/premium_page.dart';
@@ -330,16 +329,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                       ),
                     ),
                   ),
-                  _buildMenuTile(
-                    icon: Icons.language_rounded,
-                    title: 'Bahasa',
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const LanguageSettingsPage(),
-                      ),
-                    ),
-                  ),
+                  
                   _buildToggleTile(
                     icon: Icons.notifications_none_rounded,
                     title: 'Notifikasi',

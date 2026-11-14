@@ -44,4 +44,11 @@ return [
         ],
     ],
 
+    // Dipakai oleh GeminiController::ask() via config('services.gemini.key').
+    // Jangan panggil env('GEMINI_API_KEY') langsung di controller — akan
+    // mengembalikan null setelah `php artisan config:cache` dijalankan.
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+    ],
+
 ];

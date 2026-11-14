@@ -74,7 +74,7 @@ class ProgressSyncTest extends TestCase
         $user = User::factory()->create([
             'weight' => 60,
             'height' => 165,
-            'birth_date' => '1995-05-15',
+            'age' => 31,
         ]);
         Sanctum::actingAs($user);
 

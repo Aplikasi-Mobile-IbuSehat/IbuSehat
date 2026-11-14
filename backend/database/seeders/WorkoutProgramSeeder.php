@@ -82,7 +82,6 @@ class WorkoutProgramSeeder extends Seeder
                         'duration' => $item['duration'],
                         'difficulty' => $difficulty,
                         'image_asset' => $item['image_asset'],
-                        'image_url' => null,
                         'description' => $item['description'],
                         'instructions' => $item['instructions'],
                         'equipment' => $item['equipment'],

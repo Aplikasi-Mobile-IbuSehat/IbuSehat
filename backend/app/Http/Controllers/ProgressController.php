@@ -130,17 +130,12 @@ class ProgressController extends Controller
 
         // Target kalori: dari user profile jika ada bmr, default 2067kkal/hari
         $dailyCalorieTarget = 2067;
-        if ($user->weight && $user->height && $user->birth_date) {
-            try {
-                $age = Carbon::parse($user->birth_date)->age;
-                // BMR untuk wanita (IbuSehat): 10 * weight + 6.25 * height - 5 * age - 161
-                $bmr = (10 * $user->weight) + (6.25 * $user->height) - (5 * $age) - 161;
-                $calculated = (int) round($bmr * 1.3); // TDEE lightly active
-                if ($calculated > 500) {
-                    $dailyCalorieTarget = $calculated;
-                }
-            } catch (\Exception $e) {
-                // Keep default
+        if ($user->weight && $user->height && $user->age) {
+            // BMR wanita (Harris–Benedict): 10 * weight + 6.25 * height - 5 * age - 161
+            $bmr = (10 * $user->weight) + (6.25 * $user->height) - (5 * $user->age) - 161;
+            $calculated = (int) round($bmr * 1.3); // TDEE lightly active
+            if ($calculated > 500) {
+                $dailyCalorieTarget = $calculated;
             }
         }
         $targetNutrition = $dailyCalorieTarget * 7;

@@ -48,7 +48,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
       );
     } else {
       await AuthService.instance.setOnboardingDone();
-      await AuthService.instance.syncOnboardingToBackend();
+      await AuthService.instance.syncOnboardingToBackend(healthData: {
+        if (_heightCm != null) 'height': _heightCm,
+        if (_weightKg != null) 'weight': _weightKg,
+        if (_targetWeightKg != null) 'target_weight': _targetWeightKg,
+        if (_ageYears != null) 'age': _ageYears,
+        if (_deliveryDate != null)
+          'delivery_date':
+              '${_deliveryDate!.year.toString().padLeft(4, '0')}-${_deliveryDate!.month.toString().padLeft(2, '0')}-${_deliveryDate!.day.toString().padLeft(2, '0')}',
+      });
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
