@@ -1,8 +1,59 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/pages/main_page.dart';
 import 'package:mobile/pages/onboarding/onboarding_page.dart';
+import 'package:mobile/services/auth_service.dart';
 
-class AuthPage extends StatelessWidget {
+class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
+
+  @override
+  State<AuthPage> createState() => _AuthPageState();
+}
+
+class _AuthPageState extends State<AuthPage> {
+  bool _busy = false;
+
+  Future<void> _onGooglePressed() async {
+    if (_busy) return;
+    setState(() => _busy = true);
+
+    final result = await AuthService.instance.signInWithGoogle();
+
+    if (!mounted) return;
+
+    switch (result) {
+      case AuthCancelled():
+        setState(() => _busy = false);
+        return;
+
+      case AuthFailure(:final message):
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(message),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+
+      case AuthSuccess():
+        await AuthService.instance.syncUserFromApi();
+        final user = await AuthService.instance.currentUser;
+        if (!mounted) return;
+
+        setState(() => _busy = false);
+
+        final isDone = user?.isOnboardingDone ?? false;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => isDone ? const MainPage() : const OnboardingPage(),
+          ),
+        );
+        return;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -15,134 +66,82 @@ class AuthPage extends StatelessWidget {
       ),
       body: Stack(
         children: [
-          // ── Aurora Background ──
-          Positioned.fill(
-            child: CustomPaint(
-              painter: _AuroraPainter(),
-            ),
-          ),
-
-          // ── Konten ──
+          Positioned.fill(child: CustomPaint(painter: _AuroraPainter())),
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 28),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // ═══════════════════════════════════════
-                  // AREA LOGO — ganti Image.asset di sini
-                  // ═══════════════════════════════════════
-                  Container(
-                    width: 110,
-                    height: 110,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.6),
-                      borderRadius: BorderRadius.circular(32),
-                      border: Border.all(
-                        color: Colors.white.withOpacity(0.9),
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFFB084F5).withOpacity(0.25),
-                          blurRadius: 24,
-                          spreadRadius: 4,
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(30),
-                      child: const Center(
-                        // ── GANTI BAGIAN INI DENGAN LOGO KAMU ──
-                        // child: Image.asset(
-                        //   'assets/icons/logo.png',
-                        //   width: 70,
-                        //   height: 70,
-                        //   fit: BoxFit.contain,
-                        // ),
-                        child: Icon(
-                          Icons.play_circle_fill_rounded,
-                          size: 60,
-                          color: Color(0xFF7C3AED),
-                        ),
-                      ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(30),
+                    child: Image.asset(
+                      'assets/logo/ibusehat_logo_transparent.webp',
+                      width: 100,
+                      height: 100,
                     ),
                   ),
-                  // ═══════════════════════════════════════
-
                   const SizedBox(height: 32),
-
-                  // ── Teks Welcome ──
                   const Text(
-                    "Welcome to Ibu Sehat",
+                    'Welcome to IbuSehat',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF1F1235),
-                      letterSpacing: -0.5,
                     ),
                   ),
-
                   const SizedBox(height: 8),
-
                   Text(
-                    "Pendamping kesehatan ibu pasca melahirkan",
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade500,
-                      height: 1.5,
-                    ),
+                    'Pendamping kesehatan ibu pasca melahirkan',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
                   ),
-
                   const SizedBox(height: 40),
-
-                  // ── Tombol Google ──
                   SizedBox(
                     width: double.infinity,
                     height: 54,
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (context) => const OnboardingPage()),
-                        );
-                      },
-                      icon: Image.asset(
-                        "assets/icons/google.webp",
-                        height: 20,
-                      ),
-                      label: const Text(
-                        "Continue with Google",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF374151),
-                        ),
-                      ),
+                      onPressed: _busy ? null : _onGooglePressed,
                       style: OutlinedButton.styleFrom(
                         backgroundColor: Colors.white,
-                        side: BorderSide(
-                          color: Colors.grey.withOpacity(0.25),
-                        ),
+                        foregroundColor: const Color(
+                          0xFF1F1F1F,
+                        ), 
+                        side: BorderSide(color: Colors.grey.shade300, width: 1),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(30),
                         ),
+                        overlayColor: Colors.grey.shade200,
+                        elevation: 0,
+                        textStyle: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          fontFamily:
+                              'Roboto',
+                        ),
+                      ),
+                      icon: _busy
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Color(0xFF1F1F1F),
+                                ),
+                              ),
+                            )
+                          : Image.asset('assets/icons/google.webp', height: 20),
+                      label: Text(
+                        _busy ? 'Memproses...' : 'Continue with Google',
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
-
-                  // Terms & Privacy note
                   Text(
-                    "By continuing, you agree to our\nTerms of Service and Privacy Policy",
+                    'By continuing, you agree to our\nTerms of Service and Privacy Policy',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.grey.shade400,
-                      height: 1.6,
-                    ),
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade400),
                   ),
                 ],
               ),
@@ -154,7 +153,6 @@ class AuthPage extends StatelessWidget {
   }
 }
 
-// ── Aurora Painter ─────────────────────────────────────────────────────────────
 class _AuroraPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -166,41 +164,46 @@ class _AuroraPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    _drawBlob(canvas,
-        center: Offset(w * 0.5, h * 0.10),
-        radiusX: w * 0.55,
-        radiusY: h * 0.25,
-        colors: [
-          const Color(0xFFD4AAFF).withOpacity(0.75),
-          const Color(0xFFE8CCFF).withOpacity(0.0),
-        ]);
-
-    _drawBlob(canvas,
-        center: Offset(w * 0.82, h * 0.05),
-        radiusX: w * 0.40,
-        radiusY: h * 0.20,
-        colors: [
-          const Color(0xFFF4AAEE).withOpacity(0.65),
-          const Color(0xFFFCDDFF).withOpacity(0.0),
-        ]);
-
-    _drawBlob(canvas,
-        center: Offset(w * 0.15, h * 0.08),
-        radiusX: w * 0.36,
-        radiusY: h * 0.18,
-        colors: [
-          const Color(0xFFAADDFF).withOpacity(0.55),
-          const Color(0xFFCCEEFF).withOpacity(0.0),
-        ]);
-
-    _drawBlob(canvas,
-        center: Offset(w * 0.48, h * 0.16),
-        radiusX: w * 0.26,
-        radiusY: h * 0.13,
-        colors: [
-          const Color(0xFFBB88FF).withOpacity(0.55),
-          const Color(0xFFCC99FF).withOpacity(0.0),
-        ]);
+    _drawBlob(
+      canvas,
+      center: Offset(w * 0.5, h * 0.10),
+      radiusX: w * 0.55,
+      radiusY: h * 0.25,
+      colors: [
+        const Color(0xFFD4AAFF).withValues(alpha: 0.75),
+        const Color(0xFFE8CCFF).withValues(alpha: 0.0),
+      ],
+    );
+    _drawBlob(
+      canvas,
+      center: Offset(w * 0.82, h * 0.05),
+      radiusX: w * 0.40,
+      radiusY: h * 0.20,
+      colors: [
+        const Color(0xFFF4AAEE).withValues(alpha: 0.65),
+        const Color(0xFFFCDDFF).withValues(alpha: 0.0),
+      ],
+    );
+    _drawBlob(
+      canvas,
+      center: Offset(w * 0.15, h * 0.08),
+      radiusX: w * 0.36,
+      radiusY: h * 0.18,
+      colors: [
+        const Color(0xFFAADDFF).withValues(alpha: 0.55),
+        const Color(0xFFCCEEFF).withValues(alpha: 0.0),
+      ],
+    );
+    _drawBlob(
+      canvas,
+      center: Offset(w * 0.48, h * 0.16),
+      radiusX: w * 0.26,
+      radiusY: h * 0.13,
+      colors: [
+        const Color(0xFFBB88FF).withValues(alpha: 0.55),
+        const Color(0xFFCC99FF).withValues(alpha: 0.0),
+      ],
+    );
 
     canvas.drawRect(
       Rect.fromLTWH(0, 0, w, h),
@@ -209,23 +212,29 @@ class _AuroraPainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Colors.white.withOpacity(0.0),
-            Colors.white.withOpacity(0.88),
+            Colors.white.withValues(alpha: 0.0),
+            Colors.white.withValues(alpha: 0.88),
           ],
-          stops: const [0.20, 0.50],
+          stops: const [0.2, 0.5],
         ).createShader(Rect.fromLTWH(0, 0, w, h)),
     );
   }
 
-  void _drawBlob(Canvas canvas,
-      {required Offset center,
-      required double radiusX,
-      required double radiusY,
-      required List<Color> colors}) {
+  void _drawBlob(
+    Canvas canvas, {
+    required Offset center,
+    required double radiusX,
+    required double radiusY,
+    required List<Color> colors,
+  }) {
     final paint = Paint()
-      ..shader = RadialGradient(colors: colors, stops: const [0.0, 1.0])
-          .createShader(Rect.fromCenter(
-              center: center, width: radiusX * 2, height: radiusY * 2));
+      ..shader = RadialGradient(colors: colors).createShader(
+        Rect.fromCenter(
+          center: center,
+          width: radiusX * 2,
+          height: radiusY * 2,
+        ),
+      );
 
     canvas.save();
     canvas.translate(center.dx, center.dy);
@@ -235,5 +244,5 @@ class _AuroraPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_AuroraPainter old) => false;
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

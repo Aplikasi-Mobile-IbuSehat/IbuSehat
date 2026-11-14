@@ -43,3 +43,10 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# ignore file besar
+mobile/ffmpeg_ext/ffmpeg.exe
+
+# optional (biar aman)
+*.exe
+# *.mp4

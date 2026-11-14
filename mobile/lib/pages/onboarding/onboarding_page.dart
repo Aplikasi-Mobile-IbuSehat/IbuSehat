@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:intl/intl.dart';
 import 'package:mobile/models/user_profile.dart';
 import 'package:mobile/pages/main_page.dart';
-import 'package:mobile/widgets/app_background.dart';
+import 'package:mobile/services/auth_service.dart';
+import 'package:mobile/theme/app_colors.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -40,15 +40,24 @@ class _OnboardingPageState extends State<OnboardingPage> {
   bool _touchedWeight = false;
   bool _touchedTargetWeight = false;
 
-  void _nextPage() {
+  Future<void> _nextPage() async {
     if (_currentStep < _totalSteps - 1) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 350),
         curve: Curves.fastOutSlowIn,
       );
     } else {
-      // Finalize and go to Main Page
-      // (Profile persistence can be added later if needed.)
+      await AuthService.instance.setOnboardingDone();
+      await AuthService.instance.syncOnboardingToBackend(healthData: {
+        if (_heightCm != null) 'height': _heightCm,
+        if (_weightKg != null) 'weight': _weightKg,
+        if (_targetWeightKg != null) 'target_weight': _targetWeightKg,
+        if (_ageYears != null) 'age': _ageYears,
+        if (_deliveryDate != null)
+          'delivery_date':
+              '${_deliveryDate!.year.toString().padLeft(4, '0')}-${_deliveryDate!.month.toString().padLeft(2, '0')}-${_deliveryDate!.day.toString().padLeft(2, '0')}',
+      });
+      if (!mounted) return;
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const MainPage()),
@@ -70,7 +79,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       extendBodyBehindAppBar: true,
-      body: AppBackground(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        color: lightBackground,
         child: SafeArea(
           child: Column(
             children: [
@@ -127,31 +139,35 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 child: Row(
                   children: [
                     // Animated Back Button
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeInOut,
-                      width: _currentStep == 0 ? 0 : 56,
-                      height: 56,
-                      margin: EdgeInsets.only(right: _currentStep == 0 ? 0 : 12),
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 200),
-                        opacity: _currentStep == 0 ? 0 : 1,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: IconButton(
-                            onPressed: _previousPage,
-                            icon: const Icon(
-                              Icons.arrow_back_rounded,
-                              color: Color(0xFF1F1235),
+                    Builder(builder: (context) {
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        curve: Curves.easeInOut,
+                        width: _currentStep == 0 ? 0 : 56,
+                        height: 56,
+                        margin: EdgeInsets.only(right: _currentStep == 0 ? 0 : 12),
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 200),
+                          opacity: _currentStep == 0 ? 0 : 1,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.grey.shade200,
+                              ),
+                            ),
+                            child: IconButton(
+                              onPressed: _previousPage,
+                              icon: Icon(
+                                Icons.arrow_back_rounded,
+                                color: const Color(0xFF1F1235),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    }),
                     // Main Action Button
                     Expanded(
                       child: Container(
@@ -161,7 +177,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                              color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                               blurRadius: 12,
                               offset: const Offset(0, 6),
                             )
@@ -178,9 +194,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           ),
                           onPressed: _nextPage,
                           child: Text(
-                            _currentStep == 0 
-                                ? "Mulai Sekarang" 
-                                : (_currentStep == _totalSteps - 1 ? "Selesai" : "Lanjutkan"),
+                            _currentStep == 0
+                                ? "Mulai Sekarang"
+                                : (_currentStep == _totalSteps - 1
+                                    ? "Selesai"
+                                    : "Lanjutkan"),
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
@@ -207,33 +225,22 @@ class _OnboardingPageState extends State<OnboardingPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF8B5CF6).withOpacity(0.2),
-                  blurRadius: 30,
-                  spreadRadius: 5,
-                )
-              ],
+            SizedBox(
+              width: 140,
+              height: 140,
+              child: Image.asset(
+                'assets/logo/ibusehat_logo_transparent.webp',
+                fit: BoxFit.contain,
+              ),
             ),
-            child: const Icon(
-              Icons.auto_awesome_rounded,
-              size: 80,
-              color: Color(0xFF8B5CF6),
-            ),
-          ),
           const SizedBox(height: 48),
-          const Text(
-            "Selamat Datang di Ibu Sehat",
+          Text(
+            "Selamat Datang di IbuSehat",
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.w800,
-              color: Color(0xFF1F1235),
+              color: const Color(0xFF1F1235),
               letterSpacing: -1,
             ),
           ),
@@ -262,18 +269,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   "Target Utama",
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF1F1235),
+                    color: const Color(0xFF1F1235),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Opsional • boleh dilewati",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 10),
                 Text(
@@ -308,18 +310,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   "Tingkat Aktivitas",
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF1F1235),
+                    color: const Color(0xFF1F1235),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Opsional • boleh dilewati",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 10),
                 Text(
@@ -352,32 +349,35 @@ class _OnboardingPageState extends State<OnboardingPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   "Riwayat Persalinan",
                   style: TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF1F1235),
+                    color: const Color(0xFF1F1235),
                   ),
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 12),
                 Text(
-                  "Opsional • boleh dilewati",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 18),
-                const Text(
                   "Jenis Persalinan",
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: const Color(0xFF1F1235),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 _buildDeliveryCard("Normal", DeliveryMethod.normal),
                 const SizedBox(height: 12),
                 _buildDeliveryCard("Sesar", DeliveryMethod.sesar),
                 const SizedBox(height: 28),
-                const Text(
+                Text(
                   "Kapan terakhir kali melahirkan?",
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: const Color(0xFF1F1235),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 _buildRelativeDateRangeCard(
@@ -491,73 +491,72 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }) {
     final displayValue = touched && value != null ? "$value $unit" : "Belum dipilih";
 
-    return Column(
-      children: [
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF1F1235),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  "Opsional • boleh dilewati",
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade500, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  subtitle,
-                  style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 22),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Text(
-                    displayValue,
+    return Builder(builder: (context) {
+      return Column(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
                     style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: touched && value != null ? const Color(0xFF1F1235) : Colors.grey.shade500,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF1F1235),
                     ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                Expanded(
-                  child: Container(
+                  const SizedBox(height: 10),
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 15, color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 22),
+                  Container(
                     width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.grey.shade200),
                     ),
-                    child: _buildIntWheelPicker(
-                      min: min,
-                      max: max,
-                      initialValue: value ?? ((min + max) ~/ 2),
-                      onChanged: onChanged,
+                    child: Text(
+                      displayValue,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: touched && value != null
+                            ? const Color(0xFF1F1235)
+                            : Colors.grey.shade500,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 18),
+                  Expanded(
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200),
+                      ),
+                      child: _buildIntWheelPicker(
+                        min: min,
+                        max: max,
+                        initialValue: value ?? ((min + max) ~/ 2),
+                        onChanged: onChanged,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    });
   }
 
   Widget _buildIntWheelPicker({
@@ -609,16 +608,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF8B5CF6) : Colors.white,
+          color: isSelected
+              ? const Color(0xFF8B5CF6)
+              : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? Colors.transparent : Colors.grey.shade200,
+            color: isSelected
+                ? Colors.transparent
+                : Colors.grey.shade200,
             width: 1.5,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   )
@@ -628,7 +631,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : const Color(0xFF1F1235),
+            color: isSelected
+                ? Colors.white
+                : const Color(0xFF1F1235),
             fontWeight: FontWeight.w600,
             fontSize: 16,
           ),
@@ -645,16 +650,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF8B5CF6) : Colors.white,
+          color: isSelected
+              ? const Color(0xFF8B5CF6)
+              : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? Colors.transparent : Colors.grey.shade200,
+            color: isSelected
+                ? Colors.transparent
+                : Colors.grey.shade200,
             width: 1.5,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   )
@@ -664,7 +673,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : const Color(0xFF1F1235),
+            color: isSelected
+                ? Colors.white
+                : const Color(0xFF1F1235),
             fontWeight: FontWeight.w600,
             fontSize: 16,
           ),
@@ -681,16 +692,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF8B5CF6) : Colors.white,
+          color: isSelected
+              ? const Color(0xFF8B5CF6)
+              : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? Colors.transparent : Colors.grey.shade200,
+            color: isSelected
+                ? Colors.transparent
+                : Colors.grey.shade200,
             width: 1.5,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   )
@@ -700,7 +715,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
         child: Text(
           label,
           style: TextStyle(
-            color: isSelected ? Colors.white : const Color(0xFF1F1235),
+            color: isSelected
+                ? Colors.white
+                : const Color(0xFF1F1235),
             fontWeight: FontWeight.w600,
             fontSize: 16,
           ),
@@ -725,16 +742,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF8B5CF6) : Colors.white,
+          color: isSelected
+              ? const Color(0xFF8B5CF6)
+              : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? Colors.transparent : Colors.grey.shade200,
+            color: isSelected
+                ? Colors.transparent
+                : Colors.grey.shade200,
             width: 1.5,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: const Color(0xFF8B5CF6).withOpacity(0.3),
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                     blurRadius: 10,
                     offset: const Offset(0, 4),
                   )
@@ -747,7 +768,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
               child: Text(
                 label,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : const Color(0xFF1F1235),
+                  color: isSelected
+                      ? Colors.white
+                      : const Color(0xFF1F1235),
                   fontWeight: FontWeight.w600,
                   fontSize: 15,
                 ),

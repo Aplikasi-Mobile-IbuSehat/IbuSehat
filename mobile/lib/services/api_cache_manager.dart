@@ -1,0 +1,47 @@
+import 'package:flutter/foundation.dart';
+
+class ApiCacheManager {
+  ApiCacheManager._();
+
+  static final ApiCacheManager instance = ApiCacheManager._();
+
+  final Map<String, dynamic> _cache = {};
+
+  Future<dynamic> getOrFetch(
+    String key,
+    Future<dynamic> Function() fetchCallback, {
+    bool forceRefresh = false,
+  }) async {
+    if (!forceRefresh && _cache.containsKey(key)) {
+      debugPrint('ApiCacheManager: Cache HIT for $key');
+      return _cache[key];
+    }
+
+    try {
+      debugPrint('ApiCacheManager: Cache MISS (or refresh) for $key');
+      final data = await fetchCallback();
+      _cache[key] = data;
+      return data;
+    } catch (e) {
+      debugPrint('ApiCacheManager: Error fetching data for $key - $e');
+      rethrow;
+    }
+  }
+
+  /// Langsung set cache tanpa fetch — dipakai setelah add/reduce
+  /// supaya request berikutnya tidak perlu hit API lagi.
+  void set(String key, dynamic value) {
+    _cache[key] = value;
+    debugPrint('ApiCacheManager: Cache SET for $key');
+  }
+
+  void invalidate(String key) {
+    _cache.remove(key);
+    debugPrint('ApiCacheManager: Cache INVALIDATED for $key');
+  }
+
+  void clearAll() {
+    _cache.clear();
+    debugPrint('ApiCacheManager: All cache cleared');
+  }
+}
