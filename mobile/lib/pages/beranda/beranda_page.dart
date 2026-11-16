@@ -1,4 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:mobile/pages/beranda/welcome_dialog.dart';
 import 'package:mobile/providers/sleep_provider.dart';
 import 'package:mobile/providers/progress_provider.dart';
@@ -170,6 +173,9 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final titleColor = isDark ? darkTextPrimary : lightTextPrimary;
+    // MainPage memakai extendBody, jadi isi halaman berada di belakang
+    // navbar; tinggi navbar tersedia sebagai padding bawah MediaQuery.
+    final navbarInset = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
       body: CustomScrollView(
@@ -187,14 +193,29 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
             automaticallyImplyLeading: false,
             toolbarHeight: 65.0,
             titleSpacing: 20,
-            title: Text(
-              'IbuSehat',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                color: titleColor,
-                fontSize: 26,
-                letterSpacing: -1.0,
-              ),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  DateFormat('EEEE, d MMMM', 'id').format(DateTime.now()),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? darkTextSecondary : lightTextSecondary,
+                  ),
+                ),
+                Text(
+                  'IbuSehat',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w800,
+                    color: titleColor,
+                    fontSize: 24,
+                    height: 1.15,
+                    letterSpacing: -0.8,
+                  ),
+                ),
+              ],
             ),
             actions: [
               AppHeaderActions(titleColor: titleColor),
@@ -203,21 +224,41 @@ class _BerandaPageState extends State<BerandaPage> with WidgetsBindingObserver {
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
             sliver: SliverToBoxAdapter(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  WeeklyActivityCard(
-                    streakData: _streakData,
-                    onRefreshStreak: _fetchStreakData,
-                  ),
-                  const SizedBox(height: 24),
-                  ProgressTodaySection(
-                    onTabSelected: _goToTab,
-                  ),
-                  const SizedBox(height: 16), // Memberikan sedikit ruang bawah
-                ],
+              child: WeeklyActivityCard(
+                streakData: _streakData,
+                onRefreshStreak: _fetchStreakData,
               ),
             ),
+          ),
+          // Empat kartu progress mengisi sisa layar sampai tepat di atas
+          // navbar (tanpa ruang kosong). Di layar pendek, kartu memakai
+          // tinggi minimumnya dan halaman bisa digulir seperti biasa.
+          SliverLayoutBuilder(
+            builder: (context, constraints) {
+              const topPadding = 20.0;
+              final bottomPadding = navbarInset + 16;
+              final remaining = constraints.viewportMainAxisExtent -
+                  constraints.precedingScrollExtent;
+              final minHeight =
+                  topPadding + ProgressTodaySection.minHeight + bottomPadding;
+
+              return SliverToBoxAdapter(
+                child: SizedBox(
+                  height: math.max(remaining, minHeight),
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      20,
+                      topPadding,
+                      20,
+                      bottomPadding,
+                    ),
+                    child: ProgressTodaySection(
+                      onTabSelected: _goToTab,
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

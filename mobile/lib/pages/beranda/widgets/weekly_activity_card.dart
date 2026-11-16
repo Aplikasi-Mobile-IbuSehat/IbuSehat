@@ -2,18 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:mobile/models/streak_models.dart';
 import 'package:mobile/pages/beranda/share_achievement_page.dart';
 import 'package:mobile/pages/beranda/streak_detail_page.dart';
-import 'package:mobile/theme/app_colors.dart';
+import 'package:mobile/pages/beranda/widgets/dashboard_style.dart';
 
-const _kPrimary = Color(0xFF6C4DFF);
-const _kVeryLightPurple = Color(0xFFF3EEFF);
-const _kGradientPurpleEnd = Color(0xFFEAE0FF);
-const _kOrange = Color(0xFFF59E0B);
-const _kSuccess = Color(0xFF22C55E);
-const _kCardRadius = 24.0;
-const _kWeeklyPillHeight = 102.0;
+/// Status satu hari di minggu berjalan.
+enum DayStatus { done, today, missed, future }
 
-enum DayStatus { empty, check, progress, fire }
-
+/// Kartu streak di dashboard.
+///
+/// Ciri khasnya "rantai streak": hari-hari yang selesai berturut-turut
+/// tersambung menjadi satu kapsul, sehingga panjang streak terbaca dari
+/// bentuknya. Seluruh kartu bisa diketuk untuk membuka detail streak.
 class WeeklyActivityCard extends StatelessWidget {
   const WeeklyActivityCard({
     super.key,
@@ -24,192 +22,128 @@ class WeeklyActivityCard extends StatelessWidget {
   final StreakData? streakData;
   final VoidCallback onRefreshStreak;
 
+  void _openDetail(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StreakDetailPage(
+          currentStreak: streakData?.streakActive ?? 0,
+          longestStreak: streakData?.streakLongest ?? 0,
+        ),
+      ),
+    ).then((_) => onRefreshStreak());
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = isDark ? darkSurface : lightSurface;
-    final border = isDark ? darkBorder : lightBorder;
-    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
-    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final s = DashboardStyle.of(context);
+    final current = streakData?.streakActive ?? 0;
+    final longest = streakData?.streakLongest ?? 0;
 
-    final currentStreak = streakData?.streakActive ?? 0;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-      decoration: BoxDecoration(
-        gradient: isDark
-            ? const LinearGradient(
-                colors: [Color(0xFF2E1A47), Color(0xFF150B24)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : const LinearGradient(
-                colors: [_kVeryLightPurple, _kGradientPurpleEnd],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-        border: isDark ? Border.all(color: border.withValues(alpha: 0.3)) : null,
-        borderRadius: BorderRadius.circular(_kCardRadius),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Aktivitas 7 Hari Terakhir',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: textPrimary,
-                  ),
-                ),
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Material(
-                    color: isDark ? Colors.white.withValues(alpha: 0.1) : lightSurface,
-                    shape: const CircleBorder(),
-                    child: InkWell(
-                      onTap: () => _showStreakInfoDialog(
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: s.cardDecoration(),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(DashboardStyle.radius),
+          onTap: () => _openDetail(context),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 8, 18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: Text('STREAK', style: s.eyebrow)),
+                    _IconAction(
+                      icon: Icons.info_outline_rounded,
+                      tooltip: 'Tentang streak',
+                      color: s.muted,
+                      onTap: () => _showStreakInfoDialog(context, s),
+                    ),
+                    _IconAction(
+                      icon: Icons.ios_share_rounded,
+                      tooltip: 'Bagikan streak',
+                      color: s.muted,
+                      onTap: () => Navigator.push(
                         context,
-                        textPrimary: textPrimary,
-                        textSecondary: textSecondary,
-                        surface: surface,
-                      ),
-                      customBorder: const CircleBorder(),
-                      child: const Padding(
-                        padding: EdgeInsets.all(7),
-                        child: Icon(
-                          Icons.info_outline_rounded,
-                          size: 16,
-                          color: _kPrimary,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              ShareAchievementPage(streakDays: current),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 6),
-                  Material(
-                    color: isDark ? Colors.white.withValues(alpha: 0.1) : lightSurface,
-                    borderRadius: BorderRadius.circular(20),
-                    child: InkWell(
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ShareAchievementPage(
-                              streakDays: currentStreak,
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text('$current', style: s.figure(52)),
+                          const SizedBox(width: 6),
+                          Text(
+                            'hari berturut-turut',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: s.ink,
                             ),
                           ),
-                        );
-                      },
-                      borderRadius: BorderRadius.circular(20),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.share_outlined,
-                              size: 16,
-                              color: _kPrimary,
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              'Bagikan',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: _kPrimary,
-                              ),
-                            ),
-                          ],
-                        ),
+                        ],
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      _Caption(current: current, longest: longest, style: s),
+                      const SizedBox(height: 20),
+                      _StreakChain(streakData: streakData, style: s),
+                    ],
                   ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 12),
-          StreakCard(
-            streakData: streakData,
-            onRefreshStreak: onRefreshStreak,
-          ),
-          const SizedBox(height: 10),
-          WeekCalendar(
-            streakData: streakData,
-            isDark: isDark,
-            textPrimary: textPrimary,
-            textSecondary: textSecondary,
-            lightSurface: lightSurface,
-            lightBorder: lightBorder,
-          ),
-        ],
+        ),
       ),
     );
   }
 
-  void _showStreakInfoDialog(
-    BuildContext context, {
-    required Color textPrimary,
-    required Color textSecondary,
-    required Color surface,
-  }) {
+  void _showStreakInfoDialog(BuildContext context, DashboardStyle s) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: surface,
+        backgroundColor: s.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: _kPrimary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.info_outline_rounded, color: _kPrimary),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              'Informasi Streak',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                color: textPrimary,
-              ),
-            ),
-          ],
+        title: Text(
+          'Tentang streak',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: s.ink,
+          ),
         ),
         content: Text(
-          'Fitur ini digunakan untuk melacak konsistensi aktivitas harian kamu.\n\n'
-          'Setiap kali kamu menyelesaikan workout atau mencatat kesehatan, '
-          'streak akan bertambah.',
+          'Streak menghitung berapa hari berturut-turut kamu aktif. '
+          'Satu hari terhitung saat kamu menyelesaikan latihan atau '
+          'mencatat kesehatanmu.\n\n'
+          'Di rantai mingguan, hari yang berturut-turut selesai tersambung '
+          'menjadi satu.',
           style: TextStyle(
             fontSize: 14,
-            color: textSecondary,
+            color: s.muted,
             height: 1.5,
             fontWeight: FontWeight.w500,
           ),
         ),
         actions: [
-          FilledButton(
+          TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            style: FilledButton.styleFrom(
-              backgroundColor: _kPrimary,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+            style: TextButton.styleFrom(
+              foregroundColor: DashboardStyle.iris,
             ),
             child: const Text(
               'Mengerti',
@@ -222,353 +156,292 @@ class WeeklyActivityCard extends StatelessWidget {
   }
 }
 
-class StreakCard extends StatelessWidget {
-  const StreakCard({
-    super.key,
-    required this.streakData,
-    required this.onRefreshStreak,
+class _Caption extends StatelessWidget {
+  const _Caption({
+    required this.current,
+    required this.longest,
+    required this.style,
   });
 
-  final StreakData? streakData;
-  final VoidCallback onRefreshStreak;
+  final int current;
+  final int longest;
+  final DashboardStyle style;
 
   @override
   Widget build(BuildContext context) {
-    final currentStreak = streakData?.streakActive ?? 0;
+    final text = current == 0
+        ? 'Selesaikan latihan atau catat kesehatanmu hari ini untuk memulai.'
+        : current >= longest
+            ? 'Ini rekor terpanjangmu.'
+            : 'Rekor terpanjangmu $longest hari.';
 
-    return Container(
-      constraints: const BoxConstraints(minHeight: 148),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: cardGradient,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const SizedBox(
-            width: 52,
-            child: Icon(
-              Icons.emoji_events_rounded,
-              size: 52,
-              color: Color(0xFFFBBF24),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            flex: 6,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'Streak Saat Ini',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white.withValues(alpha: 0.8),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$currentStreak Hari 🔥',
-                  style: const TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    height: 1.05,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Konsisten selama ${streakData?.streakActive ?? 0} hari berturut-turut',
-                  maxLines: 2,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.white.withValues(alpha: 0.9),
-                    height: 1.2,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            width: 1,
-            height: 70,
-            color: Colors.white.withValues(alpha: 0.2),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => StreakDetailPage(
-                          currentStreak: streakData?.streakActive ?? 0,
-                          longestStreak: streakData?.streakLongest ?? 0,
-                        ),
-                      ),
-                    ).then((_) {
-                      onRefreshStreak();
-                    });
-                  },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 10,
-                    ),
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    backgroundColor: Colors.white.withValues(alpha: 0.18),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: const FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Lihat Detail',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        Icon(Icons.chevron_right_rounded, size: 16),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
+    return Text(
+      text,
+      style: TextStyle(
+        fontSize: 13,
+        height: 1.35,
+        fontWeight: FontWeight.w500,
+        color: style.muted,
       ),
     );
   }
 }
 
-class WeekCalendar extends StatelessWidget {
-  const WeekCalendar({
-    super.key,
-    required this.streakData,
-    required this.isDark,
-    required this.textPrimary,
-    required this.textSecondary,
-    required this.lightSurface,
-    required this.lightBorder,
+class _IconAction extends StatelessWidget {
+  const _IconAction({
+    required this.icon,
+    required this.tooltip,
+    required this.color,
+    required this.onTap,
   });
 
+  final IconData icon;
+  final String tooltip;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onTap,
+      tooltip: tooltip,
+      icon: Icon(icon, size: 19, color: color),
+      visualDensity: VisualDensity.compact,
+      splashRadius: 20,
+    );
+  }
+}
+
+/// Rantai streak minggu berjalan (Minggu–Sabtu).
+class _StreakChain extends StatelessWidget {
+  const _StreakChain({required this.streakData, required this.style});
+
   final StreakData? streakData;
-  final bool isDark;
-  final Color textPrimary;
-  final Color textSecondary;
-  final Color lightSurface;
-  final Color lightBorder;
+  final DashboardStyle style;
 
   static const _dayLabels = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+  static const double _chainHeight = 26;
+
+  List<DayStatus> _statuses(DateTime startOfWeek, DateTime today) {
+    final byDate = <String, String>{
+      for (final d in streakData?.calendar ?? const <CalendarDay>[])
+        d.date.length >= 10 ? d.date.substring(0, 10) : d.date: d.status,
+    };
+
+    return List.generate(7, (i) {
+      final day = startOfWeek.add(Duration(days: i));
+      final key = '${day.year.toString().padLeft(4, '0')}-'
+          '${day.month.toString().padLeft(2, '0')}-'
+          '${day.day.toString().padLeft(2, '0')}';
+
+      if (byDate[key] == 'completed') return DayStatus.done;
+      if (DateUtils.isSameDay(day, today)) return DayStatus.today;
+      return day.isAfter(today) ? DayStatus.future : DayStatus.missed;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final startOfWeek = now.subtract(Duration(days: now.weekday % 7));
-    
-    // Get last 7 days from calendar
-    final last7Days = streakData?.calendar
-        .where((day) {
-          final date = DateTime.parse(day.date);
-          return date.isAfter(startOfWeek.subtract(const Duration(days: 1))) &&
-                 date.isBefore(now.add(const Duration(days: 1)));
-        })
-        .toList() ?? [];
+    final today = DateUtils.dateOnly(DateTime.now());
+    final startOfWeek = today.subtract(Duration(days: today.weekday % 7));
+    final statuses = _statuses(startOfWeek, today);
 
-    return SizedBox(
-      height: _kWeeklyPillHeight,
-      child: Row(
-        children: List.generate(7, (index) {
-          final day = startOfWeek.add(Duration(days: index));
-          final isToday = day.day == now.day &&
-              day.month == now.month &&
-              day.year == now.year;
-          
-          CalendarDay? calendarDay;
-          if (last7Days.isNotEmpty) {
-            try {
-              calendarDay = last7Days.firstWhere(
-                (cd) {
-                  final cdDate = DateTime.parse(cd.date);
-                  return cdDate.year == day.year &&
-                         cdDate.month == day.month &&
-                         cdDate.day == day.day;
-                },
-              );
-            } catch (_) {}
-          }
-          
-          DayStatus status = DayStatus.empty;
-          if (calendarDay != null) {
-            if (calendarDay.status == 'completed') {
-              status = DayStatus.check;
-            } else if (calendarDay.status == 'today' && isToday) {
-              status = DayStatus.progress;
-            }
-          }
-          
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: WeekDayPill(
-                label: _dayLabels[index],
-                date: '${day.day}/${day.month}',
-                status: status,
-                isToday: isToday,
-                surface: isDark ? Colors.white.withValues(alpha: 0.05) : lightSurface,
-                border: isDark ? Colors.white.withValues(alpha: 0.1) : lightBorder,
-                textPrimary: textPrimary,
-                textSecondary: textSecondary,
-              ),
+    return Semantics(
+      label: 'Rantai streak minggu ini: '
+          '${statuses.where((d) => d == DayStatus.done).length} dari 7 hari selesai',
+      child: Column(
+        children: [
+          SizedBox(
+            height: _chainHeight,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: CustomPaint(
+                    painter: _ChainPainter(statuses: statuses, style: style),
+                  ),
+                ),
+                Row(
+                  children: [
+                    for (final status in statuses)
+                      Expanded(
+                        child: status == DayStatus.done
+                            ? const Icon(
+                                Icons.check_rounded,
+                                size: 14,
+                                color: Colors.white,
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                  ],
+                ),
+              ],
             ),
-          );
-        }),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              for (var i = 0; i < 7; i++)
+                Expanded(
+                  child: _DayLabel(
+                    label: _dayLabels[i],
+                    date: startOfWeek.add(Duration(days: i)).day,
+                    isToday: statuses[i] == DayStatus.today ||
+                        DateUtils.isSameDay(
+                          startOfWeek.add(Duration(days: i)),
+                          today,
+                        ),
+                    isFuture: statuses[i] == DayStatus.future,
+                    style: style,
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
 }
 
-class WeekDayPill extends StatelessWidget {
-  const WeekDayPill({
-    super.key,
+class _DayLabel extends StatelessWidget {
+  const _DayLabel({
     required this.label,
     required this.date,
-    required this.status,
     required this.isToday,
-    required this.surface,
-    required this.border,
-    required this.textPrimary,
-    required this.textSecondary,
+    required this.isFuture,
+    required this.style,
   });
 
   final String label;
-  final String date;
-  final DayStatus status;
+  final int date;
   final bool isToday;
-  final Color surface;
-  final Color border;
-  final Color textPrimary;
-  final Color textSecondary;
+  final bool isFuture;
+  final DashboardStyle style;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: _kWeeklyPillHeight,
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: isToday ? _kPrimary : border,
-          width: isToday ? 1.5 : 1,
-        ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: isToday ? _kPrimary : textSecondary,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                date,
-                style: TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w500,
-                  color: textSecondary,
-                ),
-              ),
-            ],
+    final color = isToday
+        ? DashboardStyle.iris
+        : isFuture
+            ? style.faint
+            : style.muted;
+
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isToday ? FontWeight.w800 : FontWeight.w600,
+            color: color,
           ),
-          _statusIcon(),
-        ],
-      ),
+        ),
+        const SizedBox(height: 1),
+        Text(
+          '$date',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isToday ? FontWeight.w800 : FontWeight.w500,
+            color: color,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+      ],
     );
   }
+}
 
-  Widget _statusIcon() {
-    switch (status) {
-      case DayStatus.check:
-        return Container(
-          width: 24,
-          height: 24,
-          decoration: const BoxDecoration(
-            color: _kSuccess,
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.check_rounded, size: 14, color: Colors.white),
-        );
-      case DayStatus.progress:
-        return Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: _kPrimary, width: 2),
-          ),
-          child: const Icon(
-            Icons.directions_run_rounded,
-            size: 12,
-            color: _kPrimary,
-          ),
-        );
-      case DayStatus.fire:
-        return Container(
-          width: 24,
-          height: 24,
-          decoration: const BoxDecoration(
-            color: Color(0xFFFFEDD5),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(
-            Icons.local_fire_department_rounded,
-            size: 14,
-            color: _kOrange,
-          ),
-        );
-      case DayStatus.empty:
-        return Container(
-          width: 24,
-          height: 24,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: border, width: 1.5),
-          ),
-        );
+class _ChainPainter extends CustomPainter {
+  _ChainPainter({required this.statuses, required this.style});
+
+  final List<DayStatus> statuses;
+  final DashboardStyle style;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cell = size.width / statuses.length;
+    final cy = size.height / 2;
+    final r = size.height / 2;
+    double cx(int i) => cell * (i + 0.5);
+
+    // Benang dasar yang menghubungkan seluruh minggu.
+    canvas.drawLine(
+      Offset(cx(0), cy),
+      Offset(cx(statuses.length - 1), cy),
+      Paint()
+        ..color = style.track
+        ..strokeWidth = 2
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Hari yang selesai berturut-turut digabung menjadi satu kapsul.
+    final chainPaint = Paint()
+      ..shader = DashboardStyle.chainGradient
+          .createShader(Offset.zero & size);
+
+    var i = 0;
+    while (i < statuses.length) {
+      if (statuses[i] != DayStatus.done) {
+        i++;
+        continue;
+      }
+      final start = i;
+      while (i + 1 < statuses.length && statuses[i + 1] == DayStatus.done) {
+        i++;
+      }
+      canvas.drawRRect(
+        RRect.fromLTRBR(
+          cx(start) - r,
+          0,
+          cx(i) + r,
+          size.height,
+          Radius.circular(r),
+        ),
+        chainPaint,
+      );
+      i++;
     }
+
+    for (var d = 0; d < statuses.length; d++) {
+      final center = Offset(cx(d), cy);
+      switch (statuses[d]) {
+        case DayStatus.done:
+          break;
+        case DayStatus.today:
+          canvas.drawCircle(center, r - 1, Paint()..color = style.card);
+          canvas.drawCircle(
+            center,
+            r - 2,
+            Paint()
+              ..color = DashboardStyle.iris
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2,
+          );
+        case DayStatus.missed:
+          canvas.drawCircle(center, 4, Paint()..color = style.faint);
+        case DayStatus.future:
+          canvas.drawCircle(center, 6, Paint()..color = style.card);
+          canvas.drawCircle(
+            center,
+            5,
+            Paint()
+              ..color = style.track
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 1.5,
+          );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ChainPainter old) =>
+      old.style.isDark != style.isDark ||
+      !_listEquals(old.statuses, statuses);
+
+  static bool _listEquals(List<DayStatus> a, List<DayStatus> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 }

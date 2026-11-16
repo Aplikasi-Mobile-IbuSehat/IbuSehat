@@ -1,18 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/pages/beranda/widgets/dashboard_style.dart';
 import 'package:mobile/providers/progress_provider.dart';
 import 'package:mobile/providers/sleep_provider.dart';
-import 'package:mobile/theme/app_colors.dart';
 import 'package:provider/provider.dart';
 
-const _kPrimary = Color(0xFF6C4DFF);
-const _kSuccess = Color(0xFF22C55E);
-const _kBlue = Color(0xFF3B82F6);
-const _kPink = Color(0xFFEC4899);
-const _kVeryLightPurple = Color(0xFFF3EEFF);
+/// Tinggi kartu terkecil sebelum halaman beralih ke mode gulir.
+const double _minCardHeight = 104;
+const double _rowGap = 10;
+const double _columnGap = 10;
 
-final _numberFormatId = NumberFormat('#,###', 'id');
+/// Tombol tidur melayang (SleepFab, 56 px + margin 16) menutupi pojok
+/// kanan-bawah kartu Jam Tidur saat kartu memanjang sampai di atas navbar.
+const double _fabCornerInset = 50;
 
+/// Mulai tinggi kartu ini, kartu Jam Tidur menyisakan ruang di kanan bawah
+/// untuk tombol tidur. Di bawahnya halaman sudah dalam mode gulir.
+const double _fabAwareMinCardHeight = 110;
+
+final _thousands = NumberFormat.decimalPattern('id');
+final _oneDecimal = NumberFormat('#,##0.#', 'id');
+
+/// Ringkasan empat metrik minggu berjalan, dalam grid 2x2 yang mengisi
+/// tinggi yang diberikan (lihat BerandaPage).
 class ProgressTodaySection extends StatelessWidget {
   const ProgressTodaySection({
     super.key,
@@ -21,56 +31,85 @@ class ProgressTodaySection extends StatelessWidget {
 
   final void Function(int) onTabSelected;
 
+  /// Tinggi terkecil section ini (judul + grid dengan kartu minimum).
+  static const double minHeight = 32 + 6 + _minCardHeight * 2 + _rowGap;
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
-    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final s = DashboardStyle.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Progress Minggu Ini',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: textPrimary,
-              ),
-            ),
-            GestureDetector(
-              onTap: () => onTabSelected(1),
-              child: Text(
-                'Lihat detail >',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: textSecondary,
+        SizedBox(
+          height: 32,
+          child: Row(
+            children: [
+              Expanded(child: Text('MINGGU INI', style: s.eyebrow)),
+              TextButton(
+                onPressed: () => onTabSelected(1),
+                style: TextButton.styleFrom(
+                  foregroundColor: s.ink,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Lihat progress',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    SizedBox(width: 2),
+                    Icon(Icons.arrow_forward_rounded, size: 15),
+                  ],
                 ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        GridView(
-          padding: EdgeInsets.zero,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            mainAxisSpacing: 8,
-            crossAxisSpacing: 12,
-            childAspectRatio: 1.65,
+            ],
           ),
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          children: [
-            WorkoutProgressCard(),
-            WaterProgressCard(),
-            NutritionProgressCard(),
-            SleepProgressCard(),
-          ],
+        ),
+        const SizedBox(height: 6),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final cardHeight = (constraints.maxHeight - _rowGap) / 2;
+
+              return Column(
+                children: [
+                  const Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(child: WorkoutProgressCard()),
+                        SizedBox(width: _columnGap),
+                        Expanded(child: WaterProgressCard()),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: _rowGap),
+                  Expanded(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Expanded(child: NutritionProgressCard()),
+                        const SizedBox(width: _columnGap),
+                        Expanded(
+                          child: SleepProgressCard(
+                            avoidFabCorner:
+                                cardHeight >= _fabAwareMinCardHeight,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ],
     );
@@ -85,23 +124,16 @@ class WorkoutProgressCard extends StatelessWidget {
     return Consumer<ProgressProvider>(
       builder: (context, provider, _) {
         final workout = provider.summary?.weekly.workout;
-        final menit = workout?.today ?? 0;
-        final percent = workout?.percent ?? 0;
-        final progress = percent / 100.0;
-        final targetMinutes = workout?.targetMinutes ?? 75;
-        
-        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final target = workout?.targetMinutes ?? 75;
 
         return ProgressCard(
           title: 'Olahraga',
-          value: '$menit menit',
-          target: 'Target mingguan $targetMinutes menit',
-          percent: percent,
-          progress: progress,
           icon: Icons.directions_run_rounded,
-          iconColor: _kPrimary,
-          iconBg: isDark ? _kPrimary.withValues(alpha: 0.15) : _kVeryLightPurple,
-          barColor: _kPrimary,
+          color: DashboardStyle.workout,
+          value: _thousands.format(workout?.totalMinutes ?? 0),
+          unit: 'menit',
+          target: 'dari ${_thousands.format(target)} menit',
+          percent: workout?.percent ?? 0,
         );
       },
     );
@@ -116,24 +148,17 @@ class WaterProgressCard extends StatelessWidget {
     return Consumer<ProgressProvider>(
       builder: (context, provider, _) {
         final water = provider.summary?.weekly.water;
-        final ml = water?.today ?? 0;
-        final percent = water?.percent ?? 0;
-        final progress = percent / 100.0;
+        final totalMl = water?.totalMl ?? 0;
         final targetMl = water?.targetMl ?? 14000;
-        final targetLiterText = _numberFormatId.format(targetMl ~/ 1000);
-        
-        final isDark = Theme.of(context).brightness == Brightness.dark;
 
         return ProgressCard(
-          title: 'Air Putih',
-          value: '$ml ML',
-          target: 'Target mingguan $targetLiterText liter',
-          percent: percent,
-          progress: progress,
+          title: 'Air putih',
           icon: Icons.water_drop_rounded,
-          iconColor: _kBlue,
-          iconBg: isDark ? _kBlue.withValues(alpha: 0.15) : const Color(0xFFDBEAFE),
-          barColor: _kBlue,
+          color: DashboardStyle.water,
+          value: _oneDecimal.format(totalMl / 1000),
+          unit: 'liter',
+          target: 'dari ${_oneDecimal.format(targetMl / 1000)} liter',
+          percent: water?.percent ?? 0,
         );
       },
     );
@@ -148,24 +173,16 @@ class NutritionProgressCard extends StatelessWidget {
     return Consumer<ProgressProvider>(
       builder: (context, provider, _) {
         final nutrition = provider.summary?.weekly.nutrition;
-        final kkal = nutrition?.today ?? 0;
-        final percent = nutrition?.percent ?? 0;
-        final progress = percent / 100.0;
-        final targetKkal = nutrition?.targetKkal ?? 14469;
-        final targetKkalText = _numberFormatId.format(targetKkal);
-        
-        final isDark = Theme.of(context).brightness == Brightness.dark;
+        final target = nutrition?.targetKkal ?? 14469;
 
         return ProgressCard(
           title: 'Nutrisi',
-          value: '$kkal kkal',
-          target: 'Target Mingguan $targetKkalText kkal',
-          percent: percent,
-          progress: progress,
           icon: Icons.restaurant_rounded,
-          iconColor: _kSuccess,
-          iconBg: isDark ? _kSuccess.withValues(alpha: 0.15) : const Color(0xFFDCFCE7),
-          barColor: _kSuccess,
+          color: DashboardStyle.nutrition,
+          value: _thousands.format(nutrition?.totalKkal ?? 0),
+          unit: 'kkal',
+          target: 'dari ${_thousands.format(target)} kkal',
+          percent: nutrition?.percent ?? 0,
         );
       },
     );
@@ -173,162 +190,152 @@ class NutritionProgressCard extends StatelessWidget {
 }
 
 class SleepProgressCard extends StatelessWidget {
-  const SleepProgressCard({super.key});
+  const SleepProgressCard({super.key, this.avoidFabCorner = false});
+
+  /// True bila pojok kanan-bawah kartu ini tertutup tombol tidur melayang.
+  final bool avoidFabCorner;
 
   @override
   Widget build(BuildContext context) {
     return Consumer<SleepProvider>(
       builder: (context, provider, _) {
-        final totalHours = provider.weeklyTotalHours;
-        final percent = provider.weeklyProgressPercent;
-        final progress = percent / 100.0;
-        
-        final isDark = Theme.of(context).brightness == Brightness.dark;
-
         return ProgressCard(
-          title: 'Jam Tidur',
-          value: '${totalHours.toStringAsFixed(1)} jam',
-          target: 'Target Mingguan 49 jam',
-          percent: percent,
-          progress: progress,
-          icon: Icons.bedtime,
-          iconColor: _kPink,
-          iconBg: isDark ? _kPink.withValues(alpha: 0.15) : const Color(0xFFFCE7F3),
-          barColor: _kPink,
+          title: 'Tidur',
+          icon: Icons.bedtime_rounded,
+          color: DashboardStyle.sleep,
+          value: _oneDecimal.format(provider.weeklyTotalHours),
+          unit: 'jam',
+          target: 'dari 49 jam',
+          percent: provider.weeklyProgressPercent,
+          avoidBottomRightCorner: avoidFabCorner,
         );
       },
     );
   }
 }
 
+/// Kartu satu metrik: label & persentase di atas, angka besar, lalu target
+/// dan bilah progres di bawah. Kartu meregang mengikuti tinggi grid.
 class ProgressCard extends StatelessWidget {
   const ProgressCard({
     super.key,
     required this.title,
+    required this.icon,
+    required this.color,
     required this.value,
+    required this.unit,
     required this.target,
     required this.percent,
-    required this.progress,
-    required this.icon,
-    required this.iconColor,
-    required this.iconBg,
-    required this.barColor,
+    this.avoidBottomRightCorner = false,
   });
 
   final String title;
+  final IconData icon;
+  final Color color;
   final String value;
+  final String unit;
   final String target;
   final int percent;
-  final double progress;
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBg;
-  final Color barColor;
+
+  /// Bila true, target & bilah progres menyisakan ruang di kanan bawah
+  /// kartu, yang tertutup tombol melayang.
+  final bool avoidBottomRightCorner;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final surface = isDark ? darkSurface : lightSurface;
-    final border = isDark ? darkBorder : lightBorder;
-    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
-    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+    final s = DashboardStyle.of(context);
+    final progress = (percent / 100).clamp(0.0, 1.0);
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: surface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: border, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: iconBg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: iconColor, size: 20),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: textSecondary,
-                      ),
+    return Semantics(
+      label: '$title: $value $unit $target, $percent persen',
+      excludeSemantics: true,
+      child: Container(
+        decoration: s.cardDecoration(),
+        padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 15, color: color),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: s.ink,
                     ),
-                    Text(
-                      value,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: textPrimary,
-                        height: 1.15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(99),
-            child: LinearProgressIndicator(
-              value: progress.clamp(0.0, 1.0),
-              minHeight: 5,
-              backgroundColor: isDark ? darkBorder : const Color(0xFFF3F4F6),
-              valueColor: AlwaysStoppedAnimation<Color>(barColor),
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text(
-                  target,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w500,
-                    color: textSecondary,
                   ),
                 ),
-              ),
-              Text(
-                '$percent%',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: iconColor,
+                Text(
+                  '$percent%',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: percent > 0 ? color : s.faint,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
                 ),
+              ],
+            ),
+            const Spacer(),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(value, style: s.figure(28)),
+                  const SizedBox(width: 4),
+                  Text(
+                    unit,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: s.muted,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: EdgeInsets.only(
+                right: avoidBottomRightCorner ? _fabCornerInset : 0,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(99),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 4,
+                      backgroundColor: s.track,
+                      valueColor: AlwaysStoppedAnimation<Color>(color),
+                    ),
+                  ),
+                  const SizedBox(height: 7),
+                  Text(
+                    target,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: s.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -26,7 +26,7 @@ class ApiConfig {
     // Pakai ngrok  → 'https://shingle-immodest-styling.ngrok-free.dev'
     // Pakai emulator → 'http://10.0.2.2:8000'
     // Pakai HP fisik → 'http://192.168.88.10:8000'
-    return 'https://shingle-immodest-styling.ngrok-free.dev';
+    return 'https://192.168.11.73:8000';
   }
 
   static String get apiBaseUrl => '$baseUrl/api';
