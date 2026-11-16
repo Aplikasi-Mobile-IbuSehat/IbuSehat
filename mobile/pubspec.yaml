@@ -22,7 +22,7 @@ dependencies:
   # HTTP dependencies
   http: ^1.6.0
   cupertino_icons: ^1.0.8
-  font_awesome_flutter: ^10.12.0
+  font_awesome_flutter: ^11.0.0
   flutter_svg: ^2.2.4
   intl: ^0.20.2
 
@@ -43,9 +43,6 @@ dependencies:
   dio: ^5.8.0+1
   fl_chart: ^0.70.2
 
-  # Webview dependencies
-  webview_flutter: ^4.8.0
-  webview_flutter_android: ^3.16.0
   confetti: ^0.7.0
   firebase_messaging: ^16.2.0
   app_settings: ^5.1.1
@@ -58,6 +55,7 @@ dependencies:
   firebase_core: ^4.7.0
   firebase_auth: ^6.4.0
   google_sign_in: ^7.2.0
+  google_sign_in_web: ^1.1.0 # tombol login Google resmi untuk web
   cached_network_image: ^3.4.1
 
   # Loading screens
@@ -96,7 +94,6 @@ flutter:
     - assets/icons/custom_glass_bottle.svg
     - assets/icons/water_glass.svg
     - assets/icons/message_circle.svg
-    - assets/icons/sparkles_premium.svg
 
     # videos
     - assets/videos/

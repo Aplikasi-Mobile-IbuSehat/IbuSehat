@@ -1,10 +1,11 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:mobile/theme/app_colors.dart';
-import 'package:mobile/pages/payments/premium_page.dart';
-import 'package:mobile/widgets/app_header_actions.dart';
+import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/widgets/custom_toast.dart';
+import 'package:mobile/widgets/health_gate.dart';
 import '../../services/api_service.dart';
 
 class ChatbotPage extends StatefulWidget {
@@ -22,32 +23,286 @@ class _ChatbotPageState extends State<ChatbotPage> {
   final List<Message> _messages = [];
   bool _isLoading = false;
 
-  /// Riwayat percakapan dalam format role/text untuk dikirim ke backend.
-  /// Backend menerapkan sliding window (4 pasangan terakhir), jadi di sisi
-  /// Flutter cukup simpan seluruh riwayat sesi ini.
-  final List<Map<String, String>> _history = [];
+  /// Sesi chat di server. Riwayat & ingatan AI disimpan backend per sesi,
+  /// jadi aplikasi cukup mengirim id sesi (null = sesi baru).
+  int? _sessionId;
+
+  /// True selama percakapan terakhir sedang dimuat dari server.
+  bool _restoring = true;
 
   /// Sisa kuota chat harian (diisi dari respons backend setelah chat pertama).
   int? _quotaUsed;
   int? _quotaLimit;
 
   static const String _greetingText =
-      'Halo 👋 Saya Asisten Ibusehat. Hari ini Anda sudah makan atau minum suplemen apa?';
+      'Halo 👋 Aku IbuSehat AI, pendamping kesehatan ibu pasca melahirkan. '
+      'Mau tanya soal pemulihan, menyusui, atau pola makan? '
+      'Aku juga bisa bantu mencatat makanan dan suplemenmu.';
+
+  Message get _greeting =>
+      Message(text: _greetingText, isAi: true, timestamp: DateTime.now());
 
   @override
   void initState() {
     super.initState();
-    // Tampilkan sapaan pembuka dari AI tanpa memanggil backend, sekaligus
-    // dicatat ke history agar Gemini tahu giliran pertama adalah miliknya.
-    _messages.insert(
-      0,
-      Message(text: _greetingText, isAi: true, timestamp: DateTime.now()),
+    // Sapaan pembuka ditampilkan tanpa memanggil backend.
+    _messages.add(_greeting);
+    _restoreLatestSession();
+  }
+
+  /// Lanjutkan percakapan terakhir pengguna, kalau ada.
+  Future<void> _restoreLatestSession() async {
+    try {
+      final sessions = await _apiService.fetchChatSessions();
+      if (sessions.isNotEmpty) {
+        await _openSession(sessions.first.id);
+      }
+    } catch (_) {
+      // Gagal memuat riwayat tidak menghalangi chat baru.
+    } finally {
+      if (mounted) setState(() => _restoring = false);
+    }
+  }
+
+  /// Muat isi satu sesi ke layar dan jadikan sesi aktif.
+  Future<void> _openSession(int sessionId) async {
+    final history = await _apiService.fetchChatMessages(sessionId);
+    if (!mounted) return;
+
+    setState(() {
+      _sessionId = sessionId;
+      _messages
+        ..clear()
+        // Daftar ditampilkan terbalik: indeks 0 = pesan terbaru.
+        ..addAll(history.reversed.map(
+          (m) => Message(
+            text: m.text,
+            isAi: m.isAi,
+            isEmergency: m.isEmergency,
+            timestamp: m.timestamp,
+          ),
+        ))
+        ..add(_greeting);
+    });
+  }
+
+  void _startNewChat() {
+    if (_isLoading) return;
+    setState(() {
+      _sessionId = null;
+      _messages
+        ..clear()
+        ..add(_greeting);
+    });
+  }
+
+  Future<void> _showHistorySheet() async {
+    if (_isLoading) return;
+
+    final List<ChatSessionSummary> sessions;
+    try {
+      sessions = await _apiService.fetchChatSessions();
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar(e.toString().replaceFirst('Exception: ', ''), isError: true);
+      }
+      return;
+    }
+    if (!mounted) return;
+
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? darkSurface : lightSurface;
+    final textPrimary = isDark ? darkTextPrimary : lightTextPrimary;
+    final textSecondary = isDark ? darkTextSecondary : lightTextSecondary;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return SafeArea(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(sheetContext).size.height * 0.7,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Riwayat Percakapan',
+                              style: TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: textPrimary,
+                              ),
+                            ),
+                          ),
+                          TextButton.icon(
+                            onPressed: () {
+                              Navigator.pop(sheetContext);
+                              _startNewChat();
+                            },
+                            icon: const Icon(Icons.add_rounded, size: 18),
+                            label: const Text('Baru'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFF8B5CF6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (sessions.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                        child: Text(
+                          'Belum ada percakapan tersimpan.',
+                          style: TextStyle(color: textSecondary, fontSize: 14),
+                        ),
+                      )
+                    else
+                      Flexible(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          padding: const EdgeInsets.only(bottom: 12),
+                          itemCount: sessions.length,
+                          itemBuilder: (_, index) {
+                            final session = sessions[index];
+                            final isActive = session.id == _sessionId;
+                            return ListTile(
+                              leading: Icon(
+                                Icons.chat_bubble_outline_rounded,
+                                color: isActive
+                                    ? const Color(0xFF8B5CF6)
+                                    : textSecondary,
+                                size: 20,
+                              ),
+                              title: Text(
+                                session.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: textPrimary,
+                                  fontSize: 14.5,
+                                  fontWeight: isActive
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                              subtitle: session.lastMessageAt == null
+                                  ? null
+                                  : Text(
+                                      _formatSessionTime(session.lastMessageAt!),
+                                      style: TextStyle(
+                                        color: textSecondary,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                              trailing: IconButton(
+                                tooltip: 'Hapus percakapan',
+                                icon: Icon(
+                                  Icons.delete_outline_rounded,
+                                  color: textSecondary,
+                                  size: 20,
+                                ),
+                                onPressed: () async {
+                                  final deleted = await _deleteSession(session);
+                                  if (deleted) {
+                                    setSheetState(() => sessions.removeAt(index));
+                                  }
+                                },
+                              ),
+                              onTap: () async {
+                                Navigator.pop(sheetContext);
+                                if (isActive) return;
+                                try {
+                                  await _openSession(session.id);
+                                } catch (e) {
+                                  if (mounted) {
+                                    _showSnackBar(
+                                      e.toString().replaceFirst('Exception: ', ''),
+                                      isError: true,
+                                    );
+                                  }
+                                }
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
-    _history.add({'role': 'model', 'text': _greetingText});
+  }
+
+  Future<bool> _deleteSession(ChatSessionSummary session) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text(
+          'Hapus percakapan?',
+          style: TextStyle(fontWeight: FontWeight.w800),
+        ),
+        content: Text(
+          '"${session.title}" akan dihapus permanen dan tidak bisa dikembalikan.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red.shade600),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return false;
+
+    try {
+      await _apiService.deleteChatSession(session.id);
+    } catch (e) {
+      if (mounted) {
+        _showSnackBar(e.toString().replaceFirst('Exception: ', ''), isError: true);
+      }
+      return false;
+    }
+
+    if (mounted && session.id == _sessionId) _startNewChat();
+    return true;
+  }
+
+  String _formatSessionTime(DateTime time) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    final now = DateTime.now();
+    final clock = '${two(time.hour)}.${two(time.minute)}';
+    final sameDay =
+        time.year == now.year && time.month == now.month && time.day == now.day;
+    return sameDay
+        ? 'Hari ini, $clock'
+        : '${two(time.day)}/${two(time.month)}/${time.year}, $clock';
   }
 
   Future<void> _sendMessage(String text) async {
-    if (text.trim().isEmpty || _isLoading) return;
+    if (text.trim().isEmpty || _isLoading || _restoring) return;
 
     final userMessage = Message(
       text: text,
@@ -63,16 +318,19 @@ class _ChatbotPageState extends State<ChatbotPage> {
     _scrollToBottom();
 
     try {
-      final result = await _apiService.sendChatMessage(
-        text,
-        history: List<Map<String, String>>.from(_history),
-      );
+      ChatResult result;
+      try {
+        result = await _apiService.sendChatMessage(text, sessionId: _sessionId);
+      } on ChatAccessException catch (e) {
+        // Sesi sudah terhapus (mis. dari perangkat lain): lanjut di sesi baru.
+        if (e.code != 'SESSION_NOT_FOUND' || _sessionId == null) rethrow;
+        _sessionId = null;
+        result = await _apiService.sendChatMessage(text);
+      }
 
       if (mounted) {
         setState(() {
-          // Simpan ke history untuk request berikutnya
-          _history.add({'role': 'user', 'text': text});
-          _history.add({'role': 'model', 'text': result.reply});
+          if (result.sessionId != null) _sessionId = result.sessionId;
 
           if (result.quotaUsed != null) _quotaUsed = result.quotaUsed;
           if (result.quotaLimit != null) _quotaLimit = result.quotaLimit;
@@ -82,6 +340,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
             Message(
               text: result.reply,
               isAi: true,
+              isEmergency: result.isEmergency,
               timestamp: DateTime.now(),
             ),
           );
@@ -104,8 +363,10 @@ class _ChatbotPageState extends State<ChatbotPage> {
         if (e.quotaUsed != null) _quotaUsed = e.quotaUsed;
         if (e.quotaLimit != null) _quotaLimit = e.quotaLimit;
 
-        if (e.code == 'PREMIUM_REQUIRED') {
-          _showPremiumDialog(e.message);
+        if (e.code == 'health_data_required') {
+          // Pesan belum terkirim: kembalikan ke input & minta isi data.
+          setState(() => _messages.remove(userMessage));
+          unawaited(_promptHealthData(pendingText: text));
         } else {
           setState(() {
             _messages.insert(
@@ -145,51 +406,18 @@ class _ChatbotPageState extends State<ChatbotPage> {
     }
   }
 
-  void _showPremiumDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
-            ),
-            const SizedBox(width: 12),
-            const Expanded(child: Text('Fitur Premium', style: TextStyle(fontWeight: FontWeight.w800))),
-          ],
-        ),
-        content: Text(message, style: const TextStyle(height: 1.4)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Nanti'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF8B5CF6),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const PremiumPage()),
-              );
-            },
-            child: const Text('Upgrade Sekarang'),
-          ),
-        ],
-      ),
-    );
+  /// Server menolak karena data kesehatan belum lengkap: tampilkan popup
+  /// akses fitur → halaman Data Kesehatan. Setelah tersimpan, pesan yang
+  /// tadi diketik dikirim ulang.
+  Future<void> _promptHealthData({required String pendingText}) async {
+    _controller.text = pendingText;
+    // Segarkan cache dulu supaya gerbang tidak memakai flag lama.
+    await AuthService.instance.syncUserFromApi();
+    if (!mounted) return;
+    final ok = await HealthGate.ensure(context);
+    if (ok && mounted && _controller.text.trim().isNotEmpty) {
+      _sendMessage(_controller.text);
+    }
   }
 
   void _showSnackBar(String message, {required bool isError}) {
@@ -242,7 +470,6 @@ class _ChatbotPageState extends State<ChatbotPage> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const PremiumSparklesInlineIcon(),
             Text(
               'IbuSehat AI',
               style: TextStyle(
@@ -254,6 +481,19 @@ class _ChatbotPageState extends State<ChatbotPage> {
             ),
           ],
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Riwayat percakapan',
+            icon: Icon(Icons.history_rounded, color: textPrimary, size: 22),
+            onPressed: _showHistorySheet,
+          ),
+          IconButton(
+            tooltip: 'Percakapan baru',
+            icon: Icon(Icons.add_comment_outlined, color: textPrimary, size: 21),
+            onPressed: _startNewChat,
+          ),
+          const SizedBox(width: 4),
+        ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(0.5),
           child: Container(
@@ -274,6 +514,12 @@ class _ChatbotPageState extends State<ChatbotPage> {
                 style: TextStyle(fontSize: 12, color: textSecondary, fontWeight: FontWeight.w600),
                 textAlign: TextAlign.center,
               ),
+            ),
+          if (_restoring)
+            const LinearProgressIndicator(
+              minHeight: 2,
+              color: Color(0xFF8B5CF6),
+              backgroundColor: Colors.transparent,
             ),
           Expanded(
             child: ListView.builder(
@@ -353,7 +599,7 @@ class _ChatbotPageState extends State<ChatbotPage> {
               height: 28,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: message.isError
+                  colors: message.isError || message.isEmergency
                       ? [Colors.red.shade300, Colors.red.shade400]
                       : [const Color(0xFF8B5CF6), const Color(0xFF6366F1)],
                   begin: Alignment.topLeft,
@@ -363,7 +609,11 @@ class _ChatbotPageState extends State<ChatbotPage> {
               ),
               child: Center(
                 child: Icon(
-                  message.isError ? Icons.error_outline_rounded : Icons.auto_awesome_rounded,
+                  message.isError
+                      ? Icons.error_outline_rounded
+                      : message.isEmergency
+                          ? Icons.warning_amber_rounded
+                          : Icons.auto_awesome_rounded,
                   color: Colors.white,
                   size: 16,
                 ),
@@ -371,8 +621,20 @@ class _ChatbotPageState extends State<ChatbotPage> {
             ),
             // AI Text
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(top: 2),
+              child: Container(
+                // Balasan darurat diberi bingkai merah agar tidak terlewat.
+                padding: message.isEmergency
+                    ? const EdgeInsets.all(12)
+                    : const EdgeInsets.only(top: 2),
+                decoration: message.isEmergency
+                    ? BoxDecoration(
+                        color: isDark
+                            ? Colors.red.shade900.withValues(alpha: 0.25)
+                            : Colors.red.shade50,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.red.shade300),
+                      )
+                    : null,
                 child: message.isError
                     ? Text(
                         message.text,
@@ -523,7 +785,9 @@ class _ChatbotPageState extends State<ChatbotPage> {
                 color: textPrimary,
               ),
               decoration: InputDecoration(
-                hintText: _isLoading ? 'Menunggu respons...' : 'Tanya apa saja...',
+                hintText: _isLoading
+                    ? 'Menunggu respons...'
+                    : 'Tanya seputar ibu pasca melahirkan...',
                 hintStyle: TextStyle(
                   color: textSecondary,
                   fontSize: 15,
@@ -653,12 +917,16 @@ class Message {
   final String text;
   final bool isAi;
   final bool isError;
+
+  /// Balasan yang memuat pesan darurat dari backend (ditampilkan menonjol).
+  final bool isEmergency;
   final DateTime timestamp;
 
   Message({
     required this.text,
     required this.isAi,
     this.isError = false,
+    this.isEmergency = false,
     required this.timestamp,
   });
 }

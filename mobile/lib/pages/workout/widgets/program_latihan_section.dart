@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/models/workout_program_model.dart';
-import 'package:mobile/pages/payments/premium_page.dart';
+import 'package:mobile/widgets/health_gate.dart';
 import 'package:mobile/pages/workout/widgets/workout_program_card.dart';
 import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/services/workout_program_service.dart';
@@ -15,7 +15,7 @@ class ProgramLatihanSection extends StatefulWidget {
 
 class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
   late Future<List<WorkoutProgramModel>> _futurePrograms;
-  bool _isPremium = false;
+  bool _healthComplete = false;
   bool _statusLoaded = false;
 
   void _loadPrograms() {
@@ -31,27 +31,27 @@ class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
 
     // Baca nilai awal dari cache.
     final cached = AuthService.instance.cachedUserSync;
-    _isPremium = cached?.isPremium ?? false;
+    _healthComplete = cached?.healthDataComplete ?? false;
     _statusLoaded = cached != null;
 
-    // Dengarkan perubahan user (mis. setelah pembayaran premium).
+    // Dengarkan perubahan user (mis. setelah data kesehatan disimpan).
     AuthService.instance.userNotifier.addListener(_onUserChanged);
 
-    // Sync ke API di background untuk memastikan status premium fresh.
-    _syncPremiumInBackground();
+    // Sync ke API di background agar status data kesehatan fresh.
+    _syncStatusInBackground();
   }
 
   void _onUserChanged() {
     if (!mounted) return;
     final user = AuthService.instance.userNotifier.value;
-    final newPremium = user?.isPremium ?? false;
+    final complete = user?.healthDataComplete ?? false;
     setState(() {
-      _isPremium = newPremium;
+      _healthComplete = complete;
       _statusLoaded = true;
     });
   }
 
-  Future<void> _syncPremiumInBackground() async {
+  Future<void> _syncStatusInBackground() async {
     if (!await AuthService.instance.isLoggedIn) {
       if (mounted) setState(() => _statusLoaded = true);
       return;
@@ -92,8 +92,8 @@ class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
         const SizedBox(height: 10),
         if (!_statusLoaded)
           _buildLoadingState(isDark)
-        else if (!_isPremium)
-          _buildPremiumLockState(isDark, surface, border, textSecondary)
+        else if (!_healthComplete)
+          _buildHealthLockState(isDark, surface, border, textSecondary)
         else
           FutureBuilder<List<WorkoutProgramModel>>(
             future: _futurePrograms,
@@ -244,7 +244,7 @@ class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
     );
   }
 
-  Widget _buildPremiumLockState(
+  Widget _buildHealthLockState(
     bool isDark,
     Color surface,
     Color border,
@@ -263,18 +263,18 @@ class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF4C1D95).withOpacity(0.3) : const Color(0xFFF3E8FF),
+              color: isDark ? const Color(0xFF4C1D95).withValues(alpha: 0.3) : const Color(0xFFF3E8FF),
               shape: BoxShape.circle,
             ),
             child: const Icon(
-              Icons.lock_outline_rounded,
+              Icons.favorite_border_rounded,
               color: Color(0xFF8B5CF6),
               size: 32,
             ),
           ),
           const SizedBox(height: 16),
           Text(
-            'Fitur Premium',
+            'Data kesehatan belum diisi',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w700,
@@ -283,7 +283,7 @@ class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Tingkatkan ke Premium untuk mengakses\nsemua program latihan eksklusif.',
+            'Fitur ini memakai data kesehatan kamu.\nIsi dulu untuk membuka program latihan.',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,
@@ -296,13 +296,13 @@ class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
             width: double.infinity,
             child: ElevatedButton(
               onPressed: () async {
-                await Navigator.push(
+                // Simpan valid → userNotifier memperbarui _healthComplete
+                // dan daftar program langsung terbuka.
+                final ok = await HealthGate.ensure(
                   context,
-                  MaterialPageRoute(builder: (context) => const PremiumPage()),
+                  showIntro: false,
                 );
-                // Setelah kembali dari PremiumPage, sync ulang status premium.
-                // userNotifier listener akan memperbarui _isPremium otomatis.
-                if (mounted) _syncPremiumInBackground();
+                if (ok && mounted) setState(() => _healthComplete = true);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF8B5CF6),
@@ -314,7 +314,7 @@ class _ProgramLatihanSectionState extends State<ProgramLatihanSection> {
                 elevation: 0,
               ),
               child: const Text(
-                'Upgrade Sekarang',
+                'Isi Data Kesehatan',
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 14,

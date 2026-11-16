@@ -14,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
 
         $middleware->alias([
-            'premium.chat-quota' => \App\Http\Middleware\EnsurePremiumChatQuota::class,
+            'chat.access' => \App\Http\Middleware\EnsureChatAccess::class,
         ]);
         
     })

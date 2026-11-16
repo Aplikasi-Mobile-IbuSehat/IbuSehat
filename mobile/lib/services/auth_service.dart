@@ -33,28 +33,39 @@ class AuthUser {
   final String email;
   final String? avatarUrl;
   final bool isOnboardingDone;
-  final bool isPremium;
+
+  /// True jika data kesehatan (tinggi, berat, target berat, umur, tanggal
+  /// melahirkan) sudah lengkap. Syarat akses Chatbot AI & program latihan.
+  final bool healthDataComplete;
 
   const AuthUser({
     required this.name,
     required this.email,
     this.avatarUrl,
     this.isOnboardingDone = false,
-    this.isPremium = false,
+    this.healthDataComplete = false,
   });
 
-  static bool _parsePremium(Map<String, dynamic> json) {
-    if (json['is_premium'] != true) return false;
+  /// Pakai `health_data_complete` dari API; kalau tidak ada, hitung dari
+  /// field kesehatan dengan rentang validasi yang sama seperti form.
+  static bool parseHealthDataComplete(Map<String, dynamic> json) {
+    final flag = json['health_data_complete'];
+    if (flag is bool) return flag;
+    return isHealthDataComplete(json);
+  }
 
-    final until = json['premium_until'];
-
-    if (until == null) return true;
-
-    try {
-      return DateTime.parse(until.toString()).isAfter(DateTime.now());
-    } catch (_) {
-      return true;
+  static bool isHealthDataComplete(Map<String, dynamic> json) {
+    bool inRange(dynamic v, num min, num max) {
+      final n = v is num ? v : num.tryParse(v?.toString() ?? '');
+      return n != null && n >= min && n <= max;
     }
+
+    final date = json['delivery_date']?.toString() ?? '';
+    return inRange(json['height'], 100, 220) &&
+        inRange(json['weight'], 30, 200) &&
+        inRange(json['target_weight'], 30, 200) &&
+        inRange(json['age'], 12, 80) &&
+        DateTime.tryParse(date) != null;
   }
 
   static AuthUser? fromJson(Map<String, dynamic>? json) {
@@ -70,7 +81,7 @@ class AuthUser {
       email: email,
       avatarUrl: json['avatar'] as String?,
       isOnboardingDone: json['is_onboarding_done'] == true,
-      isPremium: _parsePremium(json),
+      healthDataComplete: parseHealthDataComplete(json),
     );
   }
 
@@ -79,15 +90,16 @@ class AuthUser {
         'email': email,
         'avatar': avatarUrl,
         'is_onboarding_done': isOnboardingDone,
-        'is_premium': isPremium,
+        'health_data_complete': healthDataComplete,
       };
 
-  AuthUser copyWith({bool? isOnboardingDone, bool? isPremium}) => AuthUser(
+  AuthUser copyWith({bool? isOnboardingDone, bool? healthDataComplete}) =>
+      AuthUser(
         name: name,
         email: email,
         avatarUrl: avatarUrl,
         isOnboardingDone: isOnboardingDone ?? this.isOnboardingDone,
-        isPremium: isPremium ?? this.isPremium,
+        healthDataComplete: healthDataComplete ?? this.healthDataComplete,
       );
 }
 
@@ -127,7 +139,7 @@ class AuthService extends ChangeNotifier {
   Future<void>? _syncInFlight;
 
   AuthUser? get cachedUserSync => _cachedUser;
-  bool get isPremiumSync => _cachedUser?.isPremium ?? false;
+  bool get healthDataCompleteSync => _cachedUser?.healthDataComplete ?? false;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
   static Future<void>? _googleInitFuture;
@@ -137,11 +149,24 @@ class AuthService extends ChangeNotifier {
       return _googleInitFuture;
     }
 
+    // ── WEB (aktif) ─────────────────────────────────────────────────────
+    // Di browser plugin memakai Google Identity Services. Client ID dikirim
+    // sebagai `clientId`; `serverClientId` tidak didukung di web.
     _googleInitFuture = _googleSignIn.initialize(
-      serverClientId: ApiConfig.googleServerClientId.isEmpty
+      clientId: ApiConfig.googleServerClientId.isEmpty
           ? null
           : ApiConfig.googleServerClientId,
     );
+
+    // ── MOBILE (Android/iOS) — dinonaktifkan sementara, JANGAN DIHAPUS ──
+    // Untuk mengaktifkan lagi login mobile: hapus blok WEB di atas dan
+    // buka komentar blok ini.
+    //
+    // _googleInitFuture = _googleSignIn.initialize(
+    //   serverClientId: ApiConfig.googleServerClientId.isEmpty
+    //       ? null
+    //       : ApiConfig.googleServerClientId,
+    // );
 
     return _googleInitFuture;
   }
@@ -265,10 +290,24 @@ class AuthService extends ChangeNotifier {
             body: jsonEncode(healthData ?? {}),
           )
           .timeout(_timeout);
-      await _handleAuthExpiry(response.statusCode);
+      if (await _handleAuthExpiry(response.statusCode)) return;
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic> &&
+            decoded['health_data_complete'] is bool) {
+          await _setHealthDataComplete(decoded['health_data_complete'] as bool);
+        }
+      }
     } catch (e) {
       _log('syncOnboarding error: $e');
     }
+  }
+
+  /// Perbarui flag kelengkapan data kesehatan di cache + beri tahu listener.
+  Future<void> _setHealthDataComplete(bool value) async {
+    final user = _cachedUser ?? await currentUser;
+    if (user == null || user.healthDataComplete == value) return;
+    await _saveUser(user.copyWith(healthDataComplete: value));
   }
 
   // ================= SYNC USER =================
@@ -317,7 +356,7 @@ class AuthService extends ChangeNotifier {
           email: decoded['email'] ?? '',
           avatarUrl: decoded['avatar'],
           isOnboardingDone: decoded['is_onboarding_done'] == true,
-          isPremium: AuthUser._parsePremium(decoded),
+          healthDataComplete: AuthUser.parseHealthDataComplete(decoded),
         ),
       );
     } catch (e) {
@@ -417,41 +456,47 @@ class AuthService extends ChangeNotifier {
       } catch (_) {}
       throw Exception(message);
     }
+
+    var complete = true;
+    try {
+      final decoded = jsonDecode(response.body);
+      if (decoded is Map<String, dynamic> &&
+          decoded['data'] is Map<String, dynamic>) {
+        complete = AuthUser.parseHealthDataComplete(
+            decoded['data'] as Map<String, dynamic>);
+      }
+    } catch (_) {}
+    await _setHealthDataComplete(complete);
   }
 
   // ================= GOOGLE LOGIN =================
 
-  Future<AuthResult> signInWithGoogle() async {
-    if (ApiConfig.googleServerClientId.isEmpty) {
-      return const AuthFailure('GOOGLE_WEB_CLIENT_ID belum di-set di ApiConfig.');
-    }
+  // ── WEB (aktif) ───────────────────────────────────────────────────────
+  // Di browser, Google mewajibkan tombol resmi Google Identity Services
+  // (lihat AuthPage): `authenticate()` tidak tersedia di web. Hasil login
+  // datang lewat stream [googleAuthEvents], lalu id_token-nya ditukar ke
+  // token Sanctum lewat [signInWithGoogleAccount].
 
-    try {
-      await _ensureGoogleInitialized();
-    } catch (e) {
-      return AuthFailure('Gagal inisialisasi Google Sign-In: $e');
-    }
+  /// Siapkan Google Identity Services. Panggil sebelum tombol dirender.
+  Future<void> initGoogleSignInWeb() => _ensureGoogleInitialized();
 
-    final GoogleSignInAccount account;
+  /// Event login/logout dari tombol Google di web.
+  Stream<GoogleSignInAuthenticationEvent> get googleAuthEvents =>
+      _googleSignIn.authenticationEvents;
 
-    try {
-      account = await _googleSignIn.authenticate();
-    } on GoogleSignInException catch (e) {
-      if (e.code == GoogleSignInExceptionCode.canceled) {
-        return const AuthCancelled();
-      }
-      return AuthFailure('Google Sign-In gagal: ${e.description ?? e.code}');
-    } catch (e) {
-      return AuthFailure('Kesalahan Google Sign-In: $e');
-    }
-
+  /// Selesaikan login setelah user memilih akun di tombol Google (web).
+  Future<AuthResult> signInWithGoogleAccount(GoogleSignInAccount account) {
     final idToken = account.authentication.idToken;
     if (idToken == null || idToken.isEmpty) {
-      return const AuthFailure('Tidak mendapat id_token dari Google.');
+      return Future.value(
+        const AuthFailure('Tidak mendapat id_token dari Google.'),
+      );
     }
+    return _loginWithGoogleIdToken(idToken);
+  }
 
-    // ================= KIRIM KE BACKEND =================
-
+  /// Tukar id_token Google dengan token Sanctum di backend.
+  Future<AuthResult> _loginWithGoogleIdToken(String idToken) async {
     http.Response response;
 
     try {
@@ -470,7 +515,7 @@ class AuthService extends ChangeNotifier {
     } on TimeoutException {
       return const AuthFailure('Server tidak merespons. Coba lagi.');
     } catch (e) {
-      return AuthFailure('Kesalahan jaringan: $e');
+      return const AuthFailure('Tidak bisa terhubung ke server.');
     }
 
     Map<String, dynamic> body;
@@ -490,7 +535,7 @@ class AuthService extends ChangeNotifier {
     }
 
     final sanctumToken = body['token'];
-    if (sanctumToken == null || (sanctumToken as String).isEmpty) {
+    if (sanctumToken is! String || sanctumToken.isEmpty) {
       return const AuthFailure('Token tidak ditemukan.');
     }
 
@@ -502,13 +547,105 @@ class AuthService extends ChangeNotifier {
       if (user != null) await _saveUser(user);
     }
 
-    // Upload FCM token setelah login — tidak boleh menggagalkan login
-    // kalau gagal, jadi tidak di-await blocking & dibungkus try/catch
-    // (uploadTokenAfterLogin sendiri sudah aman terhadap error).
+    // Upload FCM token setelah login — tidak boleh menggagalkan login.
     unawaited(FcmNotificationService.instance.uploadTokenAfterLogin());
 
     return const AuthSuccess();
   }
+
+  // ── MOBILE (Android/iOS) — dinonaktifkan sementara, JANGAN DIHAPUS ────
+  // Kode asli login Google untuk mobile. Untuk mengaktifkan lagi: buka
+  // komentar method di bawah, kembalikan blok MOBILE di
+  // _ensureGoogleInitialized() dan tombol MOBILE di AuthPage.
+  //
+  // Future<AuthResult> signInWithGoogle() async {
+  //   if (ApiConfig.googleServerClientId.isEmpty) {
+  //     return const AuthFailure('GOOGLE_WEB_CLIENT_ID belum di-set di ApiConfig.');
+  //   }
+  //
+  //   try {
+  //     await _ensureGoogleInitialized();
+  //   } catch (e) {
+  //     return AuthFailure('Gagal inisialisasi Google Sign-In: $e');
+  //   }
+  //
+  //   final GoogleSignInAccount account;
+  //
+  //   try {
+  //     account = await _googleSignIn.authenticate();
+  //   } on GoogleSignInException catch (e) {
+  //     if (e.code == GoogleSignInExceptionCode.canceled) {
+  //       return const AuthCancelled();
+  //     }
+  //     return AuthFailure('Google Sign-In gagal: ${e.description ?? e.code}');
+  //   } catch (e) {
+  //     return AuthFailure('Kesalahan Google Sign-In: $e');
+  //   }
+  //
+  //   final idToken = account.authentication.idToken;
+  //   if (idToken == null || idToken.isEmpty) {
+  //     return const AuthFailure('Tidak mendapat id_token dari Google.');
+  //   }
+  //
+  //   // ================= KIRIM KE BACKEND =================
+  //
+  //   http.Response response;
+  //
+  //   try {
+  //     response = await http
+  //         .post(
+  //           Uri.parse('${ApiConfig.apiBaseUrl}/auth/google'),
+  //           headers: const {
+  //             'Content-Type': 'application/json',
+  //             'Accept': 'application/json',
+  //           },
+  //           body: jsonEncode({'id_token': idToken}),
+  //         )
+  //         .timeout(const Duration(seconds: 30));
+  //   } on SocketException {
+  //     return const AuthFailure('Tidak bisa terhubung ke server.');
+  //   } on TimeoutException {
+  //     return const AuthFailure('Server tidak merespons. Coba lagi.');
+  //   } catch (e) {
+  //     return AuthFailure('Kesalahan jaringan: $e');
+  //   }
+  //
+  //   Map<String, dynamic> body;
+  //
+  //   try {
+  //     final decoded = jsonDecode(response.body);
+  //     if (decoded is! Map<String, dynamic>) {
+  //       return const AuthFailure('Response server tidak valid.');
+  //     }
+  //     body = decoded;
+  //   } catch (_) {
+  //     return const AuthFailure('Response server bukan JSON.');
+  //   }
+  //
+  //   if (response.statusCode != 200) {
+  //     return AuthFailure(body['message']?.toString() ?? 'Login gagal.');
+  //   }
+  //
+  //   final sanctumToken = body['token'];
+  //   if (sanctumToken == null || (sanctumToken as String).isEmpty) {
+  //     return const AuthFailure('Token tidak ditemukan.');
+  //   }
+  //
+  //   await _saveToken(sanctumToken);
+  //
+  //   final userMap = body['user'];
+  //   if (userMap is Map<String, dynamic>) {
+  //     final user = AuthUser.fromJson(userMap);
+  //     if (user != null) await _saveUser(user);
+  //   }
+  //
+  //   // Upload FCM token setelah login — tidak boleh menggagalkan login
+  //   // kalau gagal, jadi tidak di-await blocking & dibungkus try/catch
+  //   // (uploadTokenAfterLogin sendiri sudah aman terhadap error).
+  //   unawaited(FcmNotificationService.instance.uploadTokenAfterLogin());
+  //
+  //   return const AuthSuccess();
+  // }
 
   // ================= LOGOUT =================
 

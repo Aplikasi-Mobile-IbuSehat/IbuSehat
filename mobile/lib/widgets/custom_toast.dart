@@ -26,7 +26,7 @@ class CustomToast {
       // Jika di dalam MainPage, kirim data via notifier agar MainPage yang menampilkan di belakang navbar
       toastNotifier.value = ToastData(message: message, isError: isError);
     } else {
-      // Jika di luar MainPage (misal ChatbotPage, PremiumPage), tampilkan via Overlay
+      // Jika di luar MainPage (misal ChatbotPage), tampilkan via Overlay
       _currentEntry?.remove();
       _currentEntry = null;
 

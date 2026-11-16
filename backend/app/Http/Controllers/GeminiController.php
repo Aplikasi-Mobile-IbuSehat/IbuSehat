@@ -2,28 +2,28 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ChatMessage;
+use App\Models\ChatSession;
 use App\Models\Food;
 use App\Models\FoodLog;
 use App\Models\Supplement;
 use App\Models\SupplementLog;
 use App\Models\User;
+use App\Services\Chat\ChatMemory;
+use App\Services\Chat\ChatSystemPrompt;
+use App\Services\Chat\EmergencyDetector;
+use App\Services\Chat\GeminiClient;
+use App\Services\Chat\HealthContextBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Validation\Rule;
+
+use function Illuminate\Support\defer;
 
 class GeminiController extends Controller
 {
-    /**
-     * Jumlah pasangan (user+model) percakapan terakhir yang dikirim ke Gemini
-     * sebagai konteks (sliding window). 3-4 pasangan dianggap cukup untuk
-     * menjaga konteks alur "sudah makan apa -> tawaran catat -> konfirmasi"
-     * tanpa membuat prompt terlalu panjang/boros token.
-     */
-    private const HISTORY_WINDOW_PAIRS = 4;
-
     /**
      * Batas wajar untuk nilai gizi per entri food_log, dipakai sebagai
      * sanity-clamp terhadap output Gemini sebelum disimpan ke database
@@ -36,259 +36,194 @@ class GeminiController extends Controller
     private const MAX_KCAL      = 3000;
     private const MAX_MACRO_G   = 500; // untuk protein/carbs/fat per entri
 
+    /** Batas panjang balasan AI yang diteruskan ke client. */
+    private const MAX_REPLY_CHARS = 4000;
+
     /**
-     * Kata kunci nama makanan yang HARUS diblokir dari pencatatan walau lolos
-     * threshold nilai gizi (mis. mie ayam/bakso kuah bisa punya kalori & lemak
-     * "normal" karena porsi daging, padahal tinggi sodium/MSG yang tidak
-     * terekam di kolom gizi kita). Pengecekan berbasis substring nama makanan,
-     * case-insensitive. Ini pelengkap isLikelyUnhealthyFood(), bukan pengganti.
+     * Kata kunci nama makanan/minuman yang HARUS diblokir dari pencatatan walau
+     * lolos threshold nilai gizi (mis. mie ayam/bakso kuah bisa punya kalori &
+     * lemak "normal" karena porsi daging, padahal tinggi sodium/MSG yang tidak
+     * terekam di kolom gizi kita). Dicocokkan sebagai kata utuh pada nama
+     * makanan, case-insensitive. Ini pelengkap isLikelyUnhealthyFood(), bukan
+     * pengganti, dan tidak bergantung pada kepatuhan AI terhadap system prompt.
      */
     private const UNHEALTHY_NAME_KEYWORDS = [
-        'gorengan', 'goreng tepung', 'mie instan', 'mi instan', 'mie ayam',
-        'mi ayam', 'bakso', 'sosis', 'nugget', 'dendeng', 'martabak manis',
-        'donat', 'fast food', 'junk food',
+        // gorengan & makanan bertepung digoreng
+        'gorengan', 'goreng tepung', 'bakwan', 'cireng', 'kentang goreng',
+        'french fries', 'fried chicken', 'ayam geprek',
+        // mi & kuah tinggi natrium
+        'mie instan', 'mi instan', 'indomie', 'mie ayam', 'mi ayam', 'bakso', 'seblak',
+        // olahan tinggi natrium/pengawet
+        'sosis', 'nugget', 'dendeng', 'kornet',
+        // fast food
+        'fast food', 'junk food', 'burger', 'pizza', 'hot dog', 'kebab',
+        // tinggi gula tambahan
+        'martabak manis', 'donat', 'es krim', 'ice cream', 'permen', 'brownies',
+        'kue tart', 'kental manis',
+        // minuman manis/bersoda/berenergi
+        'soda', 'bersoda', 'cola', 'minuman berenergi', 'minuman energi',
+        'minuman manis', 'boba', 'bubble tea', 'sirup',
+        // camilan kemasan asin
+        'keripik', 'kerupuk', 'chiki',
+        // alkohol
+        'alkohol', 'bir', 'wine', 'minuman keras',
     ];
 
-    /**
-     * System instruction yang mengatur perilaku & format output Gemini.
-     * Gemini WAJIB membalas dalam format JSON sesuai skema di bawah.
-     */
-    private function buildSystemInstruction(): string
-{
-    return <<<TEXT
-    Kamu adalah asisten kesehatan untuk aplikasi Ibusehat, khusus untuk perempuan. Tugasmu
-    membantu pengguna dalam berbagai topik kesehatan perempuan, termasuk:
-    - Pencatatan makanan dan suplemen ke dalam log harian
-    - Rekomendasi makanan sehat dan pola makan bergizi
-    - Olahraga dan aktivitas fisik yang cocok untuk perempuan
-    - Perawatan kulit (skincare) setelah melahirkan, stretch mark, dan perubahan tubuh pasca persalinan
-    - Kesehatan reproduksi dan penyakit yang umum dialami perempuan (PCOS, anemia, osteoporosis, dll)
-    - Pemulihan pasca melahirkan (ASI, nutrisi ibu menyusui, baby blues, dll)
-    - Suplemen dan pengobatan yang aman untuk perempuan
-
-    Jawab pertanyaan kesehatan dengan ramah, informatif, dan berbasis pengetahuan medis umum.
-    Selalu ingatkan pengguna untuk berkonsultasi dengan dokter untuk kondisi yang serius.
-    Untuk pencatatan makanan dan suplemen, ikuti ATURAN UTAMA di bawah.
-
-    ATURAN UTAMA:
-    1. Jika pengguna menyebutkan makanan/suplemen yang sudah mereka konsumsi, tanyakan apakah
-    mereka ingin mencatatnya ke log (kecuali poin 4).
-    2. JANGAN catat apapun ke log sebelum pengguna memberi konfirmasi eksplisit ("ya", "boleh",
-    "catat", dsb) pada giliran percakapan berikutnya.
-    3. Setelah pengguna konfirmasi, isi field "action" dengan data lengkap sesuai skema di bawah.
-    4. Jika makanan yang disebut tergolong kurang sehat / olahan berat / junk food, JANGAN
-    tawarkan pencatatan sama sekali. Cukup tanggapi secara ramah/edukatif tanpa menyinggung
-    pencatatan log, dan field "action" harus null. Kategori yang TIDAK BOLEH dicatat (contoh,
-    bukan daftar lengkap — gunakan penilaian umummu untuk kasus serupa yang tidak disebut di
-    sini):
-       - Gorengan (segala jenis, termasuk gorengan tepung tebal)
-       - Minuman bersoda / minuman manis kemasan / minuman berenergi
-       - Fast food / makanan cepat saji ultra-proses
-       - Mie instan, mie ayam, bakso kuah dengan kaldu tinggi MSG/sodium
-       - Makanan olahan tinggi natrium/pengawet (sosis, nugget, dendeng kemasan)
-       - Makanan tinggi gula tambahan (kue manis, donat, martabak manis, dll)
-    JIKA RAGU apakah suatu makanan tergolong sehat atau tidak, ANGGAP TIDAK SEHAT dan jangan
-    tawarkan pencatatan. Lebih baik konservatif daripada salah catat makanan tidak sehat.
-    5. Untuk estimasi gizi (kalori, protein, karbohidrat, lemak), gunakan data referensi yang
-    diberikan dalam "context_data" jika tersedia (artinya nama makanan cocok dengan database).
-    Jika tidak ada referensi yang cocok dan makanan tergolong sehat, estimasikan sendiri nilai
-    gizinya secara wajar berdasarkan pengetahuanmu per porsi yang disebutkan pengguna (default
-    100g jika tidak disebutkan).
-    Untuk SUPLEMEN: context_data tidak wajib ada. Yang disimpan ke database untuk suplemen
-    BUKAN nilai gizi/kalori, melainkan informasi produk berikut:
-    - nama_suplemen : nama produk (mis. "Renovit", "Blackmores Vitamin C") — WAJIB
-    - komposisi     : kandungan produk (mis. "Vitamin C 500mg, Zinc 10mg") — WAJIB, gunakan
-                      pengetahuanmu tentang produk tersebut. Jika benar-benar tidak tahu,
-                      JANGAN tawarkan pencatatan, tapi minta user menyebutkannya terlebih dahulu.
-    - kemasan       : bentuk kemasan (mis. "Botol 30 tablet", "Strip 10 kapsul") — WAJIB,
-                      gunakan pengetahuanmu. Jika tidak tahu, minta user menyebutkannya.
-    - aturan_pakai  : aturan konsumsi (mis. "1x sehari setelah makan") — isi jika tahu,
-                      boleh null jika tidak tahu.
-    Pastikan kamu tahu komposisi dan kemasan sebelum menawarkan pencatatan suplemen.
-    Set new_master_data: true jika suplemen tidak ada di context_data.
-    6. Field "type" pada action: "food_log" untuk catatan makanan, "supplement_log" untuk
-    suplemen.
-    7. Field "new_master_data" diisi true HANYA jika data makanan/suplemen tersebut TIDAK
-    ditemukan referensinya di context_data DAN kamu melakukan estimasi sendiri, sehingga
-    Laravel akan menambahkannya sebagai data master baru juga. Jika referensi ditemukan di
-    context_data, set false.
-    8. Field "source" pada supplement_log WAJIB diisi dengan nama sumber informasi yang
-    benar-benar kamu gunakan (mis. "Halodoc", "K24Klik", "BPOM", "Situs resmi [nama
-    produk]"). Jika data berasal dari context_data (database internal), isi dengan
-    "Database Ibusehat". Jika suplemen TIDAK ditemukan di context_data dan kamu
-    mengestimasi sendiri, isi dengan sumber yang kamu gunakan sebagai referensi
-    (mis. "Halodoc", "K24Klik", "BPOM", "Alodokter") — JANGAN isi "Database Ibusehat" jika
-    data bukan dari context_data.
-    9. Jika context_data berisi suplemen dengan nama yang BERBEDA dari yang disebutkan
-    pengguna, ABAIKAN data tersebut dan gunakan pengetahuanmu sendiri. Jangan 
-    pernah mencatat suplemen dengan nama yang tidak persis disebutkan pengguna.
-
-    FORMAT RESPONS — WAJIB JSON VALID, TANPA markdown code fence, dengan struktur tepat:
-    {
-    "reply": "teks balasan untuk pengguna dalam Bahasa Indonesia yang ramah",
-    "action": null
+    public function __construct(
+        private GeminiClient $gemini,
+        private ChatMemory $memory,
+        private ChatSystemPrompt $systemPrompt,
+        private HealthContextBuilder $healthContext,
+        private EmergencyDetector $emergency,
+    ) {
     }
-
-    ATAU jika pengguna sudah konfirmasi pencatatan:
-    {
-    "reply": "teks konfirmasi ke pengguna, mis. 'Sudah saya catat ya!'",
-    "action": {
-        "type": "food_log",
-        "new_master_data": false,
-        "food_log": {
-        "makanan_id": null,
-        "nama_makanan": "Ayam Goreng",
-        "weight": 100,
-        "kcal": 250,
-        "protein": 27,
-        "carbs": 0,
-        "fat": 15,
-        "category": "Lauk"
-        }
-    }
-    }
-
-    ATAU untuk suplemen:
-    {
-    "reply": "teks konfirmasi ke pengguna",
-    "action": {
-        "type": "supplement_log",
-        "new_master_data": false,
-        "supplement_log": {
-        "supplement_id": null,
-        "nama_suplemen": "Vitamin D3",
-        "komposisi": "Cholecalciferol 1000 IU",
-        "kemasan": "Botol 30 kapsul",
-        "aturan_pakai": "1x sehari setelah makan",
-        "source": "nama sumber asli, mis. 'Halodoc', 'K24Klik', 'BPOM', atau situs resmi produk",
-        "reminder_time": null,
-        "is_taken": true
-        }
-    }
-    }
-
-    PENTING: Balas HANYA dengan objek JSON di atas, tanpa teks lain, tanpa ```json, tanpa
-    penjelasan tambahan di luar JSON.
-    TEXT;
-}
 
     /**
      * POST /api/gemini/chat
      *
      * Body:
-     *   - prompt  : string (wajib) - pesan terbaru dari user
-     *   - history : array (opsional) - riwayat percakapan sebelumnya
-     *               format: [{ "role": "user"|"model", "text": "..." }, ...]
-     *               Hanya N pasangan terakhir (sliding window) yang akan
-     *               benar-benar dikirim ke Gemini, sisanya diabaikan.
+     *   - prompt     : string (wajib) - pesan terbaru dari user
+     *   - session_id : int (opsional) - sesi chat yang dilanjutkan. Kosong =
+     *                  mulai sesi baru; id sesi dikembalikan di data.session_id.
+     *
+     * Riwayat percakapan TIDAK lagi dikirim client: backend menyimpannya per
+     * user dan per sesi (ChatMemory), lalu mengirim ke model hanya 10–20 pesan
+     * terakhir + ringkasan pesan lama + konteks Data Kesehatan (tanpa identitas).
      *
      * Route ini dilindungi middleware:
      *   - auth:sanctum            -> wajib login
-     *   - throttle:chat           -> anti-spam per menit (lihat RouteServiceProvider)
-     *   - premium.chat-quota      -> wajib premium aktif + kuota harian
+     *   - throttle:chat           -> anti-spam per menit (lihat AppServiceProvider)
+     *   - chat.access             -> wajib data kesehatan lengkap + batas harian
      */
     public function ask(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'prompt'         => ['required', 'string', 'max:1000'],
-            'history'        => ['nullable', 'array', 'max:40'],
-            'history.*.role' => ['required_with:history', 'string', Rule::in(['user', 'model'])],
-            // Catatan: history.*.text sengaja dibatasi juga (bukan cuma 'prompt'),
-            // supaya client tidak bisa mengirim history super panjang untuk
-            // memboroskan token/biaya API Gemini di setiap request berikutnya.
-            'history.*.text' => ['required_with:history', 'string', 'max:2000'],
+            'prompt'     => ['required', 'string', 'max:1000'],
+            'session_id' => ['nullable', 'integer', 'min:1'],
+            // Diterima agar klien lama tidak error, tetapi diabaikan: riwayat
+            // dari client tidak dipercaya dan tidak dipakai lagi.
+            'history'    => ['nullable', 'array'],
         ]);
 
-        // PENTING: jangan panggil env() langsung di sini. Setelah
-        // `php artisan config:cache` dijalankan di production, env() di luar
-        // file config/*.php akan selalu mengembalikan null. Pastikan
-        // config/services.php punya entri:
-        //   'gemini' => ['key' => env('GEMINI_API_KEY')],
-        $apiKey = config('services.gemini.key');
+        $user       = $request->user();
+        $userPrompt = trim($validated['prompt']);
 
-        if (!$apiKey) {
+        $session = $this->memory->resolveSession($user, $validated['session_id'] ?? null);
+
+        if ($session === null) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Sesi percakapan tidak ditemukan.',
+                'code'    => 'SESSION_NOT_FOUND',
+            ], 404);
+        }
+
+        $quotaMeta = [
+            'used'  => $request->attributes->get('chat_quota_used'),
+            'limit' => $request->attributes->get('chat_quota_limit'),
+        ];
+
+        // Pengaman darurat di BACKEND: tidak bergantung pada AI. Bila pesan
+        // memuat tanda bahaya, pesan darurat baku selalu ada di awal balasan.
+        $emergencyCategory = $this->emergency->detect($userPrompt);
+        $emergencyMessage  = $emergencyCategory !== null
+            ? $this->emergency->message($emergencyCategory)
+            : null;
+
+        // Kuota habis atau AI belum dikonfigurasi: pesan darurat tetap sampai.
+        $aiUnavailable = !$this->gemini->isConfigured()
+            || (bool) $request->attributes->get('chat_quota_exhausted', false);
+
+        if ($emergencyMessage !== null && $aiUnavailable) {
+            return $this->respond($session, $userPrompt, $emergencyMessage, null, null, $emergencyCategory, $quotaMeta);
+        }
+
+        if (!$this->gemini->isConfigured()) {
             return response()->json([
                 'success' => false,
                 'message' => 'API Key belum dikonfigurasi di server.',
             ], 500);
         }
 
-        $user = $request->user();
-        $userPrompt = $validated['prompt'];
-
-        // 1. Cari referensi data gizi/suplemen berdasarkan kata kunci di prompt
-        $contextData = $this->buildContextData($userPrompt);
-
         try {
-            // 2. Susun contents untuk Gemini: system instruction + sliding window history + prompt baru
-            $slidingHistory = $this->applySlidingWindow($validated['history'] ?? []);
-            $contents = $this->buildContents($slidingHistory, $userPrompt, $contextData);
+            // 1. Referensi gizi/suplemen dari database berdasarkan kata di prompt.
+            //    Pada giliran konfirmasi ("ya, catat") nama makanan/suplemennya
+            //    ada di pesan pengguna SEBELUMNYA, jadi pesan itu ikut dipakai
+            //    supaya AI tetap menerima data katalognya saat mencatat.
+            $lookupText = $userPrompt;
 
-            $response = Http::timeout(30)->withHeaders([
-                'Content-Type' => 'application/json',
-            ])->post(
-                // UBAH v1 MENJADI v1beta DI SINI
-                "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key={$apiKey}",
-                [
-                    'contents' => $contents,
-                    'generationConfig' => [ // Tetap gunakan camelCase
-                        'responseMimeType' => 'application/json', 
-                        'temperature' => 0.2,
-                    ]
-                ]
+            if ($this->isExplicitConfirmation($userPrompt)) {
+                $lookupText .= ' ' . (string) $this->memory->lastUserText($session);
+            }
+
+            $contextData = $this->buildContextData($lookupText);
+
+            // 2. Ingatan: pesan terakhir sesi ini (dari server) + pesan baru.
+            $turns   = $this->memory->recentTurns($session);
+            $turns[] = [
+                'role' => 'user',
+                'text' => $userPrompt . "\n\ncontext_data: " . json_encode($contextData, JSON_UNESCAPED_UNICODE),
+            ];
+
+            // 3. System prompt + Data Kesehatan (tanpa identitas) + ringkasan.
+            $system = $this->systemPrompt->build(
+                $this->healthContext->lines($user),
+                $session->summary,
+                $emergencyCategory,
             );
 
-            if (!$response->successful()) {
-                Log::error('Gemini API error', ['status' => $response->status(), 'body' => $response->body()]);
+            $result = $this->gemini->generate($system, $turns);
 
-                // Jangan teruskan detail body/response Gemini mentah-mentah ke
-                // client (bisa memuat info internal yang tidak perlu terekspos).
-                // Simpan detailnya hanya di log server.
+            if (!$result['ok']) {
+                if ($emergencyMessage !== null) {
+                    return $this->respond($session, $userPrompt, $emergencyMessage, null, null, $emergencyCategory, $quotaMeta);
+                }
+
+                if ($result['blocked']) {
+                    return $this->respond(
+                        $session,
+                        $userPrompt,
+                        'Maaf, aku tidak bisa menanggapi pesan itu. Coba tanyakan dengan cara lain, atau tanyakan hal lain seputar kesehatan ibu pasca melahirkan ya.',
+                        null,
+                        null,
+                        null,
+                        $quotaMeta,
+                    );
+                }
+
+                // Kegagalan di sisi penyedia AI (termasuk batas laju Gemini)
+                // selalu dilaporkan sebagai 503, supaya aplikasi tidak
+                // mengiranya batas harian milik pengguna (429).
                 return response()->json([
                     'success' => false,
-                    'message' => 'Gagal mendapatkan respon dari AI.',
-                ], $response->status());
+                    'message' => 'IbuSehat AI sedang sibuk. Coba lagi sebentar lagi ya.',
+                    'code'    => 'AI_UNAVAILABLE',
+                ], 503);
             }
 
-            $result = $response->json();
-            $rawText = $result['candidates'][0]['content']['parts'][0]['text'] ?? null;
-
-            if (!$rawText) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'AI tidak memberikan jawaban.',
-                ], 500);
-            }
-
-            // 3. Parsing JSON dari Gemini (bersihkan kemungkinan markdown fence)
-            $parsed = $this->parseAiJson($rawText);
-
-            $quotaMeta = [
-                'used'  => $request->attributes->get('chat_quota_used'),
-                'limit' => $request->attributes->get('chat_quota_limit'),
-            ];
+            // 4. Parsing JSON dari Gemini (bersihkan kemungkinan markdown fence)
+            $parsed = $this->parseAiJson($result['text']);
 
             if ($parsed === null) {
                 // Gagal parsing -> tampilkan teks mentah sebagai fallback, tanpa action
-                return response()->json([
-                    'success' => true,
-                    'data' => [
-                        'reply'      => $rawText,
-                        'saved'      => null,
-                        'save_error' => null,
-                    ],
-                    'meta' => ['quota' => $quotaMeta],
-                ]);
+                $parsed = ['reply' => $result['text'], 'action' => null];
             }
 
-            $reply  = $parsed['reply'] ?? 'Maaf, saya tidak mendapatkan jawaban.';
+            $reply  = is_string($parsed['reply'] ?? null) && trim($parsed['reply']) !== ''
+                ? $parsed['reply']
+                : 'Maaf, saya tidak mendapatkan jawaban.';
             $action = $parsed['action'] ?? null;
 
             $saved     = null;
             $saveError = null;
 
+            // Saat darurat tidak ada pencatatan apa pun, apa pun kata model.
+            if ($emergencyCategory !== null) {
+                $action = null;
+            }
+
             // Guard tambahan: JANGAN PERNAH percaya Gemini soal "user sudah konfirmasi".
-            // System instruction melarang mencatat tanpa konfirmasi eksplisit, tapi LLM
+            // System prompt melarang mencatat tanpa konfirmasi eksplisit, tapi LLM
             // kadang tetap mengisi "action" pada giliran yang sama saat user baru
             // menyebut makanan/suplemen (belum benar-benar bilang "ya"/"catat"). Maka di
             // backend kita cek ulang: action hanya diproses jika pesan TERBARU dari user
@@ -296,25 +231,23 @@ class GeminiController extends Controller
             // negasi (lihat isExplicitConfirmation()).
             if (is_array($action) && !empty($action['type']) && !$this->isExplicitConfirmation($userPrompt)) {
                 Log::info('Action dari Gemini ditolak: tidak ada konfirmasi eksplisit pada giliran ini', [
-                    'user_prompt' => $userPrompt,
-                    'action'      => $action,
+                    'action_type' => $action['type'],
                 ]);
 
                 $action = null;
                 $reply  = $this->buildPendingConfirmationReply($parsed);
             }
 
-            // 4. Jika ada action terkonfirmasi, simpan ke database
+            // 5. Jika ada action terkonfirmasi, simpan ke database
             if (is_array($action) && !empty($action['type'])) {
                 // Guard kedua khusus food_log: walau Gemini meloloskan, cek ulang
                 // berdasarkan nilai gizi & nama makanan agar konsisten meski prompt
                 // "kebobolan" untuk kasus makanan ambigu (mis. mie ayam, bakso, dsb).
                 if ($action['type'] === 'food_log' && $this->isLikelyUnhealthyFood($action['food_log'] ?? [])) {
-                    $namaMakanan = (string) ($action['food_log']['nama_makanan'] ?? 'makanan ini');
+                    $namaMakanan = $this->cleanName($action['food_log']['nama_makanan'] ?? '', 120) ?: 'makanan ini';
 
                     Log::info('Food log ditolak oleh guard gizi/kata kunci backend', [
                         'nama_makanan' => $namaMakanan,
-                        'nutrisi'      => $action['food_log'] ?? [],
                     ]);
 
                     $action = null;
@@ -322,10 +255,14 @@ class GeminiController extends Controller
                 } else {
                     try {
                         $saved = $this->handleAction($user, $action);
+                    } catch (\DomainException $e) {
+                        // Data belum cukup untuk dicatat (bukan error sistem):
+                        // pesannya adalah permintaan ke pengguna.
+                        $reply = $e->getMessage();
                     } catch (\Exception $e) {
                         Log::error('Gagal menyimpan action AI', [
-                            'error'  => $e->getMessage(),
-                            'action' => $action,
+                            'error'       => $e->getMessage(),
+                            'action_type' => $action['type'],
                         ]);
                         $saveError = 'Gagal menyimpan catatan ke database.';
                         $reply = 'Maaf, terjadi kesalahan saat menyimpan catatan. Coba lagi ya!';
@@ -333,17 +270,19 @@ class GeminiController extends Controller
                 }
             }
 
-            return response()->json([
-                'success' => true,
-                'data' => [
-                    'reply'      => $reply,
-                    'saved'      => $saved,
-                    'save_error' => $saveError,
-                ],
-                'meta' => ['quota' => $quotaMeta],
-            ]);
-        } catch (\Exception $e) {
+            $reply = $this->finalizeReply($reply, $saved !== null, $saveError !== null);
+
+            if ($emergencyMessage !== null) {
+                $reply = $emergencyMessage . "\n\n" . $reply;
+            }
+
+            return $this->respond($session, $userPrompt, $reply, $saved, $saveError, $emergencyCategory, $quotaMeta);
+        } catch (\Throwable $e) {
             Log::error('Gemini Integration Error: ' . $e->getMessage());
+
+            if ($emergencyMessage !== null) {
+                return $this->respond($session, $userPrompt, $emergencyMessage, null, null, $emergencyCategory, $quotaMeta);
+            }
 
             return response()->json([
                 'success' => false,
@@ -352,25 +291,91 @@ class GeminiController extends Controller
         }
     }
 
+    /**
+     * Simpan pertukaran ke ingatan sesi, jadwalkan peringkasan, lalu balas.
+     */
+    private function respond(
+        ChatSession $session,
+        string $userPrompt,
+        string $reply,
+        ?array $saved,
+        ?string $saveError,
+        ?string $emergencyCategory,
+        array $quotaMeta,
+    ): JsonResponse {
+        try {
+            $this->memory->recordExchange(
+                $session,
+                $userPrompt,
+                $reply,
+                $emergencyCategory !== null ? ChatMessage::KIND_EMERGENCY : ChatMessage::KIND_CHAT,
+            );
+
+            // Peringkasan pesan lama dijalankan setelah respons terkirim,
+            // supaya tidak menambah waktu tunggu pengguna.
+            $memory = $this->memory;
+            defer(fn () => $memory->summarizeIfNeeded($session));
+        } catch (\Throwable $e) {
+            // Gagal menyimpan ingatan tidak boleh menghilangkan balasan
+            // (terutama pesan darurat) dari pengguna.
+            Log::error('Gagal menyimpan riwayat chat', ['error' => $e->getMessage()]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'reply'      => $reply,
+                'saved'      => $saved,
+                'save_error' => $saveError,
+                'session_id' => $session->exists ? $session->id : null,
+                'safety'     => $emergencyCategory !== null
+                    ? ['level' => 'emergency', 'category' => $emergencyCategory]
+                    : null,
+            ],
+            'meta' => ['quota' => $quotaMeta],
+        ]);
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
     /**
-     * Ambil hanya N pasangan (user+model) terakhir dari history untuk dikirim
-     * ke Gemini (sliding window), agar prompt tidak terus membesar dan biaya
-     * token tetap terkendali, sambil tetap menjaga konteks percakapan yang
-     * relevan untuk alur konfirmasi pencatatan.
+     * Rapikan balasan AI sebelum dikirim: batasi panjang, dan jangan biarkan
+     * klaim "sudah dicatat" lolos bila backend sebenarnya tidak menyimpan apa pun.
      */
-    private function applySlidingWindow(array $history): array
+    private function finalizeReply(string $reply, bool $wasSaved, bool $hadSaveError): string
     {
-        $maxMessages = self::HISTORY_WINDOW_PAIRS * 2; // tiap pasangan = 1 user + 1 model
+        $reply = trim($reply);
 
-        if (count($history) <= $maxMessages) {
-            return $history;
+        if (mb_strlen($reply) > self::MAX_REPLY_CHARS) {
+            $reply = mb_substr($reply, 0, self::MAX_REPLY_CHARS) . '…';
         }
 
-        return array_slice($history, -$maxMessages);
+        if ($this->claimsSaved($reply) && !$wasSaved && !$hadSaveError) {
+            // Balasan pendek yang isinya hanya klaim palsu diganti seluruhnya;
+            // balasan panjang (ada isi lain yang berguna) cukup diberi catatan.
+            if (mb_strlen($reply) <= 120) {
+                return 'Belum aku catat ya. Mau aku simpan ke log harian kamu? '
+                    . 'Balas "ya" atau "catat" untuk konfirmasi 😊';
+            }
+
+            $reply .= "\n\n_Catatan dari aplikasi: belum ada yang tersimpan ke log harian. "
+                . 'Balas "catat" kalau kamu ingin aku menyimpannya._';
+        }
+
+        return $reply;
+    }
+
+    /**
+     * Bersihkan nama dari AI sebelum disimpan/ditampilkan: buang tag HTML,
+     * rapikan spasi, dan batasi panjang sesuai kolom database.
+     */
+    private function cleanName(mixed $value, int $maxLength): string
+    {
+        $clean = trim(preg_replace('/\s+/u', ' ', strip_tags((string) $value)) ?? '');
+
+        return mb_substr($clean, 0, $maxLength);
     }
 
     /**
@@ -457,24 +462,50 @@ class GeminiController extends Controller
     }
 
     /**
-     * Bangun balasan fallback saat action dari Gemini ditolak karena belum ada
-     * konfirmasi eksplisit. Pakai reply asli dari Gemini jika sepertinya memang
-     * berupa pertanyaan konfirmasi (bukan klaim "sudah dicatat"), supaya tetap
-     * terasa natural; kalau tidak, ganti dengan teks aman generik.
+     * True bila balasan AI mengklaim, sebagai dirinya sendiri, bahwa sesuatu
+     * sudah dicatat/disimpan ("sudah aku catat", "berhasil disimpan").
+     * Sengaja sempit supaya kalimat informatif biasa tidak ikut tertangkap.
+     */
+    private function claimsSaved(string $reply): bool
+    {
+        return (bool) preg_match(
+            '/\b((sudah|telah)\s+(saya|aku|ku)\s*(catat|simpan)(kan)?|berhasil\s+(di|ku|aku\s+|saya\s+)?(catat|simpan)(kan)?)\b/iu',
+            $reply,
+        );
+    }
+
+    /**
+     * Bangun balasan saat action dari Gemini ditolak karena belum ada
+     * konfirmasi eksplisit. Bila balasan asli memang berupa tawaran, dipakai
+     * apa adanya. Bila ia sudah mengklaim "tercatat" padahal action-nya baru
+     * saja dibatalkan, klaim palsu itu diganti tawaran yang menyebut apa yang
+     * akan dicatat, supaya pengguna tinggal membalas "ya".
      */
     private function buildPendingConfirmationReply(array $parsed): string
     {
-        $originalReply = (string) ($parsed['reply'] ?? '');
+        $originalReply = trim((string) ($parsed['reply'] ?? ''));
 
-        // Jika reply asli Gemini sudah mengklaim "tersimpan/tercatat" padahal kita
-        // baru saja membatalkan action-nya, JANGAN tampilkan klaim palsu itu ke user.
-        $claimsSaved = (bool) preg_match('/\b(sudah (saya )?catat|tersimpan|tercatat)\b/iu', $originalReply);
-
-        if ($originalReply !== '' && !$claimsSaved) {
+        if ($originalReply !== '' && !$this->claimsSaved($originalReply)) {
             return $originalReply;
         }
 
-        return 'Boleh saya catat ke log harian kamu? Balas "ya" atau "catat" untuk konfirmasi ya 😊';
+        $action = is_array($parsed['action'] ?? null) ? $parsed['action'] : [];
+        $item   = '';
+
+        if (($action['type'] ?? null) === 'food_log') {
+            $item   = $this->cleanName($action['food_log']['nama_makanan'] ?? '', 120);
+            $weight = (float) ($action['food_log']['weight'] ?? 0);
+
+            if ($item !== '' && $weight > 0) {
+                $item .= ' ' . rtrim(rtrim(number_format($weight, 1, ',', ''), '0'), ',') . ' gram';
+            }
+        } elseif (($action['type'] ?? null) === 'supplement_log') {
+            $item = $this->cleanName($action['supplement_log']['nama_suplemen'] ?? '', 120);
+        }
+
+        return $item !== ''
+            ? "Mau aku catat {$item} ke log harian kamu? Balas \"ya\" atau \"catat\" untuk konfirmasi ya 😊"
+            : 'Mau aku catat ke log harian kamu? Balas "ya" atau "catat" untuk konfirmasi ya 😊';
     }
 
     /**
@@ -579,10 +610,13 @@ class GeminiController extends Controller
         $namaMakanan = mb_strtolower((string) ($foodLog['nama_makanan'] ?? ''));
 
         if ($namaMakanan !== '') {
-            foreach (self::UNHEALTHY_NAME_KEYWORDS as $keyword) {
-                if (str_contains($namaMakanan, $keyword)) {
-                    return true;
-                }
+            // Kata utuh (bukan substring), supaya mis. "bir" tidak cocok
+            // dengan "biru" dan "soda" tidak cocok dengan kata lain.
+            $keywords = array_map(fn (string $k) => preg_quote($k, '/'), self::UNHEALTHY_NAME_KEYWORDS);
+            $pattern  = '/(?<![\p{L}\p{N}])(' . implode('|', $keywords) . ')(?![\p{L}\p{N}])/u';
+
+            if (preg_match($pattern, $namaMakanan)) {
+                return true;
             }
         }
 
@@ -610,46 +644,52 @@ class GeminiController extends Controller
     }
 
     /**
-     * Cari data referensi makanan & suplemen berdasarkan keyword sederhana
-     * yang muncul dalam prompt pengguna. Hasil ini disuntikkan ke prompt
-     * Gemini sebagai "context_data" agar AI memakai data DB jika cocok.
+     * Kata yang terlalu umum untuk dijadikan kunci pencarian katalog: muncul
+     * di hampir semua kalimat pengguna atau di hampir semua nama produk
+     * (mis. "kapsul"), sehingga hanya mengaburkan hasil.
+     */
+    private const LOOKUP_STOPWORDS = [
+        'saya', 'kamu', 'tadi', 'tadinya', 'pagi', 'siang', 'sore', 'malam', 'hari',
+        'sudah', 'udah', 'barusan', 'baru', 'makan', 'minum', 'mengonsumsi', 'konsumsi',
+        'catat', 'catatkan', 'tolong', 'boleh', 'dong', 'yang', 'dengan', 'sama',
+        'untuk', 'dari', 'kira', 'kira-kira', 'sekitar', 'gram', 'porsi', 'gelas',
+        'mangkuk', 'piring', 'buah', 'butir', 'potong', 'sendok',
+        'kapsul', 'tablet', 'kaplet', 'botol', 'strip', 'sachet', 'suplemen', 'vitamin',
+    ];
+
+    /**
+     * Cari data referensi makanan & suplemen dari database berdasarkan kata
+     * yang muncul di pesan pengguna. Hasilnya disuntikkan ke giliran user
+     * sebagai "context_data" agar AI memakai data katalog bila cocok.
+     *
+     * Kandidat diurutkan menurut BANYAKNYA kata yang cocok dengan namanya,
+     * supaya produk yang paling sesuai (mis. tiga kata cocok) tidak tergeser
+     * oleh produk lain yang hanya cocok satu kata umum.
      */
     private function buildContextData(string $prompt): array
     {
-        // Ambil kata-kata signifikan dari prompt (panjang >= 3 huruf)
-        $words = collect(preg_split('/\s+/', mb_strtolower($prompt)))
-            ->filter(fn($w) => mb_strlen($w) >= 3)
+        $words = collect(preg_split('/[^\p{L}\p{N}]+/u', mb_strtolower($prompt)) ?: [])
+            ->filter(fn ($w) => mb_strlen($w) >= 4 && !in_array($w, self::LOOKUP_STOPWORDS, true))
             ->unique()
+            ->take(12)
             ->values();
 
         if ($words->isEmpty()) {
             return ['foods' => [], 'supplements' => []];
         }
 
-        $foodQuery = Food::query();
-        $supplementQuery = Supplement::query();
-
-        // Catatan: ambang mb_strlen($w) >= 4 di bawah ini dipakai untuk KEDUA
-        // query (food & supplement), bukan cuma supplement — tujuannya sama:
-        // menghindari kata umum pendek (mis. "plus", "food") terlalu dominan
-        // sebagai kriteria pencarian LIKE.
-        $foodQuery->where(function ($q) use ($words) {
+        $matchAnyWord = function ($q) use ($words) {
             foreach ($words as $w) {
-                if (mb_strlen($w) >= 4) {
-                    $q->orWhere('name', 'like', '%' . $w . '%');
-                }
+                $q->orWhere('name', 'like', '%' . $w . '%');
             }
-        });
+        };
 
-        $supplementQuery->where(function ($q) use ($words) {
-            foreach ($words as $w) {
-                if (mb_strlen($w) >= 4) {
-                    $q->orWhere('name', 'like', '%' . $w . '%');
-                }
-            }
-        });
+        $rank = fn ($rows) => $rows
+            ->sortByDesc(fn ($row) => $words->filter(fn ($w) => str_contains(mb_strtolower($row->name), $w))->count())
+            ->take(5)
+            ->values();
 
-        $foods = $foodQuery->limit(5)->get([
+        $foods = $rank(Food::query()->where($matchAnyWord)->limit(60)->get([
             'id',
             'name',
             'category',
@@ -657,18 +697,18 @@ class GeminiController extends Controller
             'fat',
             'carbohydrate',
             'protein',
-        ]);
+        ]));
 
-        $supplements = $supplementQuery->limit(5)->get([
+        $supplements = $rank(Supplement::query()->where($matchAnyWord)->limit(60)->get([
             'id',
             'name',
             'composition',
             'packaging',
             'usage_rule',
-        ]);
+        ]));
 
         return [
-            'foods' => $foods->map(fn($f) => [
+            'foods' => $foods->map(fn ($f) => [
                 'id'           => $f->id,
                 'nama_makanan' => $f->name,
                 'kategori'     => $f->category,
@@ -677,7 +717,7 @@ class GeminiController extends Controller
                 'karbo_g'      => $f->carbohydrate,
                 'protein_g'    => $f->protein,
             ])->all(),
-            'supplements' => $supplements->map(fn($s) => [
+            'supplements' => $supplements->map(fn ($s) => [
                 'id'            => $s->id,
                 'nama_suplemen' => $s->name,
                 'komposisi'     => $s->composition,
@@ -685,57 +725,6 @@ class GeminiController extends Controller
                 'aturan_pakai'  => $s->usage_rule,
             ])->all(),
         ];
-    }
-
-    /**
-     * Susun array "contents" untuk request Gemini, menyertakan system
-     * instruction sebagai turn pertama, lalu riwayat percakapan (sudah
-     * dipangkas oleh sliding window), lalu prompt baru beserta context_data.
-     */
-    private function buildContents(array $history, string $userPrompt, array $contextData): array
-    {
-        $contents = [];
-
-        // System instruction dikirim sebagai turn pertama "user" + balasan
-        // pendek dari "model" agar Gemini mematuhinya sebagai konteks.
-        $contents[] = [
-            'role'  => 'user',
-            'parts' => [['text' => $this->buildSystemInstruction()]],
-        ];
-        $contents[] = [
-            'role'  => 'model',
-            'parts' => [['text' => json_encode(['reply' => 'Siap, saya akan mengikuti instruksi tersebut.', 'action' => null])]],
-        ];
-
-        // Riwayat percakapan sebelumnya (sliding window). Catatan keamanan:
-        // history berasal dari client dan TIDAK dianggap tepercaya sebagai
-        // fakta ("model" turn di sini hanyalah teks konteks percakapan, bukan
-        // sumber kebenaran). Guard di ask() (isExplicitConfirmation,
-        // isLikelyUnhealthyFood, clampNutritionValue) tetap berjalan terlepas
-        // dari apa isi history, sehingga history yang dipalsukan tidak bisa
-        // memaksa data tersimpan ke database tanpa lolos guard tersebut.
-        foreach ($history as $h) {
-            $role = $h['role'] === 'model' ? 'model' : 'user';
-            $contents[] = [
-                'role'  => $role,
-                'parts' => [['text' => $h['text']]],
-            ];
-        }
-
-        // Prompt terbaru + context_data referensi DB
-        $userMessage = $userPrompt;
-        if (!empty($contextData['foods']) || !empty($contextData['supplements'])) {
-            $userMessage .= "\n\ncontext_data: " . json_encode($contextData, JSON_UNESCAPED_UNICODE);
-        } else {
-            $userMessage .= "\n\ncontext_data: {\"foods\": [], \"supplements\": []}";
-        }
-
-        $contents[] = [
-            'role'  => 'user',
-            'parts' => [['text' => $userMessage]],
-        ];
-
-        return $contents;
     }
 
     /**
@@ -867,8 +856,12 @@ class GeminiController extends Controller
         if ($type === 'food_log') {
             $data = $action['food_log'] ?? [];
 
-            $namaMakanan = trim((string) ($data['nama_makanan'] ?? ''));
+            $namaMakanan = $this->cleanName($data['nama_makanan'] ?? '', 120);
+            // ID dari AI tidak dipercaya begitu saja: harus benar-benar ada di katalog.
             $makananId   = $data['makanan_id'] ?? null;
+            if ($makananId !== null && !(is_numeric($makananId) && Food::whereKey((int) $makananId)->exists())) {
+                $makananId = null;
+            }
 
             // Sanity-clamp nilai gizi dari Gemini sebelum disimpan, supaya
             // nilai negatif/ekstrem (halusinasi model) tidak mencemari
@@ -878,7 +871,7 @@ class GeminiController extends Controller
             $protein     = $this->clampNutritionValue($data['protein'] ?? 0, self::MAX_MACRO_G);
             $carbs       = $this->clampNutritionValue($data['carbs'] ?? 0, self::MAX_MACRO_G);
             $fat         = $this->clampNutritionValue($data['fat'] ?? 0, self::MAX_MACRO_G);
-            $category    = (string) ($data['category'] ?? '');
+            $category    = $this->cleanName($data['category'] ?? '', 100);
 
             if ($namaMakanan === '') {
                 throw new \InvalidArgumentException('nama_makanan kosong pada action food_log');
@@ -927,10 +920,14 @@ class GeminiController extends Controller
         if ($type === 'supplement_log') {
             $data = $action['supplement_log'] ?? [];
 
-            $namaSuplemen = trim((string) ($data['nama_suplemen'] ?? ''));
+            $namaSuplemen = $this->cleanName($data['nama_suplemen'] ?? '', 120);
             $supplementId = $data['supplement_id'] ?? null;
+            if ($supplementId !== null && !(is_numeric($supplementId) && Supplement::whereKey((int) $supplementId)->exists())) {
+                $supplementId = null;
+            }
             $komposisi    = $this->nullableString($data['komposisi'] ?? null);
             $kemasan      = $this->nullableString($data['kemasan'] ?? null);
+            $kemasan      = $kemasan !== null ? mb_substr($kemasan, 0, 190) : null;
             $aturanPakai  = $this->nullableString($data['aturan_pakai'] ?? null);
             $source = $this->sanitizeSource($data['source'] ?? null);
             $reminderTime = $data['reminder_time'] ?? null;
@@ -942,44 +939,56 @@ class GeminiController extends Controller
 
             $supplementImage = null;
 
-            if (!empty($supplementId)) {
-                // supplement_id sudah diketahui (mis. dari context_data) ->
-                // ambil gambar yang sudah di-cache di master, jangan cari ulang.
-                $supplementImage = Supplement::find($supplementId)?->image;
+            // Katalog adalah sumber kebenaran: bila suplemen sudah ada di master
+            // (lewat id dari context_data, atau nama yang sama persis), data
+            // produknya diambil dari sana — bukan dari tebakan AI.
+            $master = !empty($supplementId)
+                ? Supplement::find($supplementId)
+                : Supplement::where('name', $namaSuplemen)->first();
+
+            if ($master) {
+                $supplementId    = $master->id;
+                $supplementImage = $master->image;
+                $komposisi       = $this->nullableString($master->composition) ?? $komposisi;
+                $kemasan         = $this->nullableString($master->packaging) ?? $kemasan;
+                $aturanPakai     = $this->nullableString($master->usage_rule) ?? $aturanPakai;
+                $source          = 'Database Ibusehat';
             } else {
-                // supplement_id belum diketahui -> cari/buat master data.
-                // Dibungkus transaction + firstOrCreate untuk mengurangi
-                // race condition dibanding where()->first() + create() manual.
+                // Suplemen baru: komposisi & kemasan wajib ada (system prompt
+                // sudah memintanya, tetapi tetap diperiksa di sini). Tanpa itu
+                // katalog tidak boleh diisi data kosong; minta ke pengguna.
+                if ($komposisi === null || $kemasan === null) {
+                    throw new \DomainException(
+                        "Aku belum punya info lengkap tentang {$namaSuplemen}. Boleh sebutkan komposisi dan "
+                        . 'kemasannya (biasanya ada di label)? Setelah itu aku catat ya.'
+                    );
+                }
+
                 // Pencarian gambar (fetchSupplementImageUrl) SENGAJA dilakukan
                 // DI LUAR transaction karena ia melakukan HTTP call eksternal
-                // (jangan menahan koneksi/transaksi DB selama menunggu network).
-                $existing = Supplement::where('name', $namaSuplemen)->first();
+                // (jangan menahan koneksi/transaksi DB selama menunggu network),
+                // dan hanya untuk suplemen yang benar-benar baru.
+                $supplementImage = $this->fetchSupplementImageUrl($namaSuplemen);
 
-                if ($existing) {
-                    $supplementId    = $existing->id;
-                    $supplementImage = $existing->image;
-                } else {
-                    // Cari gambar produk HANYA saat suplemen benar-benar baru,
-                    // supaya tidak boros kuota/scraping untuk suplemen yang
-                    // sudah pernah dicatat sebelumnya.
-                    $supplementImage = $this->fetchSupplementImageUrl($namaSuplemen);
+                $newSupplement = DB::transaction(function () use ($namaSuplemen, $komposisi, $kemasan, $aturanPakai, $supplementImage) {
+                    return Supplement::firstOrCreate(
+                        ['name' => $namaSuplemen],
+                        [
+                            'composition' => $komposisi,
+                            'packaging'   => $kemasan,
+                            'usage_rule'  => $aturanPakai,
+                            'image'       => $supplementImage,
+                        ]
+                    );
+                });
 
-                    $newSupplement = DB::transaction(function () use ($namaSuplemen, $komposisi, $kemasan, $aturanPakai, $supplementImage) {
-                        return Supplement::firstOrCreate(
-                            ['name' => $namaSuplemen],
-                            [
-                                'composition' => $komposisi,
-                                'packaging'   => $kemasan,
-                                'usage_rule'  => $aturanPakai,
-                                'image'       => $supplementImage,
-                            ]
-                        );
-                    });
-
-                    $supplementId    = $newSupplement->id;
-                    $supplementImage = $newSupplement->image;
-                }
+                $supplementId    = $newSupplement->id;
+                $supplementImage = $newSupplement->image;
             }
+
+            // Kolom source wajib diisi. Bila AI tidak menyebut sumbernya,
+            // tandai apa adanya sebagai perkiraan AI.
+            $source ??= 'Perkiraan AI';
 
             // Validasi format reminder_time "H:i" jika ada. Jika tidak valid,
             // diamkan sebagai null (bukan field kritikal), tapi tetap dicatat

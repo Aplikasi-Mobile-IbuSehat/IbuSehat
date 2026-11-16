@@ -287,28 +287,28 @@ class _ShareAchievementPageState extends State<ShareAchievementPage> {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildSocialButton(
-                icon: FontAwesomeIcons.instagram,
+                icon: FontAwesomeIcons.instagram.data,
                 label: 'Instagram',
                 color: const Color(0xFFE1306C),
                 textSecondary: textSecondary,
                 onTap: () => _shareImage(),
               ),
               _buildSocialButton(
-                icon: FontAwesomeIcons.whatsapp,
+                icon: FontAwesomeIcons.whatsapp.data,
                 label: 'WhatsApp',
                 color: const Color(0xFF25D366),
                 textSecondary: textSecondary,
                 onTap: () => _shareImage(text: _shareCaption),
               ),
               _buildSocialButton(
-                icon: FontAwesomeIcons.facebookF,
+                icon: FontAwesomeIcons.facebookF.data,
                 label: 'Facebook',
                 color: const Color(0xFF1877F2),
                 textSecondary: textSecondary,
                 onTap: () => _shareImage(),
               ),
               _buildSocialButton(
-                icon: FontAwesomeIcons.xTwitter,
+                icon: FontAwesomeIcons.xTwitter.data,
                 label: 'X',
                 color: textPrimary,
                 textSecondary: textSecondary,

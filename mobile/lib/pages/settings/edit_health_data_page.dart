@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/widgets/custom_toast.dart';
 
+/// Halaman "Data Kesehatan". Dibuka dari Profil maupun dari popup HealthGate;
+/// di-pop dengan `true` setelah data berhasil disimpan.
 class EditHealthDataPage extends StatefulWidget {
   const EditHealthDataPage({super.key});
 
@@ -90,7 +92,7 @@ class _EditHealthDataPageState extends State<EditHealthDataPage> {
   Future<void> _saveProfile() async {
     if (_isSaving) return;
     if (!_formKey.currentState!.validate()) {
-      CustomToast.show(context, 'Lengkapi data kesehatan dengan benar', isError: true);
+      CustomToast.show(context, 'Isi data kesehatan dengan benar', isError: true);
       return;
     }
 
@@ -106,7 +108,7 @@ class _EditHealthDataPageState extends State<EditHealthDataPage> {
       );
       if (!mounted) return;
       CustomToast.show(context, 'Data kesehatan berhasil diperbarui');
-      Navigator.pop(context);
+      Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
       CustomToast.show(
@@ -183,7 +185,7 @@ class _EditHealthDataPageState extends State<EditHealthDataPage> {
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         title: Text(
-          'Edit Data Kesehatan',
+          'Data Kesehatan',
           style: TextStyle(
             fontWeight: FontWeight.w800,
             color: textPrimary,
@@ -226,7 +228,7 @@ class _EditHealthDataPageState extends State<EditHealthDataPage> {
                             unit: 'Kg',
                             isDark: isDark,
                             keyboardType: TextInputType.number,
-                            validator: (v) => _requiredNumber(v, min: 10, max: 500, label: 'Target berat badan'),
+                            validator: (v) => _requiredNumber(v, min: 30, max: 200, label: 'Target berat badan'),
                           ),
                           const SizedBox(height: 20),
                           _buildInputField(
@@ -235,7 +237,7 @@ class _EditHealthDataPageState extends State<EditHealthDataPage> {
                             unit: 'Kg',
                             isDark: isDark,
                             keyboardType: TextInputType.number,
-                            validator: (v) => _requiredNumber(v, min: 10, max: 500, label: 'Berat badan'),
+                            validator: (v) => _requiredNumber(v, min: 30, max: 200, label: 'Berat badan'),
                           ),
                           const SizedBox(height: 20),
                           _buildInputField(
@@ -253,7 +255,7 @@ class _EditHealthDataPageState extends State<EditHealthDataPage> {
                             unit: 'Cm',
                             isDark: isDark,
                             keyboardType: TextInputType.number,
-                            validator: (v) => _requiredNumber(v, min: 50, max: 300, label: 'Tinggi badan'),
+                            validator: (v) => _requiredNumber(v, min: 100, max: 220, label: 'Tinggi badan'),
                           ),
                           const SizedBox(height: 20),
                           _buildDateField(isDark),

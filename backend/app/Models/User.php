@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -22,8 +21,6 @@ class User extends Authenticatable
         'email_verified_at',
         'is_onboarding_done',
         'fcm_token',
-        'is_premium',
-        'premium_until',
         'height',
         'weight',
         'target_weight',
@@ -42,8 +39,6 @@ class User extends Authenticatable
             'email_verified_at'  => 'datetime',
             'password'           => 'hashed',
             'is_onboarding_done' => 'boolean',
-            'is_premium'         => 'boolean',
-            'premium_until'      => 'datetime',
             'height'             => 'float',
             'weight'             => 'float',
             'target_weight'      => 'float',
@@ -57,20 +52,21 @@ class User extends Authenticatable
     // -------------------------------------------------------------------------
 
     /**
-     * Cek apakah user memiliki akses premium yang masih berlaku.
-     * Mempertimbangkan flag is_premium DAN tanggal kadaluarsa premium_until.
+     * Data kesehatan dianggap lengkap jika semua field berikut terisi dan
+     * berada dalam rentang validasi yang sama dengan form (lihat
+     * ProfileController::update dan AuthController::updateOnboarding).
+     * Ini syarat akses Chatbot AI dan program latihan.
      */
-    public function hasActivePremium(): bool
+    public function hasCompleteHealthData(): bool
     {
-        if (!$this->is_premium) {
-            return false;
-        }
+        $inRange = fn ($value, float $min, float $max): bool =>
+            $value !== null && is_numeric($value) && $value >= $min && $value <= $max;
 
-        if ($this->premium_until === null) {
-            return true; // premium tanpa batas waktu
-        }
-
-        return $this->premium_until->isFuture();
+        return $inRange($this->height, 100, 220)
+            && $inRange($this->weight, 30, 200)
+            && $inRange($this->target_weight, 30, 200)
+            && $inRange($this->age, 12, 80)
+            && $this->delivery_date !== null;
     }
 
     // -------------------------------------------------------------------------
@@ -100,20 +96,5 @@ class User extends Authenticatable
     public function waterIntakes(): HasMany
     {
         return $this->hasMany(WaterIntake::class);
-    }
-
-    public function activeSubscription(): HasOne
-    {
-        return $this->hasOne(Subscription::class)
-            ->where('status', 'active')
-            ->where(function ($q) {
-                $q->whereNull('expires_at')->orWhere('expires_at', '>', now());
-            })
-            ->latestOfMany();
-    }
-
-    public function subscriptions(): HasMany
-    {
-        return $this->hasMany(Subscription::class);
     }
 }

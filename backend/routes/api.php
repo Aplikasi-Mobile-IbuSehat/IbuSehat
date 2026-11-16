@@ -3,12 +3,12 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\ChatSessionController;
 use App\Http\Controllers\GeminiController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\FoodLogController;
 use App\Http\Controllers\SupplementController;
 use App\Http\Controllers\SupplementLogController;
-use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\FcmTokenController;
 use App\Http\Controllers\SleepController;
 use App\Http\Controllers\SleepLogController;
@@ -30,11 +30,6 @@ Route::get('/test', function () {
 // Auth routes (public)
 // ─────────────────────────────────────────────
 Route::post('/auth/google', [AuthController::class, 'googleLogin']);
-
-// ─────────────────────────────────────────────
-// Payment routes (public — webhook dari Midtrans)
-// ─────────────────────────────────────────────
-Route::post('/payment/notification', [PaymentController::class, 'handleNotification']);
 
 // ─────────────────────────────────────────────
 // Workout programs (public)
@@ -83,17 +78,19 @@ Route::middleware('auth:sanctum')->group(function () {
     // ── FCM Token ──────────────────────────────
     Route::post('/fcm-token', [FcmTokenController::class, 'store']);
 
-    // ── Chatbot AI (Gemini) — Premium Only ─────
+    // ── Chatbot AI (Gemini) — wajib data kesehatan lengkap ─────
     // Ini SATU-SATUNYA jalur user-facing untuk menambah data master baru ke
     // foods/supplements. Ditangani lewat GeminiController::handleAction(),
     // yang punya guard: clamp nilai gizi, blokir makanan tidak sehat, dan
     // wajib konfirmasi eksplisit dari user sebelum data disimpan.
-    Route::middleware(['throttle:chat', 'premium.chat-quota'])->group(function () {
+    Route::middleware(['throttle:chat', 'chat.access'])->group(function () {
         Route::post('/gemini/chat', [GeminiController::class, 'ask']);
     });
 
-    // ── Payment ────────────────────────────────
-    Route::post('/payment/create', [PaymentController::class, 'createTransaction']);
+    // Riwayat sesi chat milik user (tidak memakai kuota chat).
+    Route::get('/gemini/sessions', [ChatSessionController::class, 'index']);
+    Route::get('/gemini/sessions/{id}/messages', [ChatSessionController::class, 'messages'])->whereNumber('id');
+    Route::delete('/gemini/sessions/{id}', [ChatSessionController::class, 'destroy'])->whereNumber('id');
 
     // ── Activities ─────────────────────────────
     Route::get('/activities/summary', [ActivityController::class, 'summary']);

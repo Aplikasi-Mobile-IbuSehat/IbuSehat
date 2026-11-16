@@ -48,7 +48,23 @@ return [
     // Jangan panggil env('GEMINI_API_KEY') langsung di controller — akan
     // mengembalikan null setelah `php artisan config:cache` dijalankan.
     'gemini' => [
-        'key' => env('GEMINI_API_KEY'),
+        'key'      => env('GEMINI_API_KEY'),
+        'model'    => env('GEMINI_MODEL', 'gemini-2.5-flash-lite'),
+        'base_url' => env('GEMINI_BASE_URL', 'https://generativelanguage.googleapis.com/v1beta'),
+    ],
+
+    // Nomor darurat yang ditampilkan IbuSehat AI saat backend mendeteksi tanda
+    // bahaya (lihat App\Services\Chat\EmergencyDetector). Sesuaikan bila perlu.
+    'emergency' => [
+        'ambulance' => env('EMERGENCY_NUMBER_AMBULANCE', '119'),
+        'general'   => env('EMERGENCY_NUMBER_GENERAL', '112'),
+    ],
+
+    // Opsional: path file CA bundle (cacert.pem) untuk panggilan HTTPS keluar
+    // (verifikasi token Google, Gemini). Perlu di Windows kalau php.ini belum
+    // mengatur curl.cainfo — gejalanya "cURL error 60". Kosongkan di server.
+    'http' => [
+        'ca_bundle' => env('HTTP_CA_BUNDLE'),
     ],
 
 ];

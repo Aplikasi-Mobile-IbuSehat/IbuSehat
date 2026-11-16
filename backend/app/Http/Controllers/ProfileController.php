@@ -28,7 +28,7 @@ class ProfileController extends Controller
                 'target_weight'      => $user->target_weight,
                 'age'                => $user->age,
                 'delivery_date'      => $user->delivery_date?->toDateString(),
-                'is_premium'         => $user->hasActivePremium(),
+                'health_data_complete' => $user->hasCompleteHealthData(),
                 'created_at'         => $user->created_at,
             ],
         ]);
@@ -44,9 +44,9 @@ class ProfileController extends Controller
 
         $validated = $request->validate([
             'name'           => ['sometimes', 'required', 'string', 'max:100'],
-            'height'         => ['sometimes', 'nullable', 'numeric', 'min:50', 'max:300'],
-            'weight'         => ['sometimes', 'nullable', 'numeric', 'min:10', 'max:500'],
-            'target_weight'  => ['sometimes', 'nullable', 'numeric', 'min:10', 'max:500'],
+            'height'         => ['sometimes', 'nullable', 'numeric', 'min:100', 'max:220'],
+            'weight'         => ['sometimes', 'nullable', 'numeric', 'min:30', 'max:200'],
+            'target_weight'  => ['sometimes', 'nullable', 'numeric', 'min:30', 'max:200'],
             'age'            => ['sometimes', 'nullable', 'integer', 'min:12', 'max:80'],
             'delivery_date'  => ['sometimes', 'nullable', 'date'],
             'avatar'         => ['sometimes', 'nullable', 'string', 'max:500'],
@@ -68,7 +68,7 @@ class ProfileController extends Controller
                 'target_weight'      => $user->target_weight,
                 'age'                => $user->age,
                 'delivery_date'      => $user->delivery_date?->toDateString(),
-                'is_premium'         => $user->hasActivePremium(),
+                'health_data_complete' => $user->hasCompleteHealthData(),
             ],
         ]);
     }

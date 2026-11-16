@@ -67,9 +67,9 @@ class AuthController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'height'        => ['sometimes', 'nullable', 'numeric', 'min:50', 'max:300'],
-            'weight'        => ['sometimes', 'nullable', 'numeric', 'min:10', 'max:500'],
-            'target_weight' => ['sometimes', 'nullable', 'numeric', 'min:10', 'max:500'],
+            'height'        => ['sometimes', 'nullable', 'numeric', 'min:100', 'max:220'],
+            'weight'        => ['sometimes', 'nullable', 'numeric', 'min:30', 'max:200'],
+            'target_weight' => ['sometimes', 'nullable', 'numeric', 'min:30', 'max:200'],
             'age'           => ['sometimes', 'nullable', 'integer', 'min:12', 'max:80'],
             'delivery_date' => ['sometimes', 'nullable', 'date'],
         ]);
@@ -79,8 +79,9 @@ class AuthController extends Controller
         $user->save();
 
         return response()->json([
-            'message'            => 'Onboarding status updated',
-            'is_onboarding_done' => true,
+            'message'              => 'Onboarding status updated',
+            'is_onboarding_done'   => true,
+            'health_data_complete' => $user->hasCompleteHealthData(),
         ]);
     }
 
@@ -207,8 +208,7 @@ class AuthController extends Controller
             'email'              => $user->email,
             'avatar'             => $user->avatar,
             'is_onboarding_done' => (bool) $user->is_onboarding_done,
-            'is_premium'         => $user->hasActivePremium(),
-            'premium_until'      => $user->premium_until?->toIso8601String(),
+            'health_data_complete' => $user->hasCompleteHealthData(),
         ];
     }
 }

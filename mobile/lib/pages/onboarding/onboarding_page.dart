@@ -17,6 +17,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
   int _currentStep = 0;
 
   static const int _totalSteps = 8;
+
+  // Batas pengisian. Roda berat & tinggi mulai dari batas minimumnya.
+  static const int _minWeightKg = 30;
+  static const int _maxWeightKg = 200;
+  static const int _minHeightCm = 100;
+  static const int _maxHeightCm = 220;
   static const LinearGradient _primaryGradient = LinearGradient(
     colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
     begin: Alignment.centerLeft,
@@ -430,8 +436,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
       title: "Tinggi Badan",
       subtitle: "Geser untuk memilih tinggi (cm)",
       unit: "cm",
-      min: 120,
-      max: 200,
+      min: _minHeightCm,
+      max: _maxHeightCm,
+      initialValue: _minHeightCm,
       touched: _touchedHeight,
       value: _heightCm,
       onChanged: (v) => setState(() {
@@ -447,8 +454,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
       title: "Berat Badan",
       subtitle: "Geser untuk memilih berat (kg)",
       unit: "kg",
-      min: 30,
-      max: 200,
+      min: _minWeightKg,
+      max: _maxWeightKg,
+      initialValue: _minWeightKg,
       touched: _touchedWeight,
       value: _weightKg,
       onChanged: (v) => setState(() {
@@ -464,8 +472,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
       title: "Target Berat Badan",
       subtitle: "Geser untuk memilih target (kg)",
       unit: "kg",
-      min: 30,
-      max: 200,
+      min: _minWeightKg,
+      max: _maxWeightKg,
+      initialValue: _minWeightKg,
       touched: _touchedTargetWeight,
       value: _targetWeightKg,
       onChanged: (v) => setState(() {
@@ -488,8 +497,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
     required int? value,
     required ValueChanged<int> onChanged,
     String nextButtonText = "Lanjutkan",
+    int? initialValue,
   }) {
-    final displayValue = touched && value != null ? "$value $unit" : "Belum dipilih";
+    final displayValue = touched && value != null
+        ? "$value $unit"
+        : "Belum dipilih — geser atau ketuk angkanya";
 
     return Builder(builder: (context) {
       return Column(
@@ -545,7 +557,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       child: _buildIntWheelPicker(
                         min: min,
                         max: max,
-                        initialValue: value ?? ((min + max) ~/ 2),
+                        initialValue:
+                            value ?? initialValue ?? ((min + max) ~/ 2),
                         onChanged: onChanged,
                       ),
                     ),
@@ -567,7 +580,26 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }) {
     final values = List<int>.generate(max - min + 1, (i) => min + i);
     final initialIndex = (initialValue - min).clamp(0, values.length - 1);
+    final controller = FixedExtentScrollController(initialItem: initialIndex);
 
+    // Roda baru memanggil onChanged saat digeser. Ketukan memilih angka yang
+    // sedang tampil, supaya nilai awal (mis. 30 kg) bisa dipilih apa adanya.
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onTap: () {
+        if (!controller.hasClients) return;
+        final index = controller.selectedItem.clamp(0, values.length - 1);
+        onChanged(values[index]);
+      },
+      child: _buildWheel(values, controller, onChanged),
+    );
+  }
+
+  Widget _buildWheel(
+    List<int> values,
+    FixedExtentScrollController controller,
+    ValueChanged<int> onChanged,
+  ) {
     return CupertinoTheme(
       data: const CupertinoThemeData(
         textTheme: CupertinoTextThemeData(
@@ -583,7 +615,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
         magnification: 1.05,
         squeeze: 1.1,
         useMagnifier: true,
-        scrollController: FixedExtentScrollController(initialItem: initialIndex),
+        scrollController: controller,
         onSelectedItemChanged: (index) => onChanged(values[index]),
         children: values
             .map(

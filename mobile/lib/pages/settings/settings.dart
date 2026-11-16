@@ -6,8 +6,6 @@ import 'package:mobile/services/auth_service.dart';
 import 'package:mobile/pages/settings/edit_health_data_page.dart';
 import 'package:mobile/pages/skincare/skincare_page.dart';
 import 'package:mobile/pages/settings/bmi_calculator/bmi_calculator_page.dart';
-import 'package:mobile/pages/payments/premium_page.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mobile/theme/app_colors.dart';
 import 'package:mobile/theme/app_theme.dart';
 import 'package:app_settings/app_settings.dart';
@@ -29,7 +27,7 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // Listen perubahan user dari AuthService (misal: setelah pembayaran premium)
+    // Listen perubahan user dari AuthService (misal: setelah data kesehatan disimpan)
     // sehingga UI langsung rebuild tanpa perlu reload manual.
     AuthService.instance.userNotifier.addListener(_onUserChanged);
     _loadUser();
@@ -94,8 +92,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
       }
     }
   }
-
-  bool get _isPremium => _user?.isPremium ?? false;
 
   String _avatarUrl() {
     final u = _user;
@@ -289,10 +285,6 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                 children: [
                   const SizedBox(height: 20),
                   _buildProfileHeader(),
-                  if (!_profileLoading && !_isPremium) ...[
-                    const SizedBox(height: 32),
-                    _buildPremiumCard(context),
-                  ],
                   const SizedBox(height: 40),
                   _buildSectionTitle('Lainnya'),
                   const SizedBox(height: 16),
@@ -459,118 +451,10 @@ class _SettingsPageState extends State<SettingsPage> with WidgetsBindingObserver
                 ),
               ),
               const SizedBox(height: 10),
-              if (_isPremium)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)],
-                    ),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.star_rounded, color: Colors.white, size: 14),
-                      SizedBox(width: 6),
-                      Text(
-                        'Premium Member',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
             ],
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildPremiumCard(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const PremiumPage()),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF9333EA), Color(0xFF3B82F6)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF9333EA).withValues(alpha: 0.3),
-              blurRadius: 24,
-              offset: const Offset(0, 12),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'AI Assistant Premium',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      height: 1.2,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Dapatkan Akses Premium',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            SvgPicture.asset(
-              'assets/icons/sparkles_premium.svg',
-              width: 60,
-              height: 60,
-              colorFilter: const ColorFilter.mode(
-                Colors.white,
-                BlendMode.srcIn,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

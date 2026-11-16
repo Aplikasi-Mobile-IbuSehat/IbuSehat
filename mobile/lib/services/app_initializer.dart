@@ -40,7 +40,6 @@ class AppInitializer {
       initializeDateFormatting('id', null),
       appThemeController.load(),
       _initChatbot(),
-      _initPaymentGateway(),
     ]);
 
     final loggedIn = await AuthService.instance.isLoggedIn;
@@ -76,10 +75,6 @@ class AppInitializer {
   }
 
   static Future<void> _initChatbot() async {
-    await Future.delayed(const Duration(milliseconds: 300));
-  }
-
-  static Future<void> _initPaymentGateway() async {
     await Future.delayed(const Duration(milliseconds: 300));
   }
 }

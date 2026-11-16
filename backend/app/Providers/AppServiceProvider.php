@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\ServiceProvider;
@@ -27,6 +28,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)
                 ->by($request->user()?->id ?: $request->ip());
         });
+
+        // CA bundle untuk HTTPS keluar (lihat config/services.php 'http').
+        // Verifikasi sertifikat tetap aktif; ini hanya memberi tahu lokasinya.
+        $caBundle = config('services.http.ca_bundle');
+        if (is_string($caBundle) && $caBundle !== '' && is_file($caBundle)) {
+            Http::globalOptions(['verify' => $caBundle]);
+        }
 
         // Auto-create database jika belum ada (fitur Hakim)
         $this->ensureMysqlDatabaseExists();
